@@ -1,0 +1,7 @@
+.vercel
+.env*
+
+# ไฟล์ agent skills ที่ Vercel/Neon ติดตั้งมาเองตอนสร้างฐานข้อมูล ไม่ใช่ส่วนหนึ่งของโปรเจกต์
+.agents/
+.claude/
+skills-lock.json

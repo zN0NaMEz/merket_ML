@@ -4,3 +4,4 @@ dist/
 __pycache__/
 ml/models/*.joblib
 ml/models/*.json
+*.local.txt

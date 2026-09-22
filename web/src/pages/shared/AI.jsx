@@ -121,8 +121,8 @@ function Weights({ weights, signed }) {
     <div>{sorted.map(w => {
       const f = Math.abs(w.value) / max;
       const style = signed
-        ? (w.value >= 0 ? { left: '50%', width: `${f * 50}%`, background: 'var(--chili)' } : { right: '50%', width: `${f * 50}%`, background: 'var(--leaf)' })
-        : { left: 0, width: `${f * 100}%`, background: 'var(--tarp)' };
+        ? (w.value >= 0 ? { left: '50%', width: `${f * 50}%`, background: 'var(--danger)' } : { right: '50%', width: `${f * 50}%`, background: 'var(--ok)' })
+        : { left: 0, width: `${f * 100}%`, background: 'var(--accent)' };
       return (
         <div className="wbar" key={w.feature}>
           <span>{w.label}</span>

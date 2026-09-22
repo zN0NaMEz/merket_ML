@@ -12,13 +12,17 @@ export function AppProvider({ children }) {
   const [version, setVersion] = useState(0);
   const [toasts, setToasts] = useState([]);
   const [unread, setUnread] = useState(0);
+  const [apiDown, setApiDown] = useState(false);
 
   const toast = useCallback((text, tone = '') => {
     const id = Math.random();
     setToasts(t => [...t, { id, text, tone }]);
     setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 4200);
   }, []);
-  const refreshInfo = useCallback(() => api('/system/info').then(setInfo).catch(() => {}), []);
+  const refreshInfo = useCallback(
+    () => api('/system/info').then(d => { setInfo(d); setApiDown(false); }).catch(() => setApiDown(true)),
+    [],
+  );
   const refreshUnread = useCallback(() => {
     if (!session.token()) return;
     api('/notifications').then(d => setUnread(d.unread)).catch(() => {});
@@ -37,7 +41,7 @@ export function AppProvider({ children }) {
   const logout = () => { session.clear(); setUser(null); };
 
   return (
-    <AppCtx.Provider value={{ user, login, logout, info, version, bump, toast, unread, refreshUnread }}>
+    <AppCtx.Provider value={{ user, login, logout, info, apiDown, version, bump, toast, unread, refreshUnread }}>
       {children}
       <div id="toasts" aria-live="polite">
         {toasts.map(t => <div key={t.id} className={`toast ${t.tone}`} role="status">{t.text}</div>)}

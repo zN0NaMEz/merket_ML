@@ -1,0 +1,31 @@
+# Blueprint สำหรับ deploy เฉพาะ ML service ขึ้น Render (แพลนฟรี)
+# ใช้เมื่อ: หน้าเว็บและ API อยู่บน Vercel, ฐานข้อมูลอยู่บน Neon, เหลือ ML ที่ต้องการที่รัน Docker
+#
+# วิธีใช้
+#   1) commit และ push ไฟล์นี้ขึ้น GitHub
+#   2) ที่ Render กด New → Blueprint แล้วเลือก repo นี้
+#   3) กรอกค่าสองตัวที่ Render จะถามให้ (DATABASE_URL และ ML_API_KEY)
+#
+# ข้อจำกัดของแพลนฟรี: บริการจะพักเมื่อไม่มีคนเรียกเกิน 15 นาที และตื่นใหม่ใช้เวลาราวหนึ่งนาที
+# อีกทั้งไม่มีดิสก์ถาวร ไฟล์โมเดลจะหายเมื่อบริการถูกรีสตาร์ท ต้องกดเทรนใหม่จากหน้า AI
+services:
+  - type: web
+    name: banyatsap-market-ml
+    runtime: docker
+    repo: https://github.com/zN0NaMEz/merket_ML
+    branch: main
+    dockerfilePath: ./ml/Dockerfile
+    dockerContext: ./ml
+    plan: free
+    region: singapore
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      # connection string ของ Neon ใช้อ่านข้อมูลสำหรับเทรนโมเดล
+      - key: DATABASE_URL
+        sync: false
+      # กุญแจร่วมกับฝั่ง API ต้องตั้งค่าเดียวกันทั้งสองฝั่ง
+      - key: ML_API_KEY
+        sync: false
+      - key: MODEL_DIR
+        value: /app/models

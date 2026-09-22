@@ -29,6 +29,25 @@ const NAV = {
 };
 const ROLE_NAME = { vendor: 'ผู้ค้าประจำ', staff: 'เจ้าหน้าที่สำนักงาน', owner: 'เจ้าของตลาด' };
 
+/**
+ * แสดงเมื่อเรียก API ไม่ได้ เช่นตอนดีพลอยเฉพาะหน้าเว็บโดยไม่มีเซิร์ฟเวอร์
+ * บอกผู้เข้าชมให้ชัดว่าหน้าไหนใช้ได้ แทนที่จะปล่อยให้เจอข้อความ error ดิบ
+ */
+export function DemoNotice() {
+  const { apiDown } = useApp();
+  if (!apiDown) return null;
+  return (
+    <div className="demo-notice" role="status">
+      <strong>ส่วนนี้ยังไม่ได้เชื่อมต่อระบบหลังบ้าน</strong>
+      <p>
+        ลิงก์สาธารณะนี้แสดงเฉพาะหน้าเว็บ ส่วนที่ต้องใช้ข้อมูลจริง เช่น เข้าสู่ระบบ จองพื้นที่ และบิล
+        ต้องรันทั้งระบบด้วย <code>docker compose up</code> ในเครื่องก่อน
+      </p>
+      <NavLink className="btn sm" to="/">กลับไปหน้าตลาด</NavLink>
+    </div>
+  );
+}
+
 export function Brand() {
   return (
     <div className="brand">
@@ -101,7 +120,7 @@ export function PublicLayout() {
   return (
     <>
       <header className="public-top">
-        <Brand />
+        <NavLink to="/" className="back-market" aria-label="กลับไปหน้าตลาด"><Brand /></NavLink>
         <nav className="btn-row">
           <NavLink className="btn sm" to="/walkin" end>จองพื้นที่</NavLink>
           <NavLink className="btn sm" to="/walkin/my">การจองของฉัน</NavLink>
@@ -109,7 +128,7 @@ export function PublicLayout() {
           <NavLink className="btn sm ghost" to="/login">เข้าสู่ระบบ</NavLink>
         </nav>
       </header>
-      <main className="center-page"><Outlet /></main>
+      <main className="center-page"><DemoNotice /><Outlet /></main>
     </>
   );
 }

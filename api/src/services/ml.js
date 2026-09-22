@@ -6,7 +6,10 @@ async function call(path, body, method = body ? 'POST' : 'GET') {
   try {
     res = await fetch(config.mlUrl + path, {
       method,
-      headers: body ? { 'content-type': 'application/json' } : {},
+      headers: {
+        ...(body ? { 'content-type': 'application/json' } : {}),
+        ...(config.mlApiKey ? { 'x-ml-key': config.mlApiKey } : {}),
+      },
       body: body ? JSON.stringify(body) : undefined,
       signal: AbortSignal.timeout(60000),
     });

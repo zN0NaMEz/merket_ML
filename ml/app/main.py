@@ -1,10 +1,26 @@
 """ML Service: API ภายในที่ Backend (Node.js) เรียกใช้"""
-from fastapi import FastAPI, HTTPException
+import os
+
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from . import anomaly, risk
 
 app = FastAPI(title="Bunyat Market ML Service", version="1.0.0")
+
+# เมื่อ deploy บนโฮสต์สาธารณะ ให้ตั้ง ML_API_KEY แล้วฝั่ง Backend ส่งกุญแจเดียวกันมาใน header
+# ถ้าไม่ตั้ง (เช่น รันในเครือข่าย docker ภายใน) จะไม่บังคับ เพื่อให้การรันในเครื่องเหมือนเดิม
+ML_API_KEY = os.environ.get("ML_API_KEY", "").strip()
+
+
+@app.middleware("http")
+async def require_api_key(request: Request, call_next):
+    open_paths = {"/health", "/docs", "/openapi.json", "/redoc"}
+    if ML_API_KEY and request.url.path not in open_paths:
+        if request.headers.get("x-ml-key", "") != ML_API_KEY:
+            return JSONResponse({"detail": "ไม่ได้รับอนุญาตให้เรียก ML service"}, status_code=401)
+    return await call_next(request)
 
 
 class ScoreRequest(BaseModel):

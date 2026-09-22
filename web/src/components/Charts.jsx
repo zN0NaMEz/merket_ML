@@ -68,9 +68,9 @@ export function AnomalyScatter({ history = [], current = [] }) {
         ))}
       </svg>
       <figcaption className="legend">
-        <span><i className="pt-hist" style={{ background: 'var(--hist)' }} />ค่าในอดีตที่ใช้เทรน</span>
-        <span><i style={{ background: 'var(--leaf)' }} />รอบนี้ ปกติ</span>
-        <span><i style={{ background: 'var(--chili)' }} />รอบนี้ ผิดปกติ</span>
+        <span><i className="pt-hist" style={{ background: 'var(--faint)' }} />ค่าในอดีตที่ใช้เทรน</span>
+        <span><i style={{ background: 'var(--ok)' }} />รอบนี้ ปกติ</span>
+        <span><i style={{ background: 'var(--danger)' }} />รอบนี้ ผิดปกติ</span>
       </figcaption>
     </figure>
   );
