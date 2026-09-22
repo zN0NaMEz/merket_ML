@@ -24,7 +24,7 @@ export async function api(path, { method = 'GET', body } = {}) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    if (res.status === 401 && token) { session.clear(); window.location.assign('/'); }
+    if (res.status === 401 && token) { session.clear(); window.location.assign('/login'); }
     const err = new Error(data.error || `เกิดข้อผิดพลาด (${res.status})`);
     err.status = res.status; err.details = data.details;
     throw err;

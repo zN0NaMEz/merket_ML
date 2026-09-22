@@ -80,7 +80,7 @@ export default function Layout() {
             {unread > 0 && <b>{unread > 99 ? '99+' : unread}</b>}
           </button>
           <div className="who-name"><span>{user.name}</span><small>{ROLE_NAME[user.role]}</small></div>
-          <button className="btn sm" onClick={() => { logout(); nav('/'); }}>ออกจากระบบ</button>
+          <button className="btn sm" onClick={() => { logout(); nav('/login'); }}>ออกจากระบบ</button>
         </div>
       </header>
       <div className="shell">
@@ -105,7 +105,8 @@ export function PublicLayout() {
         <nav className="btn-row">
           <NavLink className="btn sm" to="/walkin" end>จองพื้นที่</NavLink>
           <NavLink className="btn sm" to="/walkin/my">การจองของฉัน</NavLink>
-          <NavLink className="btn sm ghost" to="/">เข้าสู่ระบบ</NavLink>
+          <NavLink className="btn sm" to="/">หน้าตลาด</NavLink>
+          <NavLink className="btn sm ghost" to="/login">เข้าสู่ระบบ</NavLink>
         </nav>
       </header>
       <main className="center-page"><Outlet /></main>

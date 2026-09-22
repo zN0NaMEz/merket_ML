@@ -327,3 +327,7 @@ a{color:var(--tarp)}
 .split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
 @media (max-width:900px){ .split{grid-template-columns:1fr} }
 .qr-card img{width:180px;height:180px;display:block;image-rendering:pixelated}
+
+/* ลิงก์กลับไปหน้าร้านจากหน้าเข้าสู่ระบบ */
+.back-market{display:inline-flex;align-self:flex-start;text-decoration:none;color:inherit;border-bottom:1px solid transparent}
+.back-market:hover{border-bottom-color:var(--line)}

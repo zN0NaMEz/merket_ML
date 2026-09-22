@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { useApp } from './ui';
 import Layout, { PublicLayout } from './components/Layout';
 import Login from './pages/Login';
+import Home from './pages/market/Home';
 import Bills from './pages/vendor/Bills';
 import Advance from './pages/vendor/Advance';
 import Statement from './pages/vendor/Statement';
@@ -19,7 +20,7 @@ import Notifications from './pages/shared/Notifications';
 
 function RequireRole({ role, children }) {
   const { user } = useApp();
-  if (!user) return <Navigate to="/" replace />;
+  if (!user) return <Navigate to="/login" replace />;
   if (user.role !== role) return <Navigate to={`/${user.role}`} replace />;
   return children;
 }
@@ -28,7 +29,8 @@ export default function App() {
   const { user } = useApp();
   return (
     <Routes>
-      <Route path="/" element={user ? <Navigate to={`/${user.role}`} replace /> : <Login />} />
+      <Route path="/" element={<Home />} />
+      <Route path="/login" element={user ? <Navigate to={`/${user.role}`} replace /> : <Login />} />
       <Route element={<PublicLayout />}>
         <Route path="/walkin" element={<Book />} />
         <Route path="/walkin/my" element={<MyBookings />} />

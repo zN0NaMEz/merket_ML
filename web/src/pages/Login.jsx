@@ -26,7 +26,7 @@ export default function Login() {
 
   return (
     <div className="login">
-      <Brand />
+      <Link to="/" className="back-market" aria-label="กลับไปหน้าตลาด"><Brand /></Link>
       <section className="hero">
         <span className="plate lg" aria-hidden="true">A-04</span>
         <h1>ระบบบริหารตลาดบัญญัติทรัพย์</h1>
