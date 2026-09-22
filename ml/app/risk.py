@@ -5,6 +5,7 @@ label = 1 ถ้าบิลนั้นถูกชำระหลังวั�
 """
 from __future__ import annotations
 
+import io as _io
 import json
 import os
 from collections import defaultdict
@@ -138,6 +139,13 @@ def train() -> dict:
     _cache["models"] = final
     _cache["metrics"] = metrics
     db.save_model_run("risk", metrics)
+    # เก็บลงฐานข้อมูลด้วย เผื่อรันบนโฮสต์ที่ดิสก์หายเมื่อรีสตาร์ท
+    try:
+        buf = _io.BytesIO()
+        joblib.dump(final, buf)
+        db.save_model_blob("risk", buf.getvalue(), metrics)
+    except Exception as e:                            # เก็บไม่ได้ก็ไม่ควรทำให้การเทรนล้ม
+        print(f"[risk] เก็บโมเดลลงฐานข้อมูลไม่สำเร็จ: {e}", flush=True)
     return metrics
 
 
@@ -148,8 +156,17 @@ def _ensure():
         _cache["models"] = joblib.load(MODEL_PATH)
         with open(METRICS_PATH, encoding="utf-8") as fh:
             _cache["metrics"] = json.load(fh)
-    else:
-        train()
+        return
+    stored = db.load_model_blob("risk")               # ไม่มีไฟล์บนดิสก์ ลองหยิบจากฐานข้อมูลก่อน
+    if stored:
+        payload, meta = stored
+        _cache["models"] = joblib.load(_io.BytesIO(payload))
+        _cache["metrics"] = meta
+        joblib.dump(_cache["models"], MODEL_PATH)     # แคชลงดิสก์ไว้ใช้รอบถัดไปของอินสแตนซ์นี้
+        with open(METRICS_PATH, "w", encoding="utf-8") as fh:
+            json.dump(meta, fh, ensure_ascii=False)
+        return
+    train()
 
 
 def metrics() -> dict:

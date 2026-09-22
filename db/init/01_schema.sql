@@ -204,3 +204,13 @@ CREATE TABLE IF NOT EXISTS model_runs (
   trained_at timestamptz NOT NULL DEFAULT now(),
   metrics    jsonb NOT NULL
 );
+
+-- โมเดลที่เทรนเสร็จแล้ว เก็บเป็นไบนารีไว้ในฐานข้อมูล
+-- ใช้ตอน ML service ไปรันบนโฮสต์ที่ไม่มีดิสก์ถาวร จะได้โหลดมาใช้เลยแทนการเทรนใหม่ทุกครั้งที่รีสตาร์ท
+CREATE TABLE IF NOT EXISTS model_blobs (
+  model_type text PRIMARY KEY,                    -- risk | anomaly
+  trained_at timestamptz NOT NULL DEFAULT now(),
+  sklearn_ver text NOT NULL,
+  payload    bytea NOT NULL,
+  meta       jsonb NOT NULL
+);

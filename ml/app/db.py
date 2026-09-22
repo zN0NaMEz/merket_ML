@@ -39,3 +39,35 @@ def save_model_run(model_type: str, metrics: dict):
     with connect() as conn, conn.cursor() as cur:
         cur.execute("INSERT INTO model_runs (model_type, metrics) VALUES (%s, %s)", (model_type, json.dumps(metrics, ensure_ascii=False)))
         conn.commit()
+
+
+def save_model_blob(model_type: str, payload: bytes, meta: dict):
+    """เก็บโมเดลที่เทรนแล้วลงฐานข้อมูล ทับของเดิมของชนิดเดียวกัน"""
+    import sklearn
+    with connect() as conn, conn.cursor() as cur:
+        cur.execute(
+            """INSERT INTO model_blobs (model_type, trained_at, sklearn_ver, payload, meta)
+               VALUES (%s, now(), %s, %s, %s)
+               ON CONFLICT (model_type) DO UPDATE
+               SET trained_at = now(), sklearn_ver = EXCLUDED.sklearn_ver,
+                   payload = EXCLUDED.payload, meta = EXCLUDED.meta""",
+            (model_type, sklearn.__version__, payload, json.dumps(meta, ensure_ascii=False)),
+        )
+        conn.commit()
+
+
+def load_model_blob(model_type: str):
+    """คืน (payload, meta) ถ้ามีโมเดลที่เทรนด้วย sklearn รุ่นเดียวกัน ไม่งั้นคืน None"""
+    import sklearn
+    try:
+        rows = fetch_all(
+            "SELECT payload, meta, sklearn_ver FROM model_blobs WHERE model_type = %s", (model_type,)
+        )
+    except Exception:
+        return None                                  # ยังไม่มีตาราง เช่นฐานข้อมูลเก่า
+    if not rows:
+        return None
+    row = rows[0]
+    if row["sklearn_ver"] != sklearn.__version__:    # โมเดลข้ามรุ่นอาจโหลดไม่ได้ ให้เทรนใหม่แทน
+        return None
+    return bytes(row["payload"]), row["meta"]

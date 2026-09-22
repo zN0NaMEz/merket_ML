@@ -7,6 +7,7 @@
 """
 from __future__ import annotations
 
+import io as _io
 import json
 import os
 import random
@@ -75,6 +76,12 @@ def train() -> dict:
         json.dump(info, fh, ensure_ascii=False)
     _cache["model"], _cache["info"] = model, info
     db.save_model_run("anomaly", {k: v for k, v in info.items() if k != "points"})
+    try:
+        buf = _io.BytesIO()
+        joblib.dump(model, buf)
+        db.save_model_blob("anomaly", buf.getvalue(), info)
+    except Exception as e:
+        print(f"[anomaly] เก็บโมเดลลงฐานข้อมูลไม่สำเร็จ: {e}", flush=True)
     return info
 
 
@@ -85,8 +92,17 @@ def _ensure():
         _cache["model"] = joblib.load(MODEL_PATH)
         with open(INFO_PATH, encoding="utf-8") as fh:
             _cache["info"] = json.load(fh)
-    else:
-        train()
+        return
+    stored = db.load_model_blob("anomaly")
+    if stored:
+        payload, meta = stored
+        _cache["model"] = joblib.load(_io.BytesIO(payload))
+        _cache["info"] = meta
+        joblib.dump(_cache["model"], MODEL_PATH)
+        with open(INFO_PATH, "w", encoding="utf-8") as fh:
+            json.dump(meta, fh, ensure_ascii=False)
+        return
+    train()
 
 
 def info() -> dict:
