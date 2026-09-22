@@ -1,0 +1,53 @@
+# รันทั้งระบบ: docker compose up --build   แล้วเปิด http://localhost:8080
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: market
+      POSTGRES_PASSWORD: market
+      POSTGRES_DB: market
+      TZ: Asia/Bangkok
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    ports: ["5432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U market"]
+      interval: 3s
+      retries: 20
+
+  ml:
+    build: ./ml
+    environment:
+      DATABASE_URL: postgresql://market:market@db:5432/market
+      MODEL_DIR: /app/models
+    volumes:
+      - models:/app/models
+    depends_on:
+      db: { condition: service_healthy }
+    ports: ["8000:8000"]
+
+  api:
+    build: ./api
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql://market:market@db:5432/market
+      ML_URL: http://ml:8000
+      SCHEMA_FILE: /db/init/01_schema.sql
+    volumes:
+      - ./db/init:/db/init:ro
+    depends_on:
+      db: { condition: service_healthy }
+      ml: { condition: service_started }
+    ports: ["4000:4000"]
+
+  web:
+    build: ./web
+    depends_on: [api]
+    ports: ["8080:80"]
+
+volumes:
+  dbdata:
+  models:

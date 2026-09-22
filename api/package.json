@@ -1,0 +1,25 @@
+{
+  "name": "bunyat-market-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Backend API ระบบบริหารตลาดบัญญัติทรัพย์",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "seed": "node src/seed/seed.js",
+    "seed:if-empty": "node src/seed/seed.js --if-empty",
+    "daily": "node src/jobs/run-daily.js"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "node-cron": "^3.0.3",
+    "pg": "^8.13.1",
+    "qrcode": "^1.5.4"
+  }
+}

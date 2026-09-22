@@ -1,0 +1,13 @@
+export const TH_M = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const TH_MF = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+const parseD = s => { const [y, m, d] = s.slice(0, 10).split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)); };
+export const thDate = s => { if (!s) return '-'; const d = parseD(s); return `${d.getUTCDate()} ${TH_M[d.getUTCMonth()]} ${d.getUTCFullYear() + 543}`; };
+export const thDateShort = s => { const d = parseD(s); return `${d.getUTCDate()} ${TH_M[d.getUTCMonth()]}`; };
+export const weekday = s => ['อา.','จ.','อ.','พ.','พฤ.','ศ.','ส.'][parseD(s).getUTCDay()];
+export const periodLabel = p => { if (!p) return ''; const [y, m] = p.split('-').map(Number); return `${TH_MF[m - 1]} ${y + 543}`; };
+export const periodShort = p => { const [y, m] = p.split('-').map(Number); return `${TH_M[m - 1]} ${String(y + 543).slice(2)}`; };
+export const baht = n => Math.round(Number(n) || 0).toLocaleString('th-TH');
+export const pct = (x, d = 0) => (x == null ? '-' : `${(x * 100).toFixed(d)}%`);
+export const diffDays = (a, b) => Math.round((parseD(a) - parseD(b)) / 86400000);
+export const phoneFmt = p => { const d = String(p || '').replace(/\D/g, ''); return d.length === 10 ? `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}` : d; };
+export const yearsMonths = days => { const m = Math.floor(days / 30.44); return m >= 12 ? `${Math.floor(m / 12)} ปี ${m % 12} เดือน` : `${m} เดือน`; };
