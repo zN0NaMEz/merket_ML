@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import Ambient from '../Ambient';
 import Reveal from './Reveal';
 import { scrollToId } from './motion';
 import { FOOTER } from '../../data/market';
@@ -7,6 +8,7 @@ import { FOOTER } from '../../data/market';
 export default function MarketFooter() {
   return (
     <footer className="mk-foot">
+      <Ambient tone="dark" density={0.7} />
       <div className="mk-wrap">
         <Reveal className="mk-foot__top">
           <div className="mk-foot__brand">

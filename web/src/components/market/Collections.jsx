@@ -7,7 +7,7 @@ import { COLLECTIONS } from '../../data/market';
 
 /** ชุดของที่จัดไว้ให้แล้ว วางแบบหน้านิตยสาร ชิ้นแรกกินพื้นที่เต็มความกว้าง */
 export default function Collections() {
-  const { openSearch } = useMarket();
+  const { openBrowse } = useMarket();
 
   return (
     <section className="mk-section mk-cols" id="collections" aria-labelledby="mk-cols-title">
@@ -25,7 +25,7 @@ export default function Collections() {
             <li key={c.id} className={`mk-cols__item ${i === 0 ? 'is-lead' : ''}`}>
               <Reveal delay={i === 0 ? 0 : ((i - 1) % 2) * 100}>
                 <article className="mk-col">
-                  <button type="button" className="mk-col__btn" onClick={() => openSearch(c.seed)}>
+                  <button type="button" className="mk-col__btn" onClick={() => openBrowse('collection', c.id)}>
                     <Media
                       photo={c.photo}
                       alt={c.alt}

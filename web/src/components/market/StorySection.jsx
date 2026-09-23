@@ -1,3 +1,4 @@
+import Ambient from '../Ambient';
 import Media from './Media';
 import Reveal, { RevealLines } from './Reveal';
 import { useReducedMotion, useScrollProgress } from './motion';
@@ -16,6 +17,7 @@ export default function StorySection({ onAction }) {
         <Media photo={STORY.photo} alt={STORY.alt} ratio={16 / 10} sizes="100vw" fill className="mk-story__media" />
       </div>
       <div className="mk-story__veil" aria-hidden="true" />
+      <Ambient tone="dark" pools={false} density={0.9} />
 
       <div className="mk-wrap mk-story__inner">
         <Reveal as="p" className="mk-eyebrow" mode="fade"><em className="mk-head__num">04</em><span>{STORY.en}</span></Reveal>

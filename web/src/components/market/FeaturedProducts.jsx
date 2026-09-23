@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Media from './Media';
 import Reveal from './Reveal';
 import SectionHeading from './SectionHeading';
 import { useMediaQuery } from './motion';
 import { useMarket } from './store';
-import { IconArrow, IconHeart } from './icons';
+import { IconArrow, IconCheck, IconHeart } from './icons';
 import { PRODUCTS, price } from '../../data/market';
 
 const FEATURED = PRODUCTS.slice(0, 6);
@@ -15,6 +15,13 @@ const FEATURED = PRODUCTS.slice(0, 6);
  */
 export default function FeaturedProducts() {
   const [active, setActive] = useState(0);
+  const [added, setAdded] = useState(null);   // ยืนยันตรงปุ่มที่กด ไม่ต้องมองหาข้อความที่อื่น
+
+  useEffect(() => {
+    if (!added) return undefined;
+    const t = setTimeout(() => setAdded(null), 1800);
+    return () => clearTimeout(t);
+  }, [added]);
   const wide = useMediaQuery('(min-width: 861px)');
   const { setDetail, addToCart, toggleSaved, isSaved } = useMarket();
 
@@ -82,8 +89,14 @@ export default function FeaturedProducts() {
                       >
                         <IconHeart filled={isSaved(p.id)} />
                       </button>
-                      <button type="button" className="mk-btn mk-btn--ghost mk-btn--sm" onClick={() => addToCart(p.id)}>
-                        ใส่ตะกร้า<IconArrow className="mk-btn__arrow" />
+                      <button
+                        type="button"
+                        className={`mk-btn mk-btn--ghost mk-btn--sm mk-prod__add ${added === p.id ? 'is-done' : ''}`}
+                        onClick={() => { addToCart(p.id); setAdded(p.id); }}
+                      >
+                        {added === p.id
+                          ? <>เพิ่มแล้ว<IconCheck className="mk-btn__arrow" /></>
+                          : <>ใส่ตะกร้า<IconArrow className="mk-btn__arrow" /></>}
                       </button>
                     </div>
                   </article>

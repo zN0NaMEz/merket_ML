@@ -8,4 +8,5 @@ export const IconUser = p => <svg {...base} {...p}><circle cx="12" cy="8.5" r="3
 export const IconClose = p => <svg {...base} {...p}><path d="m6 6 12 12M18 6 6 18" /></svg>;
 export const IconArrow = p => <svg {...base} {...p}><path d="M4.5 12h15" /><path d="m13.5 6 6 6-6 6" /></svg>;
 export const IconMinus = p => <svg {...base} {...p}><path d="M5.5 12h13" /></svg>;
+export const IconCheck = p => <svg {...base} {...p}><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>;
 export const IconPlus = p => <svg {...base} {...p}><path d="M12 5.5v13M5.5 12h13" /></svg>;

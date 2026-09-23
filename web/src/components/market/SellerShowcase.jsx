@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import Ambient from '../Ambient';
 import Media from './Media';
 import SectionHeading from './SectionHeading';
 import { useMarket } from './store';
@@ -37,6 +38,7 @@ export default function SellerShowcase() {
 
   return (
     <section className="mk-section mk-sellers" id="sellers" aria-labelledby="mk-sellers-title">
+      <Ambient tone="dark" />
       <div className="mk-wrap">
         <SectionHeading
           index="03"

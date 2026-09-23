@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { api } from '../api';
 import { thDate } from '../format';
 import { useApp } from '../ui';
+import Ambient from './Ambient';
 
 const NAV = {
   vendor: [
@@ -89,7 +90,8 @@ export default function Layout() {
   if (!user) return null;
   const base = `/${user.role}`;
   return (
-    <>
+    <div className="app-frame">
+      <Ambient tone="auto-paper" placement="fixed" />
       <header className="topbar">
         <Brand />
         <Clock />
@@ -112,13 +114,14 @@ export default function Layout() {
         </nav>
         <main className="main"><Outlet /></main>
       </div>
-    </>
+    </div>
   );
 }
 
 export function PublicLayout() {
   return (
-    <>
+    <div className="app-frame">
+      <Ambient tone="auto-paper" placement="fixed" />
       <header className="public-top">
         <NavLink to="/" className="back-market" aria-label="กลับไปหน้าตลาด"><Brand /></NavLink>
         <nav className="btn-row">
@@ -129,6 +132,6 @@ export function PublicLayout() {
         </nav>
       </header>
       <main className="center-page"><DemoNotice /><Outlet /></main>
-    </>
+    </div>
   );
 }

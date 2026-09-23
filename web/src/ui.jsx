@@ -68,7 +68,14 @@ export function useData(fn, deps = []) {
 
 export function Loader({ state, children }) {
   if (state.error && !state.data) return <div className="error-box">{state.error.message}</div>;
-  if (!state.data) return <div className="loading">กำลังโหลด…</div>;
+  if (!state.data) {
+    return (
+      <div className="loading" role="status">
+        <span className="sk sk--title" /><span className="sk" /><span className="sk" /><span className="sk sk--short" />
+        <span className="visually-hidden">กำลังโหลด…</span>
+      </div>
+    );
+  }
   return children(state.data);
 }
 

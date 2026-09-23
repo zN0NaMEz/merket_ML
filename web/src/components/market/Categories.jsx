@@ -10,7 +10,7 @@ import { CATEGORIES } from '../../data/market';
  * จอเล็กเปลี่ยนเป็นแถวเลื่อนแนวนอนแทนการวางซ้อนกันยาว ๆ
  */
 export default function Categories() {
-  const { openSearch } = useMarket();
+  const { openBrowse } = useMarket();
 
   return (
     <section className="mk-section mk-cats" id="categories" aria-labelledby="mk-cats-title">
@@ -28,7 +28,7 @@ export default function Categories() {
         {CATEGORIES.map((c, i) => (
           <li key={c.id} className={`mk-cats__item mk-cats__item--${c.span}`}>
             <Reveal delay={(i % 3) * 90}>
-              <button type="button" className="mk-cat" onClick={() => openSearch(c.th)}>
+              <button type="button" className="mk-cat" onClick={() => openBrowse('category', c.id)}>
                 <Media
                   photo={c.photo}
                   alt={c.alt}
@@ -44,7 +44,7 @@ export default function Categories() {
                   <span className="mk-cat__name">{c.th}</span>
                   <span className="mk-cat__desc">{c.desc}</span>
                   <span className="mk-cat__more">
-                    <span>ดูทั้งหมด {c.count} ร้าน</span>
+                    <span>สำรวจหมวดนี้ · {c.count} ร้านในตลาด</span>
                     <IconArrow className="mk-cat__arrow" />
                   </span>
                 </span>

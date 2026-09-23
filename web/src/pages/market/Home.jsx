@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import Ambient from '../../components/Ambient';
 import { scrollToId } from '../../components/market/motion';
 import { MarketProvider, useMarket } from '../../components/market/store';
 import MarketNav from '../../components/market/MarketNav';
@@ -22,6 +23,7 @@ function Shell() {
   const { note } = useMarket();
   return (
     <div className="mk">
+      <Ambient tone="cream" placement="fixed" />
       <MarketNav />
       <main id="mk-main">
         <Hero onExplore={() => scrollToId('market')} onMeet={() => scrollToId('sellers')} />

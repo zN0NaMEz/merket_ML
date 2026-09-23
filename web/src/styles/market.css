@@ -30,6 +30,8 @@ html[data-market] body { background: #12100d; }
   --gutter: clamp(20px, 5vw, 76px);
   --bay: clamp(72px, 11vw, 168px);
 
+  position: relative;
+  isolation: isolate;                /* ให้พื้นหลังเคลื่อนไหวอยู่ใต้เนื้อหาแต่เหนือพื้นครีม */
   background: var(--cream);
   color: var(--ink);
   font: 400 16px/1.65 var(--sans);
@@ -422,7 +424,7 @@ html[data-market] body { background: #12100d; }
 /* ==========================================================================
    คำแถลง
    ========================================================================== */
-.mk-manifesto { padding-block: clamp(96px, 15vw, 220px); background: var(--cream); }
+.mk-manifesto { padding-block: clamp(96px, 15vw, 220px); }
 .mk-manifesto__label { margin-bottom: clamp(28px, 4vw, 54px); }
 .mk-manifesto__quote { margin: 0; }
 .mk-manifesto__quote h2 {
@@ -465,7 +467,7 @@ html[data-market] body { background: #12100d; }
 /* ==========================================================================
    หมวดหมู่
    ========================================================================== */
-.mk-cats { background: var(--cream); }
+.mk-cats { position: relative; }
 .mk-cats__grid {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
@@ -503,7 +505,9 @@ html[data-market] body { background: #12100d; }
 /* ==========================================================================
    ของเด่นประจำเดือน
    ========================================================================== */
-.mk-feat { background: var(--ivory); }
+/* พื้นสีงาช้างวาดไว้ใต้ชั้นแสง (z -2) แสงกับฝุ่นจึงลอยผ่านได้ */
+.mk-feat, .mk-map { position: relative; }
+.mk-feat::before, .mk-map::before { content: ''; position: absolute; inset: 0; z-index: -2; background: var(--ivory); }
 .mk-feat__layout {
   display: grid;
   grid-template-columns: minmax(0, 0.92fr) minmax(0, 1fr);
@@ -565,7 +569,7 @@ html[data-market] body { background: #12100d; }
 /* ==========================================================================
    ผู้ค้า
    ========================================================================== */
-.mk-sellers { background: var(--ink); color: var(--cream); }
+.mk-sellers { position: relative; isolation: isolate; background: var(--ink); color: var(--cream); }
 .mk-sellers .mk-head__title { color: var(--cream); }
 .mk-sellers__nav { display: flex; gap: 8px; margin-top: 18px; }
 .mk-sellers__nav button {
@@ -660,7 +664,7 @@ html[data-market] body { background: #12100d; }
 /* ==========================================================================
    ชุดที่จัดไว้
    ========================================================================== */
-.mk-cols { background: var(--cream); }
+.mk-cols { position: relative; }
 .mk-cols__grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -694,7 +698,7 @@ html[data-market] body { background: #12100d; }
 /* ==========================================================================
    ผังตลาด
    ========================================================================== */
-.mk-map { background: var(--ivory); }
+
 .mk-map__grid {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
@@ -754,7 +758,9 @@ html[data-market] body { background: #12100d; }
 /* ==========================================================================
    จดหมายข่าว
    ========================================================================== */
-.mk-news { background: var(--beige); padding-block: clamp(72px, 10vw, 150px); }
+/* พื้นเบจไม่มีงบคอนทราสต์ให้แสงอำพัน จึงทึบและมีแสงขาวอุ่นของตัวเอง */
+.mk-news { position: relative; isolation: isolate; background: var(--beige); padding-block: clamp(72px, 10vw, 150px); }
+.mk-news .mk-eyebrow { color: #5e5747; }   /* สีหินบนเบจได้แค่ 4.24:1 ต่ำกว่าเกณฑ์ */
 .mk-news__inner {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -786,7 +792,7 @@ html[data-market] body { background: #12100d; }
 /* ==========================================================================
    ท้ายหน้า
    ========================================================================== */
-.mk-foot { background: var(--ink); color: var(--cream); padding-block: clamp(64px, 9vw, 130px) 34px; }
+.mk-foot { position: relative; isolation: isolate; background: var(--ink); color: var(--cream); padding-block: clamp(64px, 9vw, 130px) 34px; }
 .mk-foot__top {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
@@ -917,6 +923,18 @@ html[data-market] body { background: #12100d; }
 .mk-search__rows small { display: block; margin-top: 2px; font-size: 12.5px; color: var(--stone); }
 .mk-search__rows svg { width: 17px; height: 17px; color: var(--stone); transition: transform 0.5s var(--ease); }
 .mk-search__rows button:hover svg { transform: translateX(5px); color: var(--ink); }
+
+/* หน้าสรุปของหมวดหมู่และชุดที่จัดไว้ */
+.mk-browse { margin-top: 34px; display: flex; flex-direction: column; gap: 14px; animation: mk-note-in 0.5s var(--ease) both; }
+.mk-browse__title { font-size: clamp(30px, 5vw, 56px); line-height: 1.12; }
+.mk-browse__desc { max-width: 52ch; font-size: 15px; line-height: 1.8; color: var(--stone); }
+.mk-browse__meta { padding-bottom: 16px; border-bottom: 1px solid var(--line); font-size: 12.5px; letter-spacing: 0.04em; color: var(--gold); }
+.mk-browse .mk-search__h { margin-top: 18px; }
+.mk-browse__empty { padding: 18px 20px; border: 1px dashed var(--line); font-size: 14px; line-height: 1.7; color: var(--stone); }
+.mk-browse__cta { align-self: flex-start; margin-top: 18px; }
+.mk-browse__back { margin-top: 28px; padding-bottom: 3px; border-bottom: 1px solid var(--line); font-size: 13px; color: var(--stone); transition: color 0.3s var(--ease), border-color 0.3s var(--ease); }
+.mk-browse__back:hover { color: var(--ink); border-bottom-color: var(--ink); }
+.mk-prod__add.is-done { --btn-bd: var(--gold); color: var(--gold); }
 
 /* ตะกร้าและรายการที่บันทึก */
 .mk-cart__list li {

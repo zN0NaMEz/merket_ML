@@ -17,10 +17,12 @@ export function MarketProvider({ children }) {
   const [saved, setSaved] = useState(() => read('mk.saved', []));
   const [overlay, setOverlay] = useState(null); // 'search' | 'cart' | 'saved' | 'menu'
   const [seed, setSeed] = useState('');            // คำค้นตั้งต้นเมื่อเปิดช่องค้นหาจากที่อื่น
+  const [browse, setBrowse] = useState(null);      // { kind: 'category' | 'collection', id } เมื่อเปิดจากการ์ด
   const [detail, setDetail] = useState(null);   // { kind: 'product' | 'seller', id }
   const [note, setNote] = useState('');
 
   useEffect(() => { write('mk.cart', cart); }, [cart]);
+  useEffect(() => { if (overlay !== 'search') setBrowse(null); }, [overlay]);
   useEffect(() => { write('mk.saved', saved); }, [saved]);
 
   /* ล็อกการเลื่อนหน้าเมื่อมีชั้นซ้อนเปิดอยู่ และคืนค่าเดิมเมื่อปิด */
@@ -80,9 +82,11 @@ export function MarketProvider({ children }) {
     cart: lines, count, total, addToCart, setQty, clearCart: () => setCart([]),
     saved, toggleSaved, isSaved: id => saved.includes(id),
     overlay, setOverlay, detail, setDetail, note, setNote,
-    seed, openSearch: q => { setSeed(q || ''); setOverlay('search'); },
+    seed, openSearch: q => { setBrowse(null); setSeed(q || ''); setOverlay('search'); },
+    browse, openBrowse: (kind, id) => { setSeed(''); setBrowse({ kind, id }); setOverlay('search'); },
+    clearBrowse: () => setBrowse(null),
     closeAll: () => { setOverlay(null); setDetail(null); },
-  }), [lines, count, total, addToCart, setQty, saved, toggleSaved, overlay, detail, note, seed]);
+  }), [lines, count, total, addToCart, setQty, saved, toggleSaved, overlay, detail, note, seed, browse]);
 
   return <MarketCtx.Provider value={value}>{children}</MarketCtx.Provider>;
 }

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Ambient from '../Ambient';
 import Reveal, { RevealLines } from './Reveal';
 import { IconArrow } from './icons';
 
@@ -25,6 +26,7 @@ export default function Newsletter() {
 
   return (
     <section className="mk-news" id="news" aria-labelledby="mk-news-title">
+      <Ambient tone="paper" density={0.6} />
       <div className="mk-wrap mk-news__inner">
         <div className="mk-news__left">
           <Reveal as="p" className="mk-eyebrow" mode="fade"><em className="mk-head__num">07</em><span>MARKET LETTER</span></Reveal>

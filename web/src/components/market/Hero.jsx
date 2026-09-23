@@ -1,3 +1,4 @@
+import Ambient from '../Ambient';
 import Media from './Media';
 import { RevealLines } from './Reveal';
 import { useReducedMotion, useScrollProgress } from './motion';
@@ -19,6 +20,7 @@ export default function Hero({ onExplore, onMeet }) {
         <Media photo={HERO.photo} alt={HERO.alt} ratio={16 / 9} sizes="100vw" priority fill className="mk-hero__media" />
       </div>
       <div className="mk-hero__veil" aria-hidden="true" />
+      <Ambient tone="dark" pools={false} density={0.8} />
 
       <div className="mk-hero__inner">
         <p className="mk-eyebrow mk-hero__eyebrow">

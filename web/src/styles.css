@@ -51,8 +51,12 @@ button{font:inherit;color:inherit}
 .input.num{width:104px;text-align:right;font-variant-numeric:tabular-nums}
 .input:focus{border-color:var(--accent)}
 .input::placeholder{color:var(--faint)}
-label.field{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:500;color:var(--muted)}
-label.field .input{color:var(--ink)}
+label.field,div.field{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:500;color:var(--muted)}
+label.field .input,div.field .input{color:var(--ink)}
+.pw{position:relative;display:block}
+.pw .input{padding-right:64px}
+.pw__toggle{position:absolute;top:50%;right:6px;transform:translateY(-50%);min-height:30px;padding:0 10px;border:0;border-radius:2px;background:transparent;color:var(--accent);font-size:12.5px;font-weight:600;cursor:pointer}
+.pw__toggle:hover{background:var(--accent-soft)}
 .fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 16px}
 
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);background:var(--surface);padding:10px 18px;border-radius:2px;cursor:pointer;font-weight:500;font-size:14px;letter-spacing:.02em;white-space:nowrap;text-decoration:none;color:var(--ink);transition:border-color .3s var(--ease),background .3s var(--ease),color .3s var(--ease)}
@@ -101,7 +105,8 @@ label.field .input{color:var(--ink)}
 .nav-item.on{background:var(--surface);border-left-color:var(--accent);font-weight:600;color:var(--accent)}
 .nav-item.on small{color:var(--accent);opacity:.8}
 .main{padding:30px 34px 96px;min-width:0}
-.page{max-width:1160px;display:flex;flex-direction:column;gap:24px}
+.page{max-width:1160px;display:flex;flex-direction:column;gap:24px;animation:page-in .55s var(--ease) both}
+@keyframes page-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 .page-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;padding-bottom:18px;border-bottom:1px solid var(--line)}
 .page-head .sub{color:var(--muted);margin-top:4px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .ptag{font-size:11.5px;font-weight:500;letter-spacing:.05em;color:var(--muted);border:1px solid var(--line);padding:4px 9px;border-radius:2px;background:var(--surface);white-space:nowrap}
@@ -285,7 +290,7 @@ legend{font-weight:500;margin-bottom:8px;font-family:var(--f-display);font-size:
 .auth__art .eyebrow{color:rgba(250,247,241,.72)}
 .auth__quote{font-family:var(--f-display);font-weight:300;font-size:clamp(21px,2.3vw,33px);line-height:1.4;letter-spacing:-.005em}
 
-.auth__panel{display:flex;align-items:center;justify-content:center;padding:clamp(30px,4vw,56px) clamp(22px,4vw,48px) clamp(44px,6vw,72px);background:var(--surface)}
+.auth__panel{position:relative;isolation:isolate;display:flex;align-items:center;justify-content:center;padding:clamp(30px,4vw,56px) clamp(22px,4vw,48px) clamp(44px,6vw,72px);background:var(--surface)}
 .auth__inner{width:100%;max-width:440px;display:flex;flex-direction:column;gap:22px}
 .auth__head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
 .auth__back{font-size:12.5px;color:var(--muted);text-decoration:none;border-bottom:1px solid var(--line);padding-bottom:2px;white-space:nowrap}
@@ -337,7 +342,13 @@ a{color:var(--accent)}
 .login-form .err{color:var(--danger);font-size:13.5px;line-height:1.6}
 .quick{display:flex;flex-wrap:wrap;gap:6px}
 .quick button{font-size:13px}
-.loading{padding:60px 20px;text-align:center;color:var(--muted);font-size:14.5px}
+.quick .btn.is-on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.loading{padding:8px 0 20px;display:flex;flex-direction:column;gap:12px;max-width:640px}
+.sk{display:block;height:14px;border-radius:2px;background:linear-gradient(90deg,var(--surface-2) 25%,var(--line) 50%,var(--surface-2) 75%);background-size:300% 100%;animation:sk-shine 1.8s var(--ease) infinite}
+.sk--title{height:30px;width:44%;margin-bottom:8px}
+.sk--short{width:58%}
+@keyframes sk-shine{from{background-position:100% 0}to{background-position:0 0}}
+.visually-hidden{position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;clip:rect(0 0 0 0);clip-path:inset(50%);overflow:hidden;white-space:nowrap}
 .error-box{border:1px solid var(--line);border-left:3px solid var(--danger);background:var(--danger-soft);color:var(--ink);padding:16px 20px;border-radius:2px;font-size:14.5px;line-height:1.7}
 .hint{font-size:13px;color:var(--muted)}
 .stack{display:flex;flex-direction:column;gap:12px}
@@ -357,3 +368,37 @@ a{color:var(--accent)}
 .demo-notice strong{font-family:var(--f-display);font-weight:500;font-size:17px}
 .demo-notice p{font-size:13.5px;line-height:1.75;color:var(--muted);max-width:56ch}
 .demo-notice code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;background:var(--surface);border:1px solid var(--line);border-radius:2px;padding:1px 6px}
+
+/* ==========================================================================
+   พื้นหลังเคลื่อนไหว ใช้ร่วมทั้งหน้าร้านและระบบหลังบ้าน (components/Ambient.jsx)
+   ความเข้มของแสงแต่ละโทนมาจากงบคอนทราสต์ WCAG AA ที่คำนวณไว้
+     cream  แสงอำพันได้ไม่เกิน 0.17 บนพื้นงาช้าง จึงใช้ 0.10
+     paper  แสงอำพันเกือบไม่มีงบ (0.055) จึงใช้แสงขาวอุ่นอย่างเดียว ซึ่งยิ่งทำให้ตัวอักษรชัดขึ้น
+     dark   แสงตะเกียงได้ถึง 0.27 ใช้ 0.16
+   ========================================================================== */
+.amb{position:absolute;inset:0;z-index:-1;overflow:hidden;pointer-events:none;contain:strict}
+.amb--fixed{position:fixed}
+.amb__dust{position:absolute;inset:0;width:100%;height:100%;display:block}
+.amb__pool{position:absolute;display:block;border-radius:50%;animation:amb-drift-a 72s cubic-bezier(.45,.05,.55,.95) infinite alternate}
+.amb__pool--a{width:64vmax;height:64vmax;left:-18vmax;top:-22vmax;background:radial-gradient(closest-side,var(--amb-a),transparent)}
+.amb__pool--b{width:52vmax;height:52vmax;right:-14vmax;top:22%;background:radial-gradient(closest-side,var(--amb-b),transparent);animation-name:amb-drift-b;animation-duration:88s}
+.amb__pool--c{width:46vmax;height:46vmax;left:24%;bottom:-24vmax;background:radial-gradient(closest-side,var(--amb-c),transparent);animation-name:amb-drift-c;animation-duration:64s}
+.amb__grain{position:absolute;inset:0;opacity:var(--amb-grain,0);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .27 0 0 0 0 .17 0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");background-size:180px}
+.amb.is-idle .amb__pool{animation-play-state:paused}
+@keyframes amb-drift-a{0%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(9vmax,6vmax,0) scale(1.12)}100%{transform:translate3d(20vmax,11vmax,0) scale(.94)}}
+@keyframes amb-drift-b{0%{transform:translate3d(0,0,0) scale(1.05)}100%{transform:translate3d(-24vmax,14vmax,0) scale(.9)}}
+@keyframes amb-drift-c{0%{transform:translate3d(0,0,0) scale(.95)}100%{transform:translate3d(-12vmax,-18vmax,0) scale(1.15)}}
+
+/* โทนแสง */
+.amb--cream,.amb--auto-cream{--amb-a:rgb(255 250 238 / .6);--amb-b:rgb(214 170 104 / .1);--amb-c:rgb(255 250 238 / .5);--amb-dust:120 93 49;--amb-dust-a:.26;--amb-halo:0;--amb-grain:.045}
+.amb--paper,.amb--auto-paper{--amb-a:rgb(255 250 238 / .65);--amb-b:rgb(255 248 232 / .5);--amb-c:rgb(255 250 238 / .55);--amb-dust:120 93 49;--amb-dust-a:.18;--amb-halo:0;--amb-grain:.035}
+.amb--dark{--amb-a:rgb(200 150 90 / .16);--amb-b:rgb(180 128 70 / .12);--amb-c:rgb(240 220 180 / .06);--amb-dust:240 222 184;--amb-dust-a:.5;--amb-halo:1;--amb-grain:0}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]) .amb--auto-cream,
+  :root:not([data-theme="light"]) .amb--auto-paper{--amb-a:rgb(200 150 90 / .16);--amb-b:rgb(180 128 70 / .12);--amb-c:rgb(240 220 180 / .06);--amb-dust:240 222 184;--amb-dust-a:.5;--amb-halo:1;--amb-grain:0}
+}
+:root[data-theme="dark"] .amb--auto-cream,
+:root[data-theme="dark"] .amb--auto-paper{--amb-a:rgb(200 150 90 / .16);--amb-b:rgb(180 128 70 / .12);--amb-c:rgb(240 220 180 / .06);--amb-dust:240 222 184;--amb-dust-a:.5;--amb-halo:1;--amb-grain:0}
+
+/* กรอบของระบบหลังบ้าน ให้พื้นหลังเคลื่อนไหวอยู่ใต้เนื้อหา การ์ดข้อมูลยังเป็นพื้นทึบให้อ่านง่าย */
+.app-frame{position:relative;isolation:isolate;min-height:100vh}
