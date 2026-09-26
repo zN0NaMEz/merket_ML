@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, localPref } from '../../api';
 import { baht, thDate } from '../../format';
 import { Loader, PageHead, SecHead, useApp, useData } from '../../ui';
@@ -11,14 +11,23 @@ export default function Book() {
   const { toast } = useApp();
   const nav = useNavigate();
   const opt = useData(() => api('/walkin/options'));
+  // มาจากผังในคู่มือ: ?spot=F-04&date=2026-09-01 เลือกไว้ให้ถ้ายังว่าง
+  const [params] = useSearchParams();
+  const wanted = useRef({ date: params.get('date'), spot: params.get('spot') });
   const [date, setDate] = useState(null);
   const [spot, setSpot] = useState(null);
   const [form, setForm] = useState({ full_name: '', phone: localPref.get('bunyat.walkin.phone') || '', product: '' });
   const [pay, setPay] = useState(null);
   const [busy, setBusy] = useState(false);
-  const d = date || opt.data?.dates[0];
+  const d = date || (opt.data?.dates.includes(wanted.current.date) ? wanted.current.date : opt.data?.dates[0]);
   const av = useData(() => (d ? api(`/walkin/availability?date=${d}`) : Promise.resolve(null)), [d]);
   useEffect(() => { setSpot(null); }, [d]);
+  useEffect(() => {
+    const want = wanted.current.spot;
+    if (!want || !av.data || av.data.date !== d) return;
+    // ล็อกที่ขอยังไม่ว่างวันนี้: รอจนผู้ใช้เลือกวันที่ล็อกนั้นว่าง
+    if (av.data.spots.some(s => s.spot === want && !s.taken)) { setSpot(want); wanted.current.spot = null; }
+  }, [av.data, d]);
 
   const submit = async e => {
     e.preventDefault();

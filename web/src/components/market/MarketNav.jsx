@@ -7,7 +7,7 @@ import { IconBag, IconClose, IconHeart, IconSearch, IconUser } from './icons';
 
 /** แถบบนสุด: โปร่งใสทับภาพเปิด แล้วเปลี่ยนเป็นพื้นทึบเมื่อเลื่อนลง */
 export default function MarketNav() {
-  const { count, saved, setOverlay, overlay } = useMarket();
+  const { count, saved, pickups, setOverlay, overlay } = useMarket();
   const [solid, setSolid] = useState(false);
   const menuOpen = overlay === 'menu';
 
@@ -58,9 +58,10 @@ export default function MarketNav() {
             <IconHeart filled={saved.length > 0} />
             {saved.length > 0 && <i className="mk-icon__dot" aria-hidden="true" />}
           </button>
-          <button type="button" className="mk-icon" onClick={() => setOverlay('cart')} aria-label={`ตะกร้า ${count} ชิ้น`}>
+          <button type="button" className="mk-icon" onClick={() => setOverlay('cart')} aria-label={`ตะกร้า ${count} ชิ้น${pickups.length ? ` · มีใบนัดรับ ${pickups.length} ใบ` : ''}`}>
             <IconBag />
             {count > 0 && <i className="mk-icon__count" aria-hidden="true">{count > 9 ? '9+' : count}</i>}
+            {count === 0 && pickups.length > 0 && <i className="mk-icon__count mk-icon__count--dot" aria-hidden="true" />}
           </button>
           <Link className="mk-icon mk-icon--account" to="/login" aria-label="เข้าสู่ระบบผู้ค้าและเจ้าหน้าที่">
             <IconUser />
@@ -93,6 +94,7 @@ export default function MarketNav() {
           <div className="mk-menu__foot">
             <Link to="/walkin" onClick={() => setOverlay(null)}>จองแผงขายของ</Link>
             <Link to="/login" onClick={() => setOverlay(null)}>เข้าสู่ระบบผู้ค้า</Link>
+            <a href="/guide/">คู่มือผู้ค้า</a>
           </div>
         </div>
       )}

@@ -108,7 +108,10 @@ export default function Login() {
               <h2>ผู้ค้าขาจร</h2>
               <p>จองพื้นที่หน้าตลาดรายวันและชำระผ่าน QR ได้ทันที ไม่ต้องสมัครสมาชิก</p>
             </div>
-            <Link className="btn" to="/walkin">จองพื้นที่</Link>
+            <div className="btn-row">
+              <Link className="btn" to="/walkin">จองพื้นที่</Link>
+              <a className="btn ghost" href="/guide/">อ่านคู่มือ</a>
+            </div>
           </section>
 
           {info && (

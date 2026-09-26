@@ -1,0 +1,3664 @@
+<!doctype html>
+<html lang="th" class="is-loading">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>คู่มือผู้ค้า — ตลาดบัญญัติทรัพย์</title>
+<meta name="description" content="วิธีจองพื้นที่ขายหน้าตลาด และจ่ายค่าเช่า ค่าน้ำ ค่าไฟ ผ่านระบบตลาดบัญญัติทรัพย์">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<script>
+  // เปิดหน้าที่บนสุดเสมอ ก่อนอย่างอื่นทั้งหมด
+  history.scrollRestoration = "manual";
+  window.scrollTo(0, 0);
+  // ถ้าสคริปต์หลักไม่ได้เริ่มเลย (import map ไม่รองรับ / CDN ล่ม) ให้ยกม่านออกและบอกผู้ใช้ แทนที่จะค้างอยู่หลังม่าน
+  setTimeout(function () {
+    if (window.__bootOk) return;
+    var veil = document.querySelector(".veil");
+    if (veil) veil.remove();
+    document.documentElement.classList.remove("is-loading");
+    var box = document.getElementById("errors");
+    if (!box) return;
+    var p = document.createElement("p");
+    p.className = "err";
+    p.setAttribute("role", "alert");
+    p.textContent = "สคริปต์หลักโหลดไม่ได้ ตรวจการเชื่อมต่ออินเทอร์เน็ต หรือเบราว์เซอร์อาจไม่รองรับ import map";
+    box.appendChild(p);
+  }, 8000);
+</script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js",
+    "lenis": "https://cdn.jsdelivr.net/npm/lenis@1.3.26/dist/lenis.mjs"
+  }
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600&family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Trirong:wght@400&text=%E0%B8%9A&display=block" rel="stylesheet">
+<style>
+:root {
+  /* Tier 1 — โทนเดียวกับหน้าตลาดหลัก: กระดาษครีม หมึกเข้ม บรอนซ์ */
+  --raw-cream-50: #faf7f1;
+  --raw-ivory-100: #f2ede3;
+  --raw-beige-200: #e3dccd;
+  --raw-stone-300: #b3aa99;
+  --raw-stone-600: #6c6554;
+  --raw-ink-950: #12100d;
+  --raw-ink-900: #1d1a15;
+  --raw-ink-800: #2a251e;
+  --raw-ink-alpha-08: rgb(18 16 13 / 0.08);
+  --raw-bronze-700: #785d31;
+  --raw-bronze-alpha-16: rgb(120 93 49 / 0.16);
+  --raw-gold-400: #c2a36d;
+  --raw-slate-500: #857d6c;
+  --raw-slate-600: #4f483c;
+  --raw-slate-900: #26221b;
+  --raw-plate-600: #4a4337;
+  --raw-ok-600: #45643c;
+  --raw-ok-300: #93b588;
+  --raw-warn-600: #7d5d1f;
+  --raw-warn-300: #d9b268;
+  --raw-bad-600: #8a3a24;
+  --raw-bad-300: #dd8f77;
+  --raw-cream-alpha-10: rgb(242 237 227 / 0.1);
+  --raw-cream-alpha-20: rgb(242 237 227 / 0.2);
+  --raw-cream-alpha-45: rgb(242 237 227 / 0.45);
+  --raw-white-alpha-20: rgb(242 237 227 / 0.2);
+
+  /* Tier 2 — roles */
+  --background: var(--raw-cream-50);
+  --foreground: var(--raw-ink-950);
+  --foreground-muted: var(--raw-stone-600);
+  --surface-black: var(--raw-ink-950);
+  --surface-dark: var(--raw-ink-900);
+  --surface-soft: var(--raw-beige-200);
+  --contour-light: var(--raw-beige-200);
+  --foreground-on-dark: var(--raw-ivory-100);
+  --foreground-on-dark-muted: var(--raw-stone-300);
+  --foreground-on-dark-faint: var(--raw-cream-alpha-45);
+  --border-muted: var(--raw-beige-200);
+  --map-dot: var(--raw-slate-500);
+  --map-grid: var(--raw-slate-600);
+  --map-grid-ghost: var(--raw-slate-900);
+  --plate-outline: var(--raw-plate-600);
+  --plate-fill: var(--raw-cream-alpha-10);
+  --rail: var(--raw-cream-alpha-20);
+  --meter-contour: var(--raw-ink-alpha-08);
+  --footer-contour: var(--raw-cream-alpha-10);
+  --accent: var(--raw-bronze-700);          /* บนพื้นสว่าง */
+  --accent-on-dark: var(--raw-gold-400);    /* บนพื้นเข้ม */
+  --accent-muted: var(--raw-bronze-alpha-16);
+  --ok: var(--raw-ok-600);
+  --ok-on-dark: var(--raw-ok-300);
+  --warn: var(--raw-warn-600);
+  --warn-on-dark: var(--raw-warn-300);
+  --bad: var(--raw-bad-600);
+  --bad-on-dark: var(--raw-bad-300);
+  --risk-high: var(--bad);
+  --risk-mid: var(--warn);
+
+  --type-impact: 6rem;
+  --type-display-lg: 4.375rem;
+  --type-display: 3.25rem;
+  --type-heading: 2.375rem;
+  --type-title: 1.25rem;
+  --type-lead: 1.125rem;
+  --type-label: 1rem;
+  --type-body: 0.875rem;
+  --type-eyebrow: 0.75rem;
+  --type-display-sm: 3.4375rem;
+
+  --leading-headline: 0.95;
+  --leading-flat: 0.9;
+  --leading-cap: 0.72;
+  --leading-thai: 1.2;
+  --leading-thai-display: 1.12;
+
+  --duration-fast: 150ms; --duration-normal: 250ms; --duration-plate: 700ms;
+  --ease-entrance: cubic-bezier(0.2, 0, 0, 1);
+  --ease-plate: cubic-bezier(0.33, 0, 0, 1);
+  --font-sans: "Anuphan", "Noto Sans Thai", "Leelawadee UI", system-ui, sans-serif;
+  --font-display: "Prompt", "Anuphan", "Noto Sans Thai", sans-serif;
+  --font-mark: "Trirong", "Noto Serif Thai", Georgia, serif;
+}
+
+/* ---------- root font-size bands ---------- */
+html { font-size: 16px; }
+@media (max-width: 1920px) { html { font-size: 0.833333vw; } }
+@media (max-width: 1440px) { html { font-size: 1.111111vw; } }
+@media (max-width: 1279px) { html { font-size: 16px; } }
+
+body { background: var(--background); color: var(--foreground); min-height: 100lvh; margin: 0; font-family: var(--font-sans); }
+*, *::before, *::after { box-sizing: border-box; }
+h1, h2, h3, p, dl, dd, ul, figure { margin: 0; }
+ul { padding: 0; list-style: none; }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+html.is-loading, html.is-locked { overflow: hidden; }
+
+/* Lenis */
+html.lenis, html.lenis body { height: auto; }
+.lenis:not(.lenis-autoToggle).lenis-stopped { overflow: clip; }
+.lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
+.lenis.lenis-smooth iframe { pointer-events: none; }
+
+/* ข้อความสำหรับโปรแกรมอ่านหน้าจอ */
+.sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* ---------- text reveals (ห้ามมี overflow clip) ---------- */
+.rv { display: flex; flex-wrap: wrap; column-gap: 0.3em; }
+.rv--tight { column-gap: 0; }
+.rv--letters { flex-wrap: nowrap; }
+.rv__u { display: inline-block; }
+.rv__u--pad { margin-inline: 0.25em; }
+
+/* ---------- sticky stack ---------- */
+.stack { position: relative; background: var(--surface-black); }
+.layer { position: sticky; top: 0; }
+.layer--last { position: relative; z-index: 20; }
+.layer__inner { transform-origin: center; }
+.layer__shade { position: absolute; inset: 0; background: var(--surface-black); opacity: 0; pointer-events: none; }
+
+/* ---------- bracket panel ---------- */
+.bpanel { position: relative; padding: 1rem; }
+.br { position: absolute; width: 0.625rem; height: 0.625rem; overflow: visible; fill: none; stroke: currentColor; stroke-width: 1; }
+.br--tr { top: 0; right: 0; }
+.br--tl { top: 0; left: 0; transform: scaleX(-1); }
+.br--bl { bottom: 0; left: 0; transform: scale(-1); }
+.br--br { bottom: 0; right: 0; transform: scaleY(-1); }
+
+/* ---------- chamfered button ---------- */
+.cbtn { position: relative; display: inline-flex; align-items: center; justify-content: center; font-size: 1.25rem; height: 2.5em; width: 11em; color: var(--accent); flex: none; }
+.cbtn__svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.cbtn__body { fill: var(--surface-dark); }
+.cbtn__flood { fill: var(--accent); transform-box: fill-box; transform-origin: left; transform: scaleX(0); transition: transform var(--duration-normal) var(--ease-plate); }
+.cbtn__ring, .cbtn__brackets { fill: none; stroke: var(--accent); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.cbtn__label { position: relative; display: inline-flex; align-items: center; gap: 0.6em; font-weight: 500; line-height: var(--leading-thai); transition: color var(--duration-normal); }
+.cbtn__arrow { width: 0.68em; height: 0.54em; fill: none; stroke: currentColor; stroke-width: 1.2; overflow: visible; transition: transform var(--duration-fast); }
+.cbtn:hover .cbtn__flood, .cbtn:focus-visible .cbtn__flood { transform: scaleX(1); }
+.cbtn:hover .cbtn__label, .cbtn:focus-visible .cbtn__label { color: var(--surface-black); }
+.cbtn:hover .cbtn__arrow, .cbtn:focus-visible .cbtn__arrow { transform: translateX(0.25rem); }
+
+/* ---------- stall-grid dissolve ---------- */
+.dissolve { position: absolute; left: 0; right: 0; top: 0; width: 100%; height: 34svh; pointer-events: none; display: block; }
+
+/* ---------- hero ---------- */
+.hero { position: relative; isolation: isolate; min-height: 100lvh; overflow: hidden; background: var(--background); }
+.hero__scene { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+.hero__scene canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.hero__ramp { position: absolute; left: 0; right: 0; bottom: 0; height: 22%; background: linear-gradient(to bottom, transparent, var(--background) 72%); pointer-events: none; z-index: 1; }
+.hero__content { position: relative; z-index: 2; min-height: 100lvh; display: flex; flex-direction: column; padding: 1.5rem; }
+@media (min-width: 640px) { .hero__content { padding-left: 2rem; padding-right: 2rem; } }
+@media (min-width: 1280px) { .hero__ramp { display: none; } }
+
+.mast { position: relative; z-index: 30; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.logo { display: inline-flex; align-items: center; gap: 0.625rem; font-family: var(--font-display); font-weight: 700; font-size: 1.125rem; letter-spacing: 0.04em; line-height: 1; }
+.logo svg { width: 1.375rem; height: 1.375rem; flex: none; }
+.mast__nav { display: none; }
+.mast__cta { display: none; align-items: center; gap: 0.4em; font-weight: 600; font-size: var(--type-label); transition: color var(--duration-fast); }
+.mast__nav a { transition: color var(--duration-fast); }
+.mast__nav a:hover, .mast__cta:hover { color: var(--accent); }
+.burger { width: 2.75rem; height: 2.75rem; margin-right: -0.625rem; display: grid; place-content: center; gap: 0.3125rem; }
+.burger span { display: block; width: 1.5rem; height: 1px; background: var(--foreground); }
+@media (min-width: 1280px) {
+  .mast__nav { display: flex; position: absolute; left: 50%; transform: translateX(-50%); gap: 3.5rem; font-size: var(--type-label); }
+  .mast__cta { display: inline-flex; }
+  .burger { display: none; }
+}
+
+.hero__middle { display: flex; flex-direction: column; gap: 1.5rem; margin-top: 2rem; }
+@media (min-width: 1280px) { .hero__middle { flex: 1; flex-direction: row; align-items: center; justify-content: space-between; margin-top: 0; } }
+
+.ident { max-width: 28rem; }
+.ident__id { font-size: var(--type-label); text-transform: uppercase; letter-spacing: 0.04em; color: var(--foreground-muted); }
+.ident__name { margin-top: 0.75rem; font-family: var(--font-display); font-weight: 700; font-size: var(--type-display-lg); line-height: var(--leading-thai-display); }
+@media (min-width: 768px) { .ident__name { font-size: var(--type-impact); } }
+@media (min-width: 1024px) { .ident__name { font-size: var(--type-display-lg); } }
+@media (min-width: 1280px) { .ident__name { font-size: var(--type-impact); } }
+.ident__sub { margin-top: 0.5rem; font-size: var(--type-label); letter-spacing: 0.18em; text-transform: uppercase; color: var(--foreground-muted); }
+.ident__meta { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1.75rem; font-size: var(--type-lead); line-height: 1.2; }
+.ident__meta li { display: flex; align-items: center; gap: 0.75rem; }
+.sq { width: 0.75rem; height: 0.75rem; background: var(--foreground); flex: none; }
+.sq--accent { background: var(--accent); }
+
+.panels { display: none; flex-direction: row; gap: 2rem; }
+.panels > .bpanel { width: 13.625rem; }
+@media (min-width: 640px) { .panels { display: flex; } }
+@media (min-width: 1280px) { .panels { flex-direction: column; width: 13.625rem; } .panels > .bpanel { width: auto; } }
+.eyebrow { font-size: var(--type-eyebrow); font-weight: 600; color: var(--accent); line-height: var(--leading-thai); }
+.cycle { display: flex; flex-direction: column; gap: 0.375rem; margin-top: 1rem; font-size: var(--type-body); line-height: 1.2; }
+.cycle dt { font-weight: 700; }
+.minimap { display: block; width: 6.25rem; height: 4.375rem; margin-top: 1rem; }
+.tri { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 1.5rem; }
+.tri dt { font-size: var(--type-eyebrow); white-space: nowrap; line-height: var(--leading-thai); }
+.tri dd { margin-top: 0.75rem; font-family: var(--font-display); font-weight: 600; font-size: var(--type-heading); line-height: var(--leading-cap); letter-spacing: -0.06em; white-space: nowrap; }
+.tri .is-high { color: var(--risk-high); }
+
+.actions { display: flex; justify-content: center; margin-top: auto; padding-top: 1.5rem; }
+.cue, .credits { display: none; }
+@media (min-width: 640px) {
+  .actions { display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; gap: 2rem; }
+  .cue { display: inline-flex; }
+  .credits { display: flex; }
+}
+.cue { align-items: center; gap: 0.75rem; justify-self: start; line-height: var(--leading-thai); }
+.cue__play { width: 2rem; height: 2rem; flex: none; fill: none; stroke: currentColor; }
+.cue__play path { fill: currentColor; stroke: none; }
+.cue__t { display: block; font-weight: 500; transition: color var(--duration-fast); }
+.cue:hover .cue__t { color: var(--accent); }
+.cue__time { display: block; font-size: var(--type-body); color: var(--foreground-muted); }
+.credits { justify-self: end; justify-content: flex-end; gap: 1.5rem; font-size: var(--type-body); }
+
+/* ---------- ป้ายแผงที่ลอยตามเคอร์เซอร์ ---------- */
+.stall-tag { position: absolute; left: 0; top: 0; z-index: 3; display: flex; flex-direction: column; align-items: flex-start; pointer-events: none; opacity: 0; will-change: transform, opacity; }
+.stall-tag__box { margin-left: -0.75rem; padding: 0.375rem 0.625rem; background: var(--surface-black); color: var(--foreground-on-dark); font-size: var(--type-eyebrow); line-height: var(--leading-thai); white-space: nowrap; }
+.stall-tag__box b { font-weight: 600; }
+.stall-tag__risk { font-family: var(--font-display); font-weight: 600; }
+.stall-tag__lead { display: block; width: 1px; height: 1.75rem; background: var(--surface-black); }
+
+/* ---------- loading veil ---------- */
+.veil { position: fixed; inset: 0; z-index: 50; background: var(--background); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.veil__content { display: flex; flex-direction: column; align-items: center; }
+.veil__receipt {
+  position: relative; width: 6rem; height: 8.5rem;
+  clip-path: polygon(0 0, 100% 0, 100% 94%, 93.75% 100%, 87.5% 94%, 81.25% 100%, 75% 94%, 68.75% 100%, 62.5% 94%, 56.25% 100%, 50% 94%, 43.75% 100%, 37.5% 94%, 31.25% 100%, 25% 94%, 18.75% 100%, 12.5% 94%, 6.25% 100%, 0 94%);
+}
+.veil__shell { position: absolute; inset: 0; background: var(--foreground); opacity: 0.12; }
+.veil__sheet { position: absolute; inset: 0; background: var(--foreground); transform-origin: top; transform: scaleY(0); }
+.veil__line { position: absolute; left: 16%; right: 16%; height: 1px; background: var(--background); }
+.veil__label { margin-top: 1.75rem; font-size: var(--type-lead); letter-spacing: 0.18em; opacity: 0; }
+.veil__meter { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: var(--border-muted); }
+.veil__meter span { display: block; height: 100%; background: var(--foreground); transform-origin: left; transform: scaleX(0); }
+
+/* ---------- menu sheet ---------- */
+.sheet { position: fixed; inset: 0; z-index: 50; background: var(--background); display: flex; flex-direction: column; padding: 1.5rem; opacity: 0; }
+@media (min-width: 640px) { .sheet { padding-left: 2rem; padding-right: 2rem; } }
+.sheet[hidden] { display: none; }
+.sheet__top { display: flex; align-items: center; justify-content: space-between; }
+.sheet__close { position: relative; width: 2.75rem; height: 2.75rem; margin-right: -0.625rem; }
+.sheet__close::before, .sheet__close::after { content: ""; position: absolute; left: 50%; top: 50%; width: 1.5rem; height: 1px; background: var(--foreground); }
+.sheet__close::before { transform: translate(-50%, -50%) rotate(45deg); }
+.sheet__close::after { transform: translate(-50%, -50%) rotate(-45deg); }
+.sheet__nav { display: flex; flex-direction: column; gap: 0.5rem; margin: auto 0; }
+.sheet__nav a { font-family: var(--font-display); font-weight: 700; font-size: var(--type-heading); line-height: var(--leading-thai-display); transition: color var(--duration-fast); }
+.sheet__nav a:hover { color: var(--accent); }
+
+/* ---------- บล็อกที่ใช้เฟรม 1440 (หน่วย cqw) ---------- */
+.pipe, .meter, .foot { --u: calc(100cqw / 1440); }
+@media (max-width: 1023px) { .pipe, .meter, .foot { --type-min: 13px; } }
+
+/* =====================================================================
+   3 — ความเสี่ยงค้างชำระ
+   ===================================================================== */
+.risk { container-type: inline-size; position: relative; isolation: isolate; min-height: 100lvh; overflow: hidden; background: var(--surface-black); color: var(--foreground-on-dark); }
+.risk__frame { position: absolute; inset: 0; overflow: hidden; -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 10%, #000 90%, transparent 100%); mask-image: linear-gradient(to bottom, transparent 0, #000 10%, #000 90%, transparent 100%); }
+.risk__stage { position: absolute; left: 0; top: 0; width: 1440px; height: 800px; transform-origin: top left; }
+.risk__stage > * { position: absolute; left: 0; top: 0; width: 1440px; height: 800px; display: block; overflow: visible; }
+.risk__copy { position: relative; min-height: 100lvh; display: flex; flex-direction: column; justify-content: space-between; gap: 2rem; padding: 4.8611cqw 2.2222cqw 2rem; }
+.risk__title { font-family: var(--font-display); font-weight: 700; line-height: var(--leading-thai-display); color: var(--accent); font-size: max(3.8194cqw, 40px); }
+.risk__line { display: flex; align-items: baseline; }
+.risk__stop, .pipe__stop { color: var(--foreground-on-dark); display: inline-block; }
+.risk__rule { display: block; width: max(1.6667cqw, 18px); height: max(0.1389cqw, 2px); margin-top: 1.25rem; background: var(--accent); transform-origin: left; transform: scaleX(0); }
+.risk__intro { margin-top: 1.25rem; width: max(18cqw, 15rem); font-size: max(1.25cqw, 17px); line-height: var(--leading-thai); }
+.mplate { position: relative; align-self: flex-end; width: 20rem; height: 4.875rem; display: grid; grid-template-columns: 25.9375% 1fr; flex: none; opacity: 0; }
+.mplate__frame { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.mplate__frame path { fill: var(--surface-black); stroke: var(--accent); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.mplate__frame line { stroke: var(--accent); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.mplate__badge { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.25rem; }
+.mplate__coin { width: 2.5rem; height: 1.625rem; overflow: visible; fill: none; stroke: var(--accent); stroke-width: 1.2; }
+.mplate__ver { display: flex; gap: 0.3em; font-family: var(--font-display); font-weight: 600; font-size: var(--type-eyebrow); line-height: 1.2; }
+.mplate__ver .is-accent { color: var(--accent); }
+.mplate__stats { position: relative; display: flex; flex-direction: column; justify-content: center; gap: 0.125rem; padding: 0 1rem; font-size: var(--type-eyebrow); line-height: var(--leading-thai); }
+.mplate__stats > div { display: flex; align-items: baseline; gap: 0.5rem; }
+.mplate__stats dt { color: var(--accent); font-family: var(--font-display); font-weight: 600; white-space: nowrap; }
+.mplate__stats dd { white-space: nowrap; }
+.tcard { position: absolute; left: 0; top: 0; z-index: 30; width: 16.5rem; padding: 1rem; background: var(--surface-black); color: var(--foreground-on-dark); font-size: var(--type-body); line-height: var(--leading-thai); pointer-events: none; opacity: 0; will-change: transform, opacity; }
+.tcard__top { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
+.tcard__top b { font-weight: 600; }
+.tcard__risk { font-family: var(--font-display); font-weight: 600; }
+.tcard__bar { position: relative; height: 0.5rem; margin-top: 0.625rem; border: 1px solid var(--foreground-on-dark-faint); }
+.tcard__bar i { position: absolute; left: 0; top: 0; bottom: 0; }
+.tcard__why { margin-top: 0.375rem; color: var(--foreground-on-dark-muted); }
+@media (max-width: 639px) {
+  .risk, .risk__copy { min-height: 680px; }
+  .risk__copy { z-index: 20; }
+  .mplate { align-self: stretch; width: auto; max-width: 20rem; }
+}
+
+/* =====================================================================
+   4 — จากมิเตอร์ถึงใบแจ้งหนี้
+   ===================================================================== */
+.pipe { container-type: inline-size; position: relative; isolation: isolate; background: var(--surface-black); color: var(--foreground-on-dark); padding-bottom: 10.4167%; }
+@media (max-width: 1023px) { .pipe { overflow-x: clip; } }
+.pipe__wrap { position: relative; padding-top: calc(var(--u) * 169); }
+.pipe__title { position: relative; z-index: 20; padding: 0 24px 2rem; font-family: var(--font-display); font-weight: 700; line-height: var(--leading-thai-display); color: var(--accent); font-size: max(calc(var(--u) * 55), 40px); }
+.pipe__line { display: flex; align-items: baseline; }
+@media (min-width: 1024px) {
+  .pipe__title { position: absolute; top: calc(var(--u) * 32); right: calc(var(--u) * 32); width: max(calc(var(--u) * 330), 82cqw); padding: 0; text-align: right; }
+  .pipe__line, .pipe__title .rv { justify-content: flex-end; }
+}
+.pipe__rail { position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%); z-index: 10; width: calc(var(--u) * 16); pointer-events: none; }
+.pipe__rail svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.pl-rows { position: relative; margin: 0; padding: 0; list-style: none; }
+.pl-row { position: relative; width: 100%; transition: opacity var(--duration-plate) var(--ease-plate); }
+.pl-row--centre { height: calc(var(--u) * 462); }
+.pl-row--side { height: calc(var(--u) * 217); }
+.pl-plate { position: absolute; top: 0; height: 100%; }
+.pl-row--centre .pl-plate { width: calc(var(--u) * 710); left: 50%; transform: translateX(-50%); }
+.pl-row--side .pl-plate { width: calc(var(--u) * 333); }
+.pl-row--left .pl-plate { left: calc(var(--u) * 32); }
+.pl-row--right .pl-plate { right: calc(var(--u) * 32); }
+.pl-plate__fill { position: absolute; inset: 0; clip-path: url(#plateClip); background: var(--plate-fill); transition: inset var(--duration-plate) var(--ease-plate); }
+.pl-plate__fill canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.pl-plate__outline { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; fill: none; stroke: var(--plate-outline); stroke-width: 1; vector-effect: non-scaling-stroke; pointer-events: none; }
+.pl-step { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 20; font-family: var(--font-display); font-weight: 700; line-height: 1; color: var(--accent); font-size: max(calc(var(--u) * 36), 30px); pointer-events: none; }
+.pl-copy { position: absolute; left: calc(var(--u) * 1020); top: 50%; transform: translateY(-50%); z-index: 20; width: min(max(calc(var(--u) * 260), 200px), 26.9444cqw); font-size: max(calc(var(--u) * 18), 17px); line-height: var(--leading-thai); color: var(--foreground-on-dark); }
+.pl-copy > span { display: block; opacity: 0; }
+.pl-copy b { font-weight: 600; }
+@media (hover: hover) {
+  .pl-plate:hover .pl-plate__fill { inset: 5%; }
+  .pl-rows:has(.pl-plate:hover) .pl-row:not(:has(.pl-plate:hover)) { opacity: 0.3; }
+}
+@media (max-width: 1023px) { .pl-copy { left: auto; right: calc(var(--u) * 32); } }
+@media (max-width: 639px) {
+  .pipe__wrap { padding-top: 72px; }
+  .pipe__rail { display: none; }
+  .pl-rows { display: flex; flex-direction: column; gap: 2.5rem; padding: 0 24px; }
+  .pl-row, .pl-row--centre, .pl-row--side { height: auto; }
+  .pl-row .pl-plate, .pl-row--centre .pl-plate, .pl-row--side .pl-plate { position: relative; width: 82%; aspect-ratio: 710 / 462; height: auto; left: auto; right: auto; transform: none; }
+  .pl-row:nth-child(even) .pl-plate { margin-left: auto; }
+  .pl-step { top: calc((100cqw - 48px) * 0.82 * 0.3254); left: calc(24px + (100cqw - 48px) * 0.91); }
+  .pl-row:nth-child(even) .pl-step { left: calc(24px + (100cqw - 48px) * 0.09); }
+  .pipe__title { z-index: 40; }
+  .pl-copy { position: static; transform: none; width: auto; margin-top: 1rem; }
+}
+
+/* =====================================================================
+   5 — มิเตอร์ผิดปกติ
+   ===================================================================== */
+.meter { container-type: inline-size; position: relative; isolation: isolate; min-height: 100lvh; overflow: hidden; background: var(--background); color: var(--foreground); }
+.meter__contour { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.meter__band { position: absolute; left: 0; right: 0; bottom: 0; height: calc(var(--u) * 169); background: var(--surface-black); }
+.meter__stage { position: absolute; left: calc(var(--u) * 420); top: calc(var(--u) * 150); width: calc(var(--u) * 700); height: calc(var(--u) * 400); z-index: 5; touch-action: pan-y; }
+.meter__melt { position: absolute; left: 0; right: 0; bottom: calc(var(--u) * 169); height: calc(var(--u) * 48); background: linear-gradient(to bottom, transparent, var(--surface-black)); }
+.meter__title { position: absolute; left: calc(var(--u) * 32); top: calc(var(--u) * 32); z-index: 40; font-family: var(--font-display); font-weight: 700; line-height: var(--leading-thai-display); font-size: max(calc(var(--u) * 96), 40px); }
+.meter__line { display: flex; align-items: baseline; }
+.meter__stop { color: var(--accent); display: inline-block; }
+.meter__intro { position: absolute; left: calc(var(--u) * 32); bottom: calc(var(--u) * 201); width: max(calc(var(--u) * 338), 280px); z-index: 40; display: flex; flex-direction: column; align-items: flex-start; gap: calc(var(--u) * 40); }
+.meter__report { font-size: max(calc(var(--u) * 18), 17px); line-height: var(--leading-thai); }
+.cbtn--meter { font-size: max(calc(var(--u) * 20), 15px); width: 10.85em; opacity: 0; }
+.cbtn--meter .cbtn__body { fill: var(--surface-black); }
+.chart__cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.chart__div { position: absolute; top: calc(var(--u) * 26); bottom: calc(var(--u) * 26); width: 1px; margin-left: -0.5px; background: var(--foreground); left: 100%; }
+.chart__handle { position: absolute; top: 50%; left: 0; width: 28px; height: 28px; transform: translate(-50%, -50%); border-radius: 50%; border: 1px solid var(--foreground); background: var(--background); display: grid; place-items: center; font-size: 13px; line-height: 1; letter-spacing: 0.1em; cursor: ew-resize; touch-action: none; user-select: none; }
+.chart__label { position: absolute; top: calc(var(--u) * -4); font-size: max(calc(var(--u) * 12), 11px); font-weight: 600; line-height: var(--leading-thai); white-space: nowrap; }
+.chart__label--raw { transform: translateX(calc(-100% - 12px)); }
+.chart__label--clean { transform: translateX(12px); color: var(--accent); }
+.chart__caption { position: absolute; left: 0; right: 0; top: 100%; margin-top: calc(var(--u) * 10); font-size: max(calc(var(--u) * 13), 12px); line-height: var(--leading-thai); color: var(--foreground-muted); }
+.meter__panels { position: absolute; top: 0; right: calc(var(--u) * 32); width: calc(var(--u) * 244); height: calc(var(--u) * 560); z-index: 40; }
+.mpanel { position: absolute; left: 0; right: 0; color: var(--foreground); opacity: 0; }
+.mpanel--cycle { top: calc(var(--u) * 32); min-height: calc(var(--u) * 73); padding: calc(var(--u) * 11) calc(var(--u) * 16); font-size: max(calc(var(--u) * 14), var(--type-min, 12px)); line-height: var(--leading-thai); }
+.mpanel--cycle b { font-weight: 600; }
+.mpanel--stats { top: calc(var(--u) * 137); height: calc(var(--u) * 398); padding: calc(var(--u) * 22) calc(var(--u) * 16); display: flex; flex-direction: column; justify-content: center; gap: calc(var(--u) * 24); }
+.mstat { position: relative; display: flex; align-items: center; gap: calc(var(--u) * 14); height: calc(var(--u) * 58); }
+.mstat svg { width: calc(var(--u) * 31); height: calc(var(--u) * 31); flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; overflow: visible; }
+.mstat small { display: block; font-size: max(calc(var(--u) * 12), var(--type-min, 11px)); line-height: var(--leading-thai); color: var(--foreground-muted); }
+.mstat b { display: block; margin-top: calc(var(--u) * 10); font-family: var(--font-display); font-weight: 600; font-size: max(calc(var(--u) * 38), var(--type-min, 0px)); line-height: var(--leading-cap); letter-spacing: -0.02em; white-space: nowrap; }
+.mstat__rule { position: absolute; left: 0; right: 0; bottom: calc(var(--u) * -12); height: 1px; background: var(--foreground-muted); transform-origin: left; transform: scaleX(0); }
+.cal { --cal-spread: 1; position: absolute; left: 0; right: 0; bottom: 0; z-index: 20; height: calc(var(--u) * 169); color: var(--foreground-on-dark); }
+@media (min-width: 1024px) and (max-width: 1279px) { .cal { --cal-spread: 1.75; } }
+.cal__conn { position: absolute; top: calc(var(--u) * 131.5); height: 1px; background-image: repeating-linear-gradient(to right, var(--foreground-on-dark-muted) 0 calc(var(--u) * 7), transparent calc(var(--u) * 7) calc(var(--u) * 11.45)); transform-origin: center; transform: scaleX(0); }
+.cal__card { position: absolute; top: calc(var(--u) * 43); display: flex; flex-direction: column; align-items: center; text-align: center; gap: calc(var(--u) * 4); opacity: 0; }
+.cal__label { font-size: max(calc(var(--u) * 12), var(--type-min, 11px)); line-height: var(--leading-thai); color: var(--foreground-on-dark-muted); white-space: nowrap; }
+.cal__month { font-family: var(--font-display); font-weight: 600; font-size: max(max(calc(var(--u) * 18), var(--type-min, 0px)), 17px); line-height: var(--leading-thai); white-space: nowrap; }
+.cal__result { font-size: max(calc(var(--u) * 14), var(--type-min, 11px)); line-height: var(--leading-thai); color: var(--foreground-on-dark-muted); white-space: nowrap; }
+.cal__card.is-live .cal__label, .cal__card.is-live .cal__result { color: var(--accent); }
+.cal__marker { position: absolute; top: calc(var(--u) * 126); height: calc(var(--u) * 11); display: grid; place-items: center; transform: translateX(-50%); opacity: 0; }
+.cal__marker b { font-family: var(--font-display); font-weight: 600; font-size: max(calc(var(--u) * 12), var(--type-min, 11px)); line-height: 1; padding: 0 calc(var(--u) * 4); background: var(--surface-black); }
+.cal__marker svg { width: calc(var(--u) * 11); height: calc(var(--u) * 11); overflow: visible; }
+.cal__bracket { position: absolute; color: var(--accent); pointer-events: none; opacity: 0; }
+.cal__bracket .br { width: calc(var(--u) * 8); height: calc(var(--u) * 8); }
+/* ต่ำกว่า 1024: กราฟอยู่ใต้บทนำ แผงสถิติต่อท้าย ปฏิทินเป็นตาราง */
+@media (max-width: 1023px) {
+  .meter { min-height: 0; padding: 72px 32px 0; display: flex; flex-direction: column; gap: 2rem; }
+  .meter__title, .meter__intro { position: relative; left: auto; top: auto; bottom: auto; width: auto; }
+  .meter__title { order: 1; }
+  .meter__intro { order: 2; max-width: 36rem; }
+  .meter__stage { order: 3; position: relative; left: auto; top: auto; width: 100%; height: auto; aspect-ratio: 16 / 10; margin: 1rem 0 2.5rem; }
+  .meter__panels { order: 4; position: relative; top: auto; right: auto; width: auto; height: auto; display: grid; grid-template-columns: 1fr 2fr; gap: 1.5rem; }
+  .mpanel { position: relative; top: auto; height: auto; min-height: 0; }
+  .mpanel--cycle { padding: 1.25rem; }
+  .mpanel--stats { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem 2rem; padding: 1.25rem; }
+  .mstat { height: auto; }
+  .mstat__rule { display: none; }
+  .cal { order: 5; position: relative; left: -32px; width: calc(100% + 64px); height: auto; padding: 1.5rem 32px; background: var(--surface-black); display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; }
+  .cal__conn, .cal__marker, .cal__bracket { display: none; }
+  .cal__card { position: static; width: auto !important; }
+  .meter__melt, .meter__band { display: none; }
+}
+@media (max-width: 639px) {
+  .meter { padding: 72px 24px 0; }
+  .meter__panels { display: none; }
+  .cal { left: -24px; width: calc(100% + 48px); padding: 1.5rem 24px; grid-template-columns: repeat(3, 1fr); }
+  .cal__card[data-i="0"], .cal__card[data-i="1"] { display: none; }
+}
+
+/* =====================================================================
+   6 — ตลาดที่รู้ล่วงหน้า (footer)
+   ===================================================================== */
+.foot { container-type: inline-size; position: relative; isolation: isolate; min-height: 100lvh; overflow: hidden; background: var(--accent); --g: calc(var(--u) * 32); }
+.foot__panel { position: absolute; inset: calc(var(--u) * 16); overflow: hidden; background: var(--surface-black); color: var(--foreground-on-dark); }
+.foot__contour { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.foot__logo { position: absolute; left: var(--g); top: var(--g); color: var(--accent); opacity: 0; }
+.foot__title { position: absolute; top: var(--g); right: var(--g); width: max(calc(var(--u) * 420), 44cqw); text-align: right; font-family: var(--font-display); font-weight: 700; line-height: var(--leading-thai-display); color: var(--accent); font-size: max(calc(var(--u) * 55), 40px); }
+.foot__line { display: flex; align-items: baseline; justify-content: flex-end; }
+.foot__title .rv { justify-content: flex-end; }
+.foot__nav { position: absolute; left: var(--g); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: max(calc(var(--u) * 12), var(--type-min, 0px)); font-family: var(--font-display); font-weight: 600; line-height: var(--leading-thai-display); font-size: max(max(calc(var(--u) * 36), var(--type-min, 0px)), 30px); }
+.foot__nav a { display: flex; align-items: center; justify-content: space-between; gap: 1rem; color: var(--foreground-on-dark); transition: color var(--duration-fast); }
+.foot__nav a:hover { color: var(--accent); }
+.foot__arrow { display: none; color: var(--accent); font-style: normal; }
+.foot__row { position: absolute; left: var(--g); right: var(--g); bottom: var(--g); min-height: 50px; display: flex; align-items: flex-end; }
+.foot__copy { font-size: max(calc(var(--u) * 14), var(--type-min, 12px)); line-height: var(--leading-thai); color: var(--foreground-on-dark-faint); opacity: 0; }
+.foot__src { position: absolute; left: calc(var(--u) * 583 - var(--g)); bottom: 0; font-size: max(calc(var(--u) * 20), 15px); width: 13.75em; opacity: 0; }
+.foot__links { margin-left: auto; width: max(calc(var(--u) * 330), 240px); display: flex; justify-content: space-between; font-size: max(calc(var(--u) * 14), var(--type-min, 12px)); line-height: var(--leading-thai); opacity: 0; }
+.foot__links a { transition: color var(--duration-fast); }
+.foot__links a:hover { color: var(--accent); }
+.cbtn--hollow .cbtn__body { fill: none; stroke: var(--accent); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.receipts { position: absolute; left: 50%; top: 50%; z-index: 5; width: calc(var(--u) * 300); height: calc(var(--u) * 430); transform: translate(-50%, -50%); pointer-events: none; }
+.receipts__inner { position: relative; width: 100%; height: 100%; }
+.rcpt { position: absolute; left: 0; top: 0; width: 100%; padding: calc(var(--u) * 22) calc(var(--u) * 22) calc(var(--u) * 86); background: var(--background); color: var(--foreground); font-size: max(calc(var(--u) * 13), 11px); line-height: var(--leading-thai);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), 95% 100%, 90% calc(100% - 10px), 85% 100%, 80% calc(100% - 10px), 75% 100%, 70% calc(100% - 10px), 65% 100%, 60% calc(100% - 10px), 55% 100%, 50% calc(100% - 10px), 45% 100%, 40% calc(100% - 10px), 35% 100%, 30% calc(100% - 10px), 25% 100%, 20% calc(100% - 10px), 15% 100%, 10% calc(100% - 10px), 5% 100%, 0 calc(100% - 10px)); }
+.rcpt:nth-child(1) { transform: translate(calc(var(--u) * -70), calc(var(--u) * 26)) rotate(-6deg); }
+.rcpt:nth-child(2) { transform: translate(calc(var(--u) * 64), calc(var(--u) * 12)) rotate(2deg); }
+.rcpt:nth-child(3) { transform: rotate(-1.5deg); }
+.rcpt__head { font-family: var(--font-display); font-weight: 700; letter-spacing: 0.04em; font-size: 1.05em; }
+.rcpt__meta { color: var(--foreground-muted); margin-bottom: 0.6em; }
+.rcpt__row { display: flex; justify-content: space-between; gap: 1em; }
+.rcpt__rule { border-top: 1px dashed var(--foreground-muted); margin: 0.6em 0; }
+.rcpt__total { display: flex; justify-content: space-between; align-items: baseline; font-family: var(--font-display); font-weight: 700; font-size: 1.5em; line-height: 1.2; }
+.rcpt__stamp { position: absolute; left: calc(var(--u) * 22); bottom: calc(var(--u) * 34); padding: 0.25em 0.6em; border: 2px solid var(--risk-high); color: var(--risk-high); font-family: var(--font-display); font-weight: 700; line-height: var(--leading-thai); transform: rotate(-12deg); }
+@media (min-width: 1024px) and (max-width: 1279px) { .receipts { transform: translate(-50%, -50%) scale(0.87); } }
+@media (max-width: 639px) {
+  .foot { min-height: 680px; --g: 24px; }
+  .receipts { display: none; }
+  .foot__title { width: auto; left: var(--g); }
+  .foot__nav { left: var(--g); right: var(--g); gap: 0; }
+  .foot__nav a { padding: 0.5rem 0; border-bottom: 1px solid var(--raw-white-alpha-20); }
+  .foot__arrow { display: inline; }
+  .foot__row { flex-wrap: wrap; gap: 1rem; }
+  .foot__src { position: relative; left: auto; order: -1; }
+  .foot__links { margin-left: 0; width: 100%; }
+}
+
+/* ---------- error banners ---------- */
+.errs { position: fixed; left: 1rem; bottom: 1rem; z-index: 100; display: flex; flex-direction: column; gap: 0.5rem; max-width: min(32rem, calc(100vw - 2rem)); pointer-events: none; }
+.err { background: var(--surface-black); color: var(--foreground-on-dark); border-left: 3px solid var(--risk-high); padding: 0.625rem 0.875rem; font-size: var(--type-body); line-height: var(--leading-thai); pointer-events: auto; }
+
+/* =====================================================================
+   คู่มือผู้ค้า — ปรับให้เข้ากับหน้าตลาดหลัก
+   ===================================================================== */
+/* บล็อกพื้นเข้มใช้สีทองเป็นสีเน้น บล็อกพื้นครีมใช้บรอนซ์ */
+.risk, .pipe, .foot__panel, .cal, .cbtn, .tcard, .stall-tag, .sheet .cbtn { --accent: var(--accent-on-dark); }
+.foot { background: var(--raw-gold-400); }
+/* หัวข้อใช้ Prompt น้ำหนักกลางแบบหน้าตลาด */
+.ident__name, .risk__title, .pipe__title, .meter__title, .foot__title, .sheet__nav a { font-weight: 500; }
+.pl-step, .tri dd, .mstat b, .cal__month, .mplate__stats dt, .rcpt__total, .mplate__ver { font-weight: 600; }
+/* โลโก้ตลาด: กรอบตัว บ + ชื่อตลาด */
+.logo { gap: 0.75rem; font-family: var(--font-sans); letter-spacing: 0; line-height: 1.2; }
+.logo__mark { display: grid; place-items: center; width: 2.125rem; height: 2.125rem; border: 1px solid currentColor; font-family: var(--font-mark); font-size: 1.0625rem; line-height: 1; flex: none; }
+.logo__word { display: block; }
+.logo__word strong { display: block; font-family: var(--font-display); font-weight: 400; font-size: 1.0625rem; line-height: 1.25; }
+.logo__word small { display: block; font-size: 0.625rem; font-weight: 500; letter-spacing: 0.2em; line-height: 1.5; opacity: 0.6; }
+.ident__id { letter-spacing: 0.18em; font-size: var(--type-eyebrow); }
+.ident__sub { max-width: 24rem; margin-top: 0.75rem; font-size: var(--type-lead); line-height: var(--leading-thai); letter-spacing: 0; text-transform: none; }
+.credits a, .foot__links a { transition: color var(--duration-fast); }
+.credits a:hover { color: var(--accent); }
+.tri dd.is-ok { color: var(--ok); }
+/* การ์ดแผงบนผัง */
+.tcard__bar[hidden] { display: none; }
+.tcard.is-link .tcard__why { color: var(--accent); }
+.tcard__why { font-weight: 500; }
+/* ขั้นที่เป็นแผ่นข้าง: คำอธิบายอยู่อีกฝั่งของเส้นกลาง */
+.pl-copy--side { left: calc(var(--u) * 390); }
+.pl-row--left .pl-copy--side { left: calc(var(--u) * 790); }
+.pl-copy small { display: block; margin-bottom: 0.35em; font-size: 0.72em; letter-spacing: 0.04em; color: var(--accent); }
+@media (max-width: 1023px) {
+  .pl-row--right .pl-copy--side { left: calc(var(--u) * 32); right: auto; }
+  .pl-row--left .pl-copy--side { left: auto; right: calc(var(--u) * 32); }
+}
+@media (max-width: 639px) {
+  .pl-copy--side, .pl-row--left .pl-copy--side, .pl-row--right .pl-copy--side { left: auto; right: auto; }
+}
+/* ผังตลาด: เงาจางใต้หัวข้อและบทนำ ให้อ่านง่ายบนจุดของโซน */
+@media (min-width: 640px) {
+  .risk__copy { z-index: 1; }
+  .risk__copy::before { content: ""; position: absolute; left: 0; top: 0; width: min(46rem, 70%); height: 62%; background: radial-gradient(120% 90% at 0 0, var(--surface-black) 38%, transparent 76%); pointer-events: none; z-index: -1; }
+}
+/* ใบเสร็จ: ตรายางตามสถานะ */
+.rcpt__stamp--ok { border-color: var(--ok); color: var(--ok); }
+.rcpt__stamp--warn { border-color: var(--warn); color: var(--warn); }
+.rcpt__stamp--bad { border-color: var(--bad); color: var(--bad); }
+/* ปุ่มในบล็อกบิล */
+.cbtn--meter { width: 11.5em; }
+@media (max-width: 639px) {
+  .cal__card[data-i="0"], .cal__card[data-i="1"] { display: flex; }
+  .cal__month, .cal__label, .cal__result { white-space: normal; }
+}
+</style>
+</head>
+<body>
+<div class="errs" id="errors" aria-live="assertive"></div>
+
+<div class="stack" data-stack>
+  <!-- ชั้นที่ 1: ภาพรวม -->
+  <div class="layer" style="z-index: 0">
+    <div class="layer__inner">
+      <section id="overview" class="hero" data-hero aria-labelledby="hero-title">
+        <div class="hero__scene" data-scene aria-hidden="true"></div>
+        <div class="hero__ramp" aria-hidden="true"></div>
+        <div class="stall-tag" aria-hidden="true"><div class="stall-tag__box"></div><i class="stall-tag__lead"></i></div>
+
+        <div class="veil" role="status" aria-label="กำลังโหลด">
+          <div class="veil__content">
+            <div class="veil__receipt" aria-hidden="true">
+              <span class="veil__shell"></span>
+              <span class="veil__sheet"></span>
+              <span class="veil__line" style="top: 30%"></span>
+              <span class="veil__line" style="top: 45%"></span>
+              <span class="veil__line" style="top: 60%"></span>
+            </div>
+            <p class="veil__label" aria-hidden="true">BANYATSAP MARKET</p>
+          </div>
+          <div class="veil__meter" aria-hidden="true"><span></span></div>
+        </div>
+
+        <div class="hero__content">
+          <header class="mast">
+            <a class="logo" href="/" data-logo>
+              <span class="logo__mark" aria-hidden="true">บ</span>
+              <span class="logo__word"><strong>ตลาดบัญญัติทรัพย์</strong><small>คู่มือผู้ค้า</small></span>
+            </a>
+            <nav class="mast__nav" aria-label="หลัก">
+              <a href="#overview">ภาพรวม</a>
+              <a href="#map">ผังตลาด</a>
+              <a href="#steps">ขั้นตอน</a>
+              <a href="#bill">บิลน้ำไฟ</a>
+              <a href="#start">เริ่มใช้งาน</a>
+            </nav>
+            <a class="mast__cta" href="/login" data-account><span aria-hidden="true">[</span><span data-account-label>เข้าสู่ระบบ</span><span aria-hidden="true">→ ]</span></a>
+            <button class="burger" type="button" aria-label="เปิดเมนู" aria-expanded="false" aria-controls="menu-sheet"><span></span><span></span></button>
+          </header>
+
+          <div class="hero__middle">
+            <div class="ident">
+              <p class="ident__id" lang="en">VENDOR GUIDE</p>
+              <h1 id="hero-title" class="ident__name" data-text="คู่มือ|ผู้ค้า">คู่มือผู้ค้า</h1>
+              <p class="ident__sub">จองพื้นที่ขายหน้าตลาด และจ่ายค่าเช่า ค่าน้ำ ค่าไฟ ผ่านระบบของตลาดได้เองทุกขั้น</p>
+              <ul class="ident__meta">
+                <li><i class="sq" aria-hidden="true"></i><span>ล็อกขาจร <span data-live="fee">150</span> บาท/วัน · จองล่วงหน้า <span data-live="days">14</span> วัน</span></li>
+                <li><i class="sq" aria-hidden="true"></i><span>ค่าน้ำ <span data-live="water">18</span> · ค่าไฟ <span data-live="elec">8</span> บาท/หน่วย</span></li>
+                <li><i class="sq sq--accent" aria-hidden="true"></i><span data-live="greeting">จ่ายผ่าน QR พร้อมเพย์ · ได้ใบเสร็จทันที</span></li>
+              </ul>
+            </div>
+
+            <div class="panels">
+              <div class="bpanel" data-bracket>
+                <p class="eyebrow">ล็อกขาจรวันนี้</p>
+                <dl class="cycle">
+                  <dt data-live="todayLabel">วันนี้</dt>
+                  <dd>ว่าง <span data-live="free">12</span> จาก <span data-live="spots">12</span> ล็อก</dd>
+                  <dd>จองได้ถึง <span data-live="lastDate">—</span></dd>
+                </dl>
+                <canvas class="minimap" data-minimap aria-hidden="true"></canvas>
+              </div>
+              <div class="bpanel" data-bracket>
+                <p class="eyebrow">อัตราค่าบริการ</p>
+                <dl class="tri">
+                  <div><dt>ค่าน้ำ/หน่วย</dt><dd data-fig data-live="water">18</dd></div>
+                  <div><dt>ค่าไฟ/หน่วย</dt><dd data-fig data-live="elec">8</dd></div>
+                  <div><dt>ครบวันที่</dt><dd data-fig data-live="dueDay" class="is-ok">10</dd></div>
+                </dl>
+              </div>
+            </div>
+          </div>
+
+          <div class="actions">
+            <a class="cue" href="#steps">
+              <svg class="cue__play" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="15.5"/><path d="M13 10.5L21.5 16L13 21.5Z"/></svg>
+              <span><span class="cue__t">ดูขั้นตอนทั้งหมด</span><span class="cue__time">7 ขั้น · จองและจ่าย</span></span>
+            </a>
+            <a class="cbtn" href="/walkin" data-hero-cta>
+              <svg class="cbtn__svg" viewBox="0 0 220 50" preserveAspectRatio="none" aria-hidden="true">
+                <path class="cbtn__body" d="M0.5 0.5H219.5V42L212 49.5H0.5Z"/>
+                <path class="cbtn__flood" d="M0.5 0.5H219.5V42L212 49.5H0.5Z"/>
+                <path class="cbtn__brackets" d="M205 49.5H213L219.5 42V36M212 0.5H219.5V7M8 0.5H0.5V7M7.5 49.5H0.5V42.5"/>
+              </svg>
+              <span class="cbtn__label"><span data-hero-cta-label>จองพื้นที่เลย</span><svg class="cbtn__arrow" viewBox="0 0 13.5 10.7" aria-hidden="true"><path d="M0 5.35H13M8 10.35L13 5.35L8 0.35"/></svg></span>
+            </a>
+            <p class="credits"><a href="/login">เข้าสู่ระบบ</a><a href="/walkin/my">การจองของฉัน</a><a href="/">หน้าตลาด</a></p>
+          </div>
+        </div>
+      </section>
+    </div>
+    <div class="layer__shade" aria-hidden="true"></div>
+  </div>
+
+  <!-- ชั้นที่ 2: ผังตลาดและล็อกขาจร -->
+  <div class="layer" style="z-index: 10">
+    <div class="layer__inner">
+      <section id="map" class="risk" aria-labelledby="map-title">
+        <div class="risk__frame" aria-hidden="true">
+          <div class="risk__stage">
+            <canvas class="risk__dots"></canvas>
+            <svg class="risk__svg" viewBox="0 0 1440 800"></svg>
+            <canvas class="risk__route"></canvas>
+          </div>
+        </div>
+        <canvas class="dissolve" data-dissolve="light" style="z-index: 10" aria-hidden="true"></canvas>
+        <div class="risk__copy">
+          <div>
+            <h2 id="map-title" class="risk__title"><span class="risk__line" data-line>ผังตลาด</span><span class="risk__line"><span data-line>และล็อกขาจร</span><span class="risk__stop" aria-hidden="true">.</span></span></h2>
+            <i class="risk__rule" aria-hidden="true"></i>
+            <p class="risk__intro" data-text="ล็อก|F|อยู่|แถว|หน้า|ตลาด|ติด|ทาง|เข้า|จอง|ราย|วัน|ได้|โดย|ไม่|ต้อง|สมัคร|—|ชี้|หรือ|แตะ|ที่|แผง|เพื่อ|ดู|ราย|ละเอียด">ล็อก F อยู่แถวหน้าตลาดติดทางเข้า จองรายวันได้โดยไม่ต้องสมัคร—ชี้หรือแตะที่แผงเพื่อดูรายละเอียด</p>
+          </div>
+          <div class="mplate">
+            <svg class="mplate__frame" viewBox="0 0 320 78" preserveAspectRatio="none" aria-hidden="true"><path d="M0.5 0.5H319.5V69L311 77.5H0.5Z"/><line x1="83" y1="0.5" x2="83" y2="77.5"/></svg>
+            <div class="mplate__badge">
+              <svg class="mplate__coin" viewBox="-20 -13 40 26" aria-hidden="true"><ellipse rx="18" ry="11"/><ellipse class="mplate__coin-in" rx="18" ry="11"/></svg>
+              <p class="mplate__ver"><span data-l>ล็อก</span><span data-l class="is-accent">F</span></p>
+            </div>
+            <dl class="mplate__stats">
+              <div><dt data-l data-live="free">12</dt><dd data-l>ล็อกว่างวันนี้</dd></div>
+              <div><dt data-l data-live="taken">0</dt><dd data-l>ล็อกจองแล้ว</dd></div>
+              <div><dt data-l data-live="feeBaht">150 ฿</dt><dd data-l>ค่าพื้นที่ต่อวัน</dd></div>
+            </dl>
+          </div>
+        </div>
+        <div class="tcard" data-bracket aria-hidden="true">
+          <div class="tcard__top"><b class="tcard__id"></b><span class="tcard__risk"></span></div>
+          <p class="tcard__name"></p>
+          <p class="tcard__money"></p>
+          <p class="tcard__hist"></p>
+          <div class="tcard__bar" hidden><i></i></div>
+          <p class="tcard__why"></p>
+        </div>
+        <table class="sr" data-risk-table></table>
+      </section>
+    </div>
+    <div class="layer__shade" aria-hidden="true"></div>
+  </div>
+
+  <!-- ชั้นสุดท้าย: ขั้นตอน -->
+  <div class="layer layer--last">
+    <section id="steps" class="pipe" aria-labelledby="steps-title">
+      <canvas class="dissolve" data-dissolve="light" style="z-index: 30" aria-hidden="true"></canvas>
+      <div class="pipe__wrap">
+        <div class="pipe__rail" aria-hidden="true"><svg preserveAspectRatio="none"></svg></div>
+        <h2 id="steps-title" class="pipe__title"><span class="pipe__line" data-line>จองแผง</span><span class="pipe__line"><span data-line>จ่ายค่าน้ำไฟ</span><span class="pipe__stop" aria-hidden="true">.</span></span></h2>
+        <ol class="pl-rows"></ol>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- บิลค่าน้ำไฟ -->
+<section id="bill" class="meter" aria-labelledby="bill-title">
+  <canvas class="meter__contour" aria-hidden="true"></canvas>
+  <div class="meter__band" aria-hidden="true"></div>
+  <div class="meter__stage">
+    <canvas class="chart__cv" aria-hidden="true"></canvas>
+    <div class="chart__div">
+      <span class="chart__label chart__label--raw" aria-hidden="true">เลขที่จดมา</span>
+      <span class="chart__label chart__label--clean" aria-hidden="true">หลังตรวจซ้ำ</span>
+      <div class="chart__handle" role="slider" tabindex="0" aria-label="เลื่อนเทียบค่าไฟที่จดมากับค่าหลังตรวจซ้ำ" aria-valuemin="1" aria-valuemax="12" aria-valuenow="12" aria-valuetext="เดือนที่ 12"><span aria-hidden="true">‹ ›</span></div>
+    </div>
+    <p class="chart__caption"></p>
+    <table class="sr" data-meter-table></table>
+  </div>
+  <div class="meter__melt" aria-hidden="true"></div>
+  <canvas class="dissolve" data-dissolve="dark" style="z-index: 30" aria-hidden="true"></canvas>
+  <h2 id="bill-title" class="meter__title"><span class="meter__line" data-line>บิลน้ำไฟ</span><span class="meter__line"><span data-line>ต้นเดือน</span><span class="meter__stop" aria-hidden="true">.</span></span></h2>
+  <div class="meter__intro">
+    <p class="meter__report" data-meter-report></p>
+    <a class="cbtn cbtn--meter" href="/login" data-bill-cta>
+      <svg class="cbtn__svg" viewBox="0 0 217 50" preserveAspectRatio="none" aria-hidden="true">
+        <path class="cbtn__body" d="M0.5 0.5H216.5V42L209 49.5H0.5Z"/>
+        <path class="cbtn__flood" d="M0.5 0.5H216.5V42L209 49.5H0.5Z"/>
+        <path class="cbtn__ring" d="M0.5 0.5H216.5V42L209 49.5H0.5Z"/>
+      </svg>
+      <span class="cbtn__label"><span data-bill-cta-label>เข้าสู่ระบบดูบิล</span><svg class="cbtn__arrow" viewBox="0 0 13.5 10.7" aria-hidden="true"><path d="M0 5.35H13M8 10.35L13 5.35L8 0.35"/></svg></span>
+    </a>
+  </div>
+  <div class="meter__panels">
+    <div class="mpanel mpanel--cycle" data-bracket>
+      <p><b data-live="periodLabel">รอบบิลเดือนนี้</b></p>
+      <p>ออกบิลวันที่ 1 ของเดือน</p>
+      <p>ครบกำหนดวันที่ <span data-live="dueDay">10</span></p>
+    </div>
+    <div class="mpanel mpanel--stats" data-bracket>
+      <div class="mstat">
+        <svg viewBox="0 0 31 31" aria-hidden="true"><path d="M15.5 4C11 10 8 14.2 8 18.5a7.5 7.5 0 0 0 15 0C23 14.2 20 10 15.5 4Z"/></svg>
+        <div><small>ค่าน้ำ (บาท/หน่วย)</small><b data-live="water">18</b></div><i class="mstat__rule"></i>
+      </div>
+      <div class="mstat">
+        <svg viewBox="0 0 31 31" aria-hidden="true"><path d="M17.5 3.5 7.5 17.5h8l-2 10 10-14h-8l2-10Z"/></svg>
+        <div><small>ค่าไฟ (บาท/หน่วย)</small><b data-live="elec">8</b></div><i class="mstat__rule"></i>
+      </div>
+      <div class="mstat">
+        <svg viewBox="0 0 31 31" aria-hidden="true"><path d="M15.5 4.5 27.5 25.5h-24L15.5 4.5ZM15.5 12.5v6M15.5 21.8v.4"/></svg>
+        <div><small>ผ่อนผันหลังครบกำหนด (วัน)</small><b data-live="overdue">3</b></div><i class="mstat__rule"></i>
+      </div>
+      <div class="mstat">
+        <svg viewBox="0 0 31 31" aria-hidden="true"><circle cx="15.5" cy="15.5" r="11.5"/><path d="M12.5 9.5h4.5a3 3 0 0 1 0 6h-4.5M12.5 15.5h5a3 3 0 0 1 0 6h-5M12.5 9.5v12M14.5 7.5v2M14.5 21.5v2"/></svg>
+        <div><small>ค่าพื้นที่ขาจร (บาท/วัน)</small><b data-live="fee">150</b></div>
+      </div>
+    </div>
+  </div>
+  <div class="cal" data-cal></div>
+</section>
+
+<!-- เริ่มใช้งาน -->
+<section id="start" class="foot" aria-labelledby="start-title">
+  <div class="foot__panel">
+    <canvas class="foot__contour" aria-hidden="true"></canvas>
+    <a class="logo foot__logo" href="/">
+      <span class="logo__mark" aria-hidden="true">บ</span>
+      <span class="logo__word"><strong>ตลาดบัญญัติทรัพย์</strong><small>คู่มือผู้ค้า</small></span>
+    </a>
+    <h2 id="start-title" class="foot__title"><span class="foot__line" data-line>เริ่มใช้</span><span class="foot__line"><span data-line>งานได้เลย</span><span class="pipe__stop" aria-hidden="true">.</span></span></h2>
+    <nav class="foot__nav" aria-label="ไปยังระบบ">
+      <a href="/walkin"><span data-l>จองพื้นที่</span><i class="foot__arrow" aria-hidden="true">→</i></a>
+      <a href="/walkin/my"><span data-l>การจองของฉัน</span><i class="foot__arrow" aria-hidden="true">→</i></a>
+      <a href="/vendor"><span data-l>บิลของฉัน</span><i class="foot__arrow" aria-hidden="true">→</i></a>
+      <a href="/login"><span data-l>เข้าสู่ระบบ</span><i class="foot__arrow" aria-hidden="true">→</i></a>
+      <a href="/"><span data-l>หน้าตลาด</span><i class="foot__arrow" aria-hidden="true">→</i></a>
+    </nav>
+    <div class="foot__row">
+      <p class="foot__copy">© 2569 ตลาดบัญญัติทรัพย์ · KMITL</p>
+      <a class="cbtn cbtn--hollow foot__src" href="/walkin">
+        <svg class="cbtn__svg" viewBox="0 0 275 50" preserveAspectRatio="none" aria-hidden="true">
+          <path class="cbtn__body" d="M0.5 0.5H274.5V41.165L266.165 49.5H0.5Z"/>
+          <path class="cbtn__flood" d="M0.5 0.5H274.5V41.165L266.165 49.5H0.5Z"/>
+        </svg>
+        <span class="cbtn__label">จองพื้นที่หน้าตลาด<svg class="cbtn__arrow" viewBox="0 0 13.5 10.7" aria-hidden="true"><path d="M0 5.35H13M8 10.35L13 5.35L8 0.35"/></svg></span>
+      </a>
+      <p class="foot__links"><a href="/">หน้าตลาด</a><a href="/login">เข้าสู่ระบบ</a><a href="#overview">กลับขึ้นบน</a></p>
+    </div>
+  </div>
+  <div class="receipts" aria-hidden="true"><div class="receipts__inner"></div></div>
+</section>
+
+<script type="module">
+window.__bootOk = true;
+
+/* =====================================================================
+   util + error banner
+   ===================================================================== */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const MQ = {
+  sm: matchMedia("(min-width: 640px)"),
+  md: matchMedia("(min-width: 768px)"),
+  lg: matchMedia("(min-width: 1024px)"),
+  xl: matchMedia("(min-width: 1280px)"),
+  short: matchMedia("(max-height: 500px)"),
+};
+
+const errorBox = document.getElementById("errors");
+function fail(component, err) {
+  console.error(`[${component}]`, err);
+  const p = document.createElement("p");
+  p.className = "err";
+  p.setAttribute("role", "alert");
+  p.textContent = `${component} ทำงานไม่ได้: ${err && err.message ? err.message : String(err)}`;
+  errorBox.append(p);
+}
+function guard(component, fn) {
+  try { return fn(); } catch (e) { fail(component, e); return null; }
+}
+
+/* root font-size เหนือ 1920 */
+const fitRoot = () => { document.documentElement.style.fontSize = innerWidth > 1920 ? `${16 * innerWidth / 1920}px` : ""; };
+fitRoot();
+addEventListener("resize", fitRoot);
+
+/* =====================================================================
+   §0 — ตลาดบัญญัติทรัพย์ตามระบบจริง
+   แผงประจำ 35 แผงใน 5 โซน (A–E) และล็อกขาจร F-01..F-12 แถวหน้าตลาด
+   ค่าเริ่มต้นตรงกับระบบ แล้วแทนด้วยข้อมูลสดจาก API เมื่อโหลดได้
+   ===================================================================== */
+const ART = { w: 1440, h: 800 };
+const STALL = { w: 60, h: 44, gap: 8, aisle: 24 };
+const ZONES = [
+  { id: "A", name: "อาหารสด", count: 8, cols: 4, x: 180, y: 170, rent: 3000 },
+  { id: "B", name: "อาหารปรุงสุก", count: 7, cols: 4, x: 560, y: 170, rent: 3500 },
+  { id: "C", name: "ผักผลไม้", count: 7, cols: 4, x: 940, y: 170, rent: 2500 },
+  { id: "D", name: "ของชำ", count: 6, cols: 3, x: 180, y: 380, rent: 2800 },
+  { id: "E", name: "เสื้อผ้าและของใช้", count: 7, cols: 4, x: 560, y: 380, rent: 2200 },
+  { id: "F", name: "ล็อกขาจร", count: 12, cols: 12, x: 250, y: 590, walkin: true },
+];
+const HUB = { x: 1150, y: 428 };
+const ENTRANCE = { x: 150, y: 700 };
+
+const pad2 = (n) => String(n).padStart(2, "0");
+const fmt = (n, d = 0) => Number(n).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+const TH_MONTH = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+const TH_MONTH_FULL = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+const TH_WEEKDAY = ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."];
+const parseD = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(Date.UTC(y, m - 1, d)); };
+const isoOf = (dt) => dt.toISOString().slice(0, 10);
+const addDays = (s, n) => { const d = parseD(s); d.setUTCDate(d.getUTCDate() + n); return isoOf(d); };
+const thDate = (s) => { const d = parseD(s); return `${d.getUTCDate()} ${TH_MONTH[d.getUTCMonth()]} ${d.getUTCFullYear() + 543}`; };
+const thDay = (s) => { const d = parseD(s); return `${d.getUTCDate()} ${TH_MONTH[d.getUTCMonth()]}`; };
+const bangkokToday = () => isoOf(new Date(Date.now() + 7 * 3600 * 1000));
+
+const stalls = [];
+for (const zone of ZONES) {
+  for (let i = 0; i < zone.count; i++) {
+    const c = i % zone.cols, r = Math.floor(i / zone.cols);
+    stalls.push({
+      id: `${zone.id}-${pad2(i + 1)}`, zone: zone.id, zoneName: zone.name, walkin: !!zone.walkin, rent: zone.rent || 0,
+      x: zone.x + c * (STALL.w + STALL.gap) + Math.floor(c / 2) * STALL.aisle,
+      y: zone.y + r * (STALL.h + STALL.gap),
+      w: STALL.w, h: STALL.h, taken: false, mine: false,
+    });
+  }
+}
+for (const zone of ZONES) {
+  const own = stalls.filter((s) => s.zone === zone.id);
+  const x0 = Math.min(...own.map((s) => s.x)), y0 = Math.min(...own.map((s) => s.y));
+  const x1 = Math.max(...own.map((s) => s.x + s.w)), y1 = Math.max(...own.map((s) => s.y + s.h));
+  zone.rect = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+}
+const PLAN = (() => {
+  const x0 = Math.min(...stalls.map((s) => s.x)), y0 = Math.min(...stalls.map((s) => s.y));
+  const x1 = Math.max(...stalls.map((s) => s.x + s.w)), y1 = Math.max(...stalls.map((s) => s.y + s.h));
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+})();
+
+const COLORS = {
+  background: token("--background"), foreground: token("--foreground"), accent: token("--accent"), gold: token("--accent-on-dark"),
+  ink: token("--raw-ink-800"), contourLight: token("--contour-light"), surfaceBlack: token("--surface-black"), soft: token("--surface-soft"),
+  ok: token("--ok"), okDark: token("--ok-on-dark"), warn: token("--warn"), warnDark: token("--warn-on-dark"),
+  bad: token("--bad"), badDark: token("--bad-on-dark"), stone: token("--raw-stone-600"), stone2: token("--raw-stone-300"),
+  slate: token("--raw-slate-600"), cream: token("--raw-ivory-100"),
+};
+COLORS.riskHigh = COLORS.bad;
+COLORS.riskMid = COLORS.warn;
+
+/* ---- ข้อมูลสดจากระบบ ---- */
+const LIVE = {
+  today: bangkokToday(), dates: [], online: false,
+  rates: { water_rate: 18, elec_rate: 8, walkin_fee: 150, pay_within_days: 10, overdue_days: 3 },
+  user: null, vendor: null, openBills: [],
+};
+LIVE.dates = Array.from({ length: 14 }, (_, i) => addDays(LIVE.today, i));
+const SESSION = (() => {
+  try { return { token: localStorage.getItem("bunyat.token"), user: JSON.parse(localStorage.getItem("bunyat.user") || "null") }; }
+  catch { return { token: null, user: null }; }
+})();
+
+/* สี ความสูง และป้ายของแต่ละแผง (dark = วาดบนพื้นเข้ม) */
+const toneOf = (s, dark) => {
+  if (s.mine) return dark ? COLORS.cream : COLORS.foreground;
+  if (s.walkin) return s.taken ? (dark ? COLORS.slate : COLORS.stone2) : (dark ? COLORS.okDark : COLORS.ok);
+  return dark ? COLORS.gold : COLORS.accent;
+};
+const liftOf = (s) => (s.mine ? 1.25 : s.walkin ? (s.taken ? 0.25 : 1.05) : 0.35 + (s.rent / 3500) * 0.35);
+const statusOf = (s) => (s.mine ? "แผงของคุณ" : s.walkin ? (s.taken ? "จองแล้ววันนี้" : "ว่างวันนี้") : "ผู้ค้าประจำ");
+const tagOf = (s) => s.walkin
+  ? `<b>${s.id}</b> · ล็อกขาจร · <span class="stall-tag__risk" style="color:${toneOf(s, true)}">${statusOf(s)}</span> · ${fmt(LIVE.rates.walkin_fee)} บาท/วัน`
+  : `<b>${s.id}</b> · ${s.zoneName} · <span class="stall-tag__risk" style="color:${toneOf(s, true)}">${statusOf(s)}</span> · ค่าแผง ${fmt(s.rent)} บาท/เดือน`;
+
+const STATS = {};
+function refreshStats() {
+  const f = stalls.filter((s) => s.walkin);
+  STATS.spots = f.length;
+  STATS.taken = f.filter((s) => s.taken).length;
+  STATS.free = STATS.spots - STATS.taken;
+  STATS.regular = stalls.length - f.length;
+}
+refreshStats();
+
+/* รอบบิลของวันนี้: ออกบิลวันที่ 1 ครบกำหนดวันที่ pay_within_days */
+const billCycle = () => {
+  const t = parseD(LIVE.today);
+  const issue = isoOf(new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), 1)));
+  const period = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth() - 1, 1));
+  return {
+    issue, due: addDays(issue, LIVE.rates.pay_within_days - 1),
+    periodLabel: `${TH_MONTH_FULL[period.getUTCMonth()]} ${period.getUTCFullYear() + 543}`,
+    day: t.getUTCDate(), lastDay: new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth() + 1, 0)).getUTCDate(),
+  };
+};
+
+function liveText() {
+  const cyc = billCycle(), v = LIVE.vendor;
+  const owed = LIVE.openBills.reduce((a, b) => a + Number(b.total || 0), 0);
+  return {
+    fee: fmt(LIVE.rates.walkin_fee), feeBaht: `${fmt(LIVE.rates.walkin_fee)} ฿`, days: String(LIVE.dates.length),
+    water: fmt(LIVE.rates.water_rate), elec: fmt(LIVE.rates.elec_rate), dueDay: String(LIVE.rates.pay_within_days),
+    overdue: String(LIVE.rates.overdue_days), free: String(STATS.free), taken: String(STATS.taken), spots: String(STATS.spots),
+    todayLabel: `วันนี้ ${thDate(LIVE.today)}`, lastDate: thDate(LIVE.dates[LIVE.dates.length - 1]),
+    periodLabel: `รอบบิล${cyc.periodLabel}`,
+    greeting: v
+      ? `สวัสดี คุณ${v.full_name} · แผง ${v.stall_id}${owed > 0 ? ` · ค้างชำระ ฿${fmt(owed)}` : " · ไม่มียอดค้าง"}`
+      : "จ่ายผ่าน QR พร้อมเพย์ · ได้ใบเสร็จทันที",
+  };
+}
+function fillLive() {
+  const T = liveText();
+  for (const el of $$("[data-live]")) {
+    const v = T[el.dataset.live];
+    if (v === undefined) continue;
+    if (el.dataset.split) { const sr = el.querySelector(".sr"); if (sr && sr.textContent === v) continue; }
+    el.textContent = v;
+    delete el.dataset.split;
+  }
+  // ผู้ที่ล็อกอินอยู่: ปุ่มพาไปหน้าของตัวเอง
+  const u = LIVE.user;
+  const home = u ? `/${u.role}` : "/login";
+  const acc = $("[data-account]");
+  if (acc) { acc.href = home; $("[data-account-label]").textContent = u ? (u.role === "vendor" ? "บิลของฉัน" : "กลับเข้าระบบ") : "เข้าสู่ระบบ"; }
+  const heroCta = $("[data-hero-cta]");
+  if (heroCta && u?.role === "vendor") { heroCta.href = "/vendor"; $("[data-hero-cta-label]").textContent = "ไปหน้าบิลของฉัน"; }
+  const billCta = $("[data-bill-cta]");
+  if (billCta) {
+    billCta.href = u ? home : "/login";
+    $("[data-bill-cta-label]").textContent = !u ? "เข้าสู่ระบบดูบิล" : u.role === "vendor" ? "ดูบิลของฉัน" : "กลับเข้าระบบ";
+  }
+}
+fillLive();
+
+async function getJSON(path, auth = false) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 6000);
+  try {
+    const headers = auth && SESSION.token ? { authorization: `Bearer ${SESSION.token}` } : {};
+    const res = await fetch(`/api${path}`, { signal: ctrl.signal, headers });
+    if (!res.ok) throw new Error(`${path} ตอบ ${res.status}`);
+    return await res.json();
+  } finally { clearTimeout(timer); }
+}
+async function loadLive() {
+  try {
+    const opt = await getJSON("/walkin/options");
+    if (Array.isArray(opt.dates) && opt.dates.length) { LIVE.dates = opt.dates; LIVE.today = opt.dates[0]; }
+    LIVE.rates.walkin_fee = opt.fee ?? LIVE.rates.walkin_fee;
+    const av = await getJSON(`/walkin/availability?date=${LIVE.today}`);
+    const taken = new Set((av.spots || []).filter((s) => s.taken).map((s) => s.spot));
+    for (const s of stalls) if (s.walkin) s.taken = taken.has(s.id);
+    LIVE.online = true;
+  } catch (e) { console.info("[guide] ใช้ค่าเริ่มต้นของระบบ:", e.message); }
+  if (SESSION.token && SESSION.user) {
+    LIVE.user = SESSION.user;
+    try {
+      const st = await getJSON("/settings", true);
+      Object.assign(LIVE.rates, st.rates || {});
+      for (const t of st.stall_types || []) for (const s of stalls) if (!s.walkin && s.zone === t.zone) s.rent = Number(t.monthly_rent);
+    } catch (e) { console.info("[guide] อ่านอัตราค่าบริการไม่ได้:", e.message); }
+    if (SESSION.user.role === "vendor") {
+      try {
+        const ov = await getJSON("/vendor/overview", true);
+        LIVE.vendor = ov.vendor;
+        LIVE.openBills = ov.open_bills || [];
+        const mine = stalls.find((s) => s.id === ov.vendor?.stall_id);
+        if (mine) mine.mine = true;
+      } catch (e) { console.info("[guide] อ่านบิลของผู้ค้าไม่ได้:", e.message); }
+    }
+  }
+  refreshStats();
+  fillLive();
+  dispatchEvent(new CustomEvent("guide:data"));
+}
+/* ม่านรอข้อมูลสดไม่เกิน 2.5 วินาที ถ้าช้ากว่านั้นเริ่มด้วยค่าเริ่มต้นแล้วค่อยอัปเดต */
+const LIVE_GATE = Promise.race([loadLive(), new Promise((r) => setTimeout(r, 2500))]);
+
+/* =====================================================================
+   motion engine — ticker, Lenis, spring, tween
+   ===================================================================== */
+const subs = new Set();
+let rafId = 0;
+function loop(time) {
+  rafId = requestAnimationFrame(loop);
+  for (const sub of [...subs]) {
+    if (!subs.has(sub)) continue;
+    const rate = sub.rate();
+    if (rate === 0 || time - sub.last > rate) {
+      const dt = sub.last ? time - sub.last : 1000 / 60;
+      sub.last = time;
+      sub.cb(time, dt);
+    }
+  }
+}
+function subscribe(cb, rate = () => 0) {
+  const sub = { cb, rate, last: 0 };
+  subs.add(sub);
+  if (subs.size === 1) rafId = requestAnimationFrame(loop);
+  return () => {
+    if (!subs.delete(sub)) return;
+    if (!subs.size) { cancelAnimationFrame(rafId); rafId = 0; }
+  };
+}
+
+/* Lenis ลงทะเบียนเป็นตัวแรก ทุกตัวที่อ่าน scroll จะเห็น scrollY ของเฟรมนี้ */
+let lenis = null;
+if (!REDUCED) {
+  try {
+    const { default: Lenis } = await import("lenis");
+    lenis = new Lenis({ smoothWheel: true });
+    subscribe((time) => lenis.raf(time), () => 0);
+    lenis.stop();
+  } catch (e) { fail("Lenis (smooth scroll)", e); }
+}
+
+const stepSpring = (s, target, { tension, friction }, dtMs) => {
+  const steps = Math.min(64, Math.max(1, Math.round(dtMs)));
+  for (let i = 0; i < steps; i++) {
+    const force = -tension * (s.value - target);
+    const damping = -friction * s.velocity;
+    s.velocity += (force + damping) * 0.001;
+    s.value += s.velocity * 0.001;
+  }
+  const eps = s.precision ?? 0.01;
+  s.resting = Math.abs(s.velocity) < eps && Math.abs(target - s.value) < eps;
+  if (s.resting) { s.value = target; s.velocity = 0; }
+};
+
+const C = {
+  REVEAL: { tension: 90, friction: 26 }, ROW: { tension: 170, friction: 24 }, ITEM: { tension: 170, friction: 24 },
+  SHEET: { tension: 190, friction: 26 }, FIGURE: { tension: 200, friction: 24 }, TYPE: { tension: 210, friction: 24 },
+  STEP: { tension: 190, friction: 24 }, COPY: { tension: 110, friction: 26 }, NAME: { tension: 190, friction: 24 },
+  VEIL: { tension: 70, friction: 24 }, CLEAR: { tension: 140, friction: 26 },
+  WAITING: { tension: 10, friction: 30 }, READY: { tension: 170, friction: 26 },
+  STEP_SETTLE: { tension: 32, friction: 26 }, TRIGGER: { tension: 140, friction: 30 }, LIFT: { tension: 120, friction: 14 },
+  HOVER: { tension: 170, friction: 24 }, LABEL: { tension: 110, friction: 26 }, INTRO: { tension: 150, friction: 24 },
+};
+
+/** ค่าหนึ่งค่าที่ถูกสปริงลากไปหาเป้า มี delayIn ก่อนเริ่ม */
+class Spring {
+  constructor(value, config, onChange, precision = 0.01) {
+    this.s = { value, velocity: 0, precision, resting: true };
+    this.target = value;
+    this.config = config;
+    this.onChange = onChange;
+    this.startAt = 0;
+    this.unsub = null;
+    onChange?.(value);
+  }
+  get value() { return this.s.value; }
+  to(target, delay = 0, config) {
+    if (config) this.config = config;
+    // เรียกซ้ำด้วยเป้าเดิมระหว่างที่วิ่งอยู่ ไม่ต้องเริ่มนับเวลาใหม่
+    if (target === this.target && delay === 0 && (this.unsub || this.s.resting && this.s.value === target)) return this;
+    this.target = target;
+    this.startAt = delay > 0 ? performance.now() + delay : 0;
+    if (REDUCED) { this.jump(target); return this; }
+    if (!this.unsub) this.unsub = subscribe((time, dt) => this.tick(time, dt));
+    return this;
+  }
+  jump(value) {
+    this.stop();
+    this.s.value = this.target = value;
+    this.s.velocity = 0;
+    this.s.resting = true;
+    this.onChange?.(value);
+  }
+  tick(time, dt) {
+    if (time < this.startAt) return;
+    stepSpring(this.s, this.target, this.config, Math.min(dt, 64));
+    this.onChange?.(this.s.value);
+    if (this.s.resting) this.stop();
+  }
+  stop() { this.unsub?.(); this.unsub = null; }
+}
+
+const EASE = {
+  linear: (t) => t,
+  inOutSine: (t) => -(Math.cos(Math.PI * t) - 1) / 2,
+  outQuad: (t) => 1 - (1 - t) * (1 - t),
+  outCubic: (t) => 1 - Math.pow(1 - t, 3),
+};
+/** tween ธรรมดา { duration, easing } */
+function tween({ from = 0, to = 1, duration, easing = EASE.linear, delay = 0, onUpdate, onDone }) {
+  if (REDUCED) { onUpdate(to); onDone?.(); return () => {}; }
+  const t0 = performance.now() + delay;
+  const unsub = subscribe((time) => {
+    if (time < t0) return;
+    const k = clamp((time - t0) / duration);
+    onUpdate(lerp(from, to, easing(k)));
+    if (k >= 1) { unsub(); onDone?.(); }
+  });
+  return unsub;
+}
+
+/* =====================================================================
+   text reveals — คำไทยแยกด้วย | ตัวอักษรแยกด้วย grapheme segmenter
+   ===================================================================== */
+const graphemes = new Intl.Segmenter("th", { granularity: "grapheme" });
+function splitText(el, by) {
+  const raw = el.dataset.text ?? el.textContent.trim();
+  const thaiWords = raw.includes("|");
+  const isLatin = (u) => /^[0-9A-Za-z.,%+\-−]+$/.test(u);
+  const plain = thaiWords
+    ? raw.split("|").map((u) => (isLatin(u) ? ` ${u} ` : u)).join("").replace(/\s+/g, " ").trim()
+    : raw;
+  const units = by === "letter"
+    ? [...graphemes.segment(plain)].map((g) => (g.segment === " " ? " " : g.segment))
+    : thaiWords ? raw.split("|") : plain.split(/\s+/);
+  el.textContent = "";
+  el.dataset.split = "1";
+  const sr = document.createElement("span");
+  sr.className = "sr";
+  sr.textContent = plain;
+  const box = document.createElement("span");
+  box.className = by === "letter" ? "rv rv--tight rv--letters" : thaiWords ? "rv rv--tight" : "rv";
+  box.setAttribute("aria-hidden", "true");
+  const spans = units.map((u) => {
+    const span = document.createElement("span");
+    span.className = thaiWords && isLatin(u) ? "rv__u rv__u--pad" : "rv__u";
+    span.textContent = u;
+    box.append(span);
+    return span;
+  });
+  el.append(sr, box);
+  return spans;
+}
+/** word/letter reveal: { opacity 0, y 0.35em | 0.3em } → { 1, 0 } */
+function reveal(el, { by = "word", stagger = 60, config = C.REVEAL, delay = 0 } = {}) {
+  const y = by === "letter" ? 0.3 : 0.35;
+  const springs = splitText(el, by).map((span) => new Spring(0, config, (p) => {
+    span.style.opacity = clamp(p);
+    span.style.transform = p === 1 ? "" : `translateY(${((1 - p) * y).toFixed(4)}em)`;
+  }, 0.001));
+  return {
+    play(extra = 0) { springs.forEach((sp, i) => sp.to(1, delay + extra + i * stagger)); },
+    reverse() { springs.forEach((sp) => sp.to(0)); },
+    set(v) { springs.forEach((sp) => sp.jump(v)); },
+  };
+}
+/** fade + rise ของทั้งก้อน: { 0, y } → { 1, 0 } */
+function rise(el, { y = 0, unit = "rem", config = C.REVEAL } = {}) {
+  return new Spring(0, config, (p) => {
+    el.style.opacity = clamp(p);
+    el.style.transform = y && p !== 1 ? `translateY(${((1 - p) * y).toFixed(4)}${unit})` : "";
+  }, 0.001);
+}
+
+/* entrance: ทุก +N วัดจากจังหวะที่ม่านยกขึ้น */
+const entrance = [];
+const atEntrance = (fn) => entrance.push(fn);
+const startEntrance = () => entrance.splice(0).forEach((fn) => guard("Entrance", fn));
+
+/* =====================================================================
+   scroll triggers — วัด rect ใน ticker (10ms) คำนวณเฉพาะตอนอยู่ในจอ + 10 เฟรม
+   ===================================================================== */
+function scrollTrigger(el, { start = "top_bottom", end = "top_top", config = C.TRIGGER, onUpdate }) {
+  const s = { value: 0, velocity: 0, precision: 0.001 };
+  let visible = false, tail = 0, unsub = null;
+  const measure = () => {
+    const bb = el.getBoundingClientRect(), vh = innerHeight;
+    const poses = {
+      top_top: bb.top, center_top: bb.top + bb.height / 2, bottom_top: bb.bottom,
+      top_bottom: bb.top - vh, center_bottom: bb.top + bb.height / 2 - vh, bottom_bottom: bb.bottom - vh,
+      top_center: bb.top - vh / 2, center_center: bb.top + bb.height / 2 - vh / 2, bottom_center: bb.bottom - vh / 2,
+    };
+    const scrollStart = poses[start], scrollEnd = poses[end];
+    const length = Math.abs(scrollStart - scrollEnd) || 1;
+    return Math.min(Math.max(0, 1 - (scrollStart + length) / length), 1);
+  };
+  const tick = (time, dt) => {
+    const raw = measure();
+    stepSpring(s, raw, config, Math.min(dt, 64));
+    if (!visible && --tail <= 0) {
+      s.value = raw; s.velocity = 0;
+      onUpdate(raw, raw);
+      unsub(); unsub = null;
+      return;
+    }
+    onUpdate(raw, s.value);
+  };
+  new IntersectionObserver(([e]) => {
+    visible = e.isIntersecting;
+    if (visible && !unsub) unsub = subscribe(tick, () => 10);
+    if (!visible) tail = 10;
+  }).observe(el);
+  const raw = measure();
+  s.value = raw;
+  onUpdate(raw, raw);
+}
+/** in-view gate: เรียก onEnter ครั้งเดียวเมื่อเข้าจอ */
+function inViewOnce(el, onEnter, rootMargin = "0px") {
+  if (REDUCED) { onEnter(); return; }
+  const io = new IntersectionObserver(([e]) => {
+    if (!e.isIntersecting) return;
+    io.disconnect();
+    onEnter();
+  }, { rootMargin });
+  io.observe(el);
+}
+/** เรียก draw ตามจังหวะที่กำหนด เฉพาะตอนอยู่ในจอ + 10 เฟรมหลังออก */
+function whileInView(el, draw, rate) {
+  let visible = false, tail = 0, unsub = null;
+  const tick = (time, dt) => {
+    draw(time, dt);
+    if (!visible && --tail <= 0) { unsub(); unsub = null; }
+  };
+  new IntersectionObserver(([e]) => {
+    visible = e.isIntersecting;
+    if (visible && !unsub) unsub = subscribe(tick, rate);
+    if (!visible) tail = 10;
+  }).observe(el);
+}
+/** ขนาด canvas ตาม CSS × DPR (สูงสุด 2) คืน true ถ้าเปลี่ยน */
+function fitCanvas(cv, maxRatio = 2) {
+  const ratio = Math.min(devicePixelRatio || 1, maxRatio);
+  const w = Math.max(1, Math.round(cv.clientWidth * ratio)), h = Math.max(1, Math.round(cv.clientHeight * ratio));
+  if (cv.width === w && cv.height === h) return ratio;
+  cv.width = w; cv.height = h;
+  return ratio;
+}
+
+/* =====================================================================
+   shared pieces
+   ===================================================================== */
+/* bracket panel: มุมสี่มุม path เดียววาดสี่แบบ */
+for (const el of $$("[data-bracket]")) {
+  for (const corner of ["tr", "tl", "bl", "br"]) {
+    el.insertAdjacentHTML("beforeend",
+      `<svg class="br br--${corner}" viewBox="0 0 10.5 10.5" aria-hidden="true"><path d="M0 0.5H10V10.5"/></svg>`);
+  }
+}
+
+/* stall-grid dissolve (รอยต่อระหว่างบล็อก) */
+const DISSOLVE = { CELL: 26, SOLID_UNTIL: 0.16, LIFT: 2, ACCENT_SHARE: 0.06 };
+const noise = (x, y) => {
+  let h = Math.imul(x, 374761393) + Math.imul(y, 668265263);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
+};
+function dissolve(cv) {
+  const ctx = cv.getContext("2d");
+  const carry = cv.dataset.dissolve;
+  const surface = carry === "light" ? COLORS.background : COLORS.surfaceBlack;
+  let progress = 0, drawn = -1;
+  const render = (force = false) => {
+    const ratio = fitCanvas(cv);
+    if (!force && Math.abs(progress - drawn) < 0.0005) return;
+    drawn = progress;
+    const width = cv.clientWidth, height = cv.clientHeight;
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+    const { CELL, SOLID_UNTIL, LIFT, ACCENT_SHARE } = DISSOLVE;
+    const columns = Math.ceil(width / CELL), rows = Math.ceil(height / CELL), lift = progress * LIFT;
+    for (let y = 0; y < rows; y++) {
+      const depth = y / Math.max(1, rows - 1) + lift;
+      if (depth > 1) break;
+      const solid = depth <= SOLID_UNTIL;
+      const fade = Math.max(0, Math.min(1, 1 - (depth - SOLID_UNTIL) / (1 - SOLID_UNTIL)));
+      if (!solid && fade <= 0) break;
+      for (let x = 0; x < columns; x++) {
+        if (!solid) {
+          if ((x + y) % 2 !== 0) continue;
+          if (noise(x, y) > fade) continue;
+        }
+        ctx.fillStyle = !solid && noise(x + 101, y + 57) < ACCENT_SHARE ? COLORS.gold : surface;
+        ctx.fillRect(x * CELL, y * CELL, CELL - 2, CELL - 2);
+      }
+    }
+  };
+  scrollTrigger(cv.parentElement, {
+    start: "top_bottom", end: "top_top", config: C.TRIGGER,
+    onUpdate: (_, smooth) => { progress = smooth; render(); },
+  });
+  new ResizeObserver(() => render(true)).observe(cv);
+}
+for (const cv of $$("[data-dissolve]")) guard("Stall-grid dissolve", () => dissolve(cv));
+
+/* contour field — ฟิลด์เดียวใช้ร่วมกันทั้ง shader และ canvas 2D */
+const CONTOUR = { LINE_SCALE: 3.8, LINE_COUNT: 2.5, WAVE_AMOUNT: 0.37, WAVE_SPEED: 1.66, LINE_OPACITY: 0.85 };
+const TIME_SCALE = 0.12; // วินาทีจริง × WAVE_SPEED × ค่านี้ = t ของฟิลด์ ให้เส้นกลิ้งช้า ๆ
+const field = (x, y, t) => {
+  let f = Math.sin(x * 1.0 + t * 0.6) * 0.5;
+  f += Math.sin(y * 0.85 - t * 0.45) * 0.45;
+  f += Math.sin((x + y) * 0.65 + t * 0.35) * 0.35;
+  f += Math.sin((x - y) * 0.95 - t * 0.55) * 0.25;
+  return f * 0.5 + 0.5;
+};
+const displacedField = (px, py, t) => {
+  const qx = px + Math.sin(py * 0.8 + t * 0.7) * CONTOUR.WAVE_AMOUNT;
+  const qy = py + Math.cos(px * 0.7 - t * 0.6) * CONTOUR.WAVE_AMOUNT;
+  return field(qx, qy, t) * CONTOUR.LINE_COUNT;
+};
+/* marching squares: บิต tl 8 · tr 4 · br 2 · bl 1 ขอบ T R B L, 5 กับ 10 เป็น saddle วาดสองเส้น */
+const MS_TABLE = [
+  [], [["L", "B"]], [["B", "R"]], [["L", "R"]], [["T", "R"]], [["T", "R"], ["L", "B"]], [["T", "B"]], [["L", "T"]],
+  [["L", "T"]], [["T", "B"]], [["L", "T"], ["B", "R"]], [["T", "R"]], [["L", "R"]], [["B", "R"]], [["L", "B"]], [],
+];
+function contourCanvas(cv, { color, alpha = CONTOUR.LINE_OPACITY }) {
+  const ctx = cv.getContext("2d");
+  let values = new Float32Array(0);
+  const LEVELS = [0.5, 1.5];
+  const draw = (time) => {
+    const ratio = fitCanvas(cv);
+    const w = cv.clientWidth, h = cv.clientHeight;
+    if (!w || !h) return;
+    const cell = Math.max(w, h) / 96;
+    const cols = Math.ceil(w / cell), rows = Math.ceil(h / cell);
+    const stride = cols + 1;
+    if (values.length !== stride * (rows + 1)) values = new Float32Array(stride * (rows + 1));
+    const unit = CONTOUR.LINE_SCALE / Math.min(w, h);
+    const t = (time / 1000) * CONTOUR.WAVE_SPEED * TIME_SCALE;
+    for (let gy = 0; gy <= rows; gy++) {
+      for (let gx = 0; gx <= cols; gx++) values[gy * stride + gx] = displacedField(gx * cell * unit, gy * cell * unit, t);
+    }
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    ctx.beginPath();
+    for (const L of LEVELS) {
+      for (let gy = 0; gy < rows; gy++) {
+        for (let gx = 0; gx < cols; gx++) {
+          const tl = values[gy * stride + gx], tr = values[gy * stride + gx + 1];
+          const bl = values[(gy + 1) * stride + gx], brv = values[(gy + 1) * stride + gx + 1];
+          const idx = (tl > L ? 8 : 0) | (tr > L ? 4 : 0) | (brv > L ? 2 : 0) | (bl > L ? 1 : 0);
+          if (idx === 0 || idx === 15) continue;
+          const x = gx * cell, y = gy * cell;
+          const edge = (e) => {
+            if (e === "T") return [x + cell * ((L - tl) / (tr - tl)), y];
+            if (e === "R") return [x + cell, y + cell * ((L - tr) / (brv - tr))];
+            if (e === "B") return [x + cell * ((L - bl) / (brv - bl)), y + cell];
+            return [x, y + cell * ((L - tl) / (bl - tl))];
+          };
+          for (const [a, b] of MS_TABLE[idx]) {
+            const [ax, ay] = edge(a), [bx, by] = edge(b);
+            ctx.moveTo(ax, ay);
+            ctx.lineTo(bx, by);
+          }
+        }
+      }
+    }
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  };
+  if (REDUCED) {
+    draw(0);
+    new ResizeObserver(() => draw(0)).observe(cv);
+  } else {
+    whileInView(cv, draw, () => 24);
+  }
+}
+
+/* =====================================================================
+   hero — ฉาก (รอบนี้เป็นผังตลาด 2D ตามแบบ fallback, รอบที่ 2 จะเป็น WebGL)
+   ===================================================================== */
+function createPlanScene(host) {
+  const contour = document.createElement("canvas");
+  const plan = document.createElement("canvas");
+  host.append(contour, plan);
+  contourCanvas(contour, { color: COLORS.contourLight });
+
+  const ctx = plan.getContext("2d");
+  const draw = () => {
+    const ratio = fitCanvas(plan);
+    const w = plan.clientWidth, h = plan.clientHeight;
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    // เต็มจอ: วางตลาดไว้กลางระหว่างชื่อกับแผงข้อมูล · ต่ำกว่า xl: ตลาดอยู่ 65% ล่างของบล็อก
+    const box = MQ.xl.matches ? { x: w * 0.34, y: h * 0.16, w: w * 0.44, h: h * 0.68 }
+      : MQ.lg.matches ? { x: w * 0.46, y: h * 0.14, w: w * 0.52, h: h * 0.52 }
+      : { x: w * 0.04, y: h * 0.62, w: w * 0.92, h: h * 0.28 };
+    const pad = 40;
+    const s = Math.min(box.w / (PLAN.w + pad * 2), box.h / (PLAN.h + pad * 2));
+    const ox = box.x + (box.w - PLAN.w * s) / 2 - PLAN.x * s;
+    const oy = box.y + (box.h - PLAN.h * s) / 2 - PLAN.y * s;
+    // เส้นขอบโซนแบบประ + ชื่อโซน
+    ctx.save();
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = COLORS.foreground;
+    ctx.globalAlpha = 0.25;
+    ctx.lineWidth = 1;
+    ctx.font = `500 ${Math.max(10, 12 * s * 1.6)}px Anuphan, sans-serif`;
+    ctx.fillStyle = COLORS.foreground;
+    for (const zone of ZONES) {
+      const r = zone.rect, m = 10;
+      ctx.strokeRect(ox + (r.x - m) * s, oy + (r.y - m) * s, (r.w + m * 2) * s, (r.h + m * 2) * s);
+      ctx.globalAlpha = 0.55;
+      ctx.fillText(`${zone.id} · ${zone.name}`, ox + (r.x - m) * s, oy + (r.y - m) * s - 6);
+      ctx.globalAlpha = 0.25;
+    }
+    ctx.restore();
+    // ล็อกขาจรเป็นสีตามสถานะวันนี้ แผงประจำเป็นบรอนซ์จาง
+    for (const st of stalls) {
+      ctx.globalAlpha = st.walkin || st.mine ? 0.9 : 0.3;
+      ctx.fillStyle = toneOf(st, false);
+      ctx.fillRect(ox + st.x * s, oy + st.y * s, st.w * s, st.h * s);
+    }
+    ctx.globalAlpha = 1;
+  };
+  new ResizeObserver(draw).observe(plan);
+  addEventListener("guide:data", draw);
+  const ready = document.fonts.ready.then(() => { draw(); });
+  return { ready, beginScan() {} };
+}
+
+/* =====================================================================
+   §2 hero scene — WebGL: ตลาดทั้ง 47 แผงแบบ instanced บนพื้นมุมสูง
+   ===================================================================== */
+function webglAvailable() {
+  try {
+    const c = document.createElement("canvas");
+    return !!(c.getContext("webgl2") || c.getContext("webgl"));
+  } catch { return false; }
+}
+/* สี sRGB ตรง ๆ สำหรับ ShaderMaterial ที่เขียนค่าออกไปโดยไม่แปลง ให้พื้นตรงกับกระดาษของหน้าเป๊ะ */
+const srgb = (hex) => {
+  const n = parseInt(hex.replace("#", ""), 16);
+  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+};
+const GLSL_FIELD = /* glsl */ `
+float field(vec2 p, float t) {
+  float f = sin(p.x * 1.0 + t * 0.6) * 0.5;
+  f += sin(p.y * 0.85 - t * 0.45) * 0.45;
+  f += sin((p.x + p.y) * 0.65 + t * 0.35) * 0.35;
+  f += sin((p.x - p.y) * 0.95 - t * 0.55) * 0.25;
+  return f * 0.5 + 0.5;
+}`;
+
+async function createHeroScene(host) {
+  const THREE = await import("three");
+  const hero = host.closest("[data-hero]");
+  const coarse = matchMedia("(pointer: coarse)");
+  const canHover = matchMedia("(hover: hover)");
+  const tierOf = () => {
+    const w = innerWidth;
+    if (w < 768 || (coarse.matches && w < 1024)) return "mobile";
+    if (coarse.matches || w < 1280) return "tablet";
+    return "desktop";
+  };
+  const DPR_CAP = { mobile: 1, tablet: 1.25, desktop: 1.5 };
+  let tier = tierOf();
+
+  const canvas = document.createElement("canvas");
+  host.append(canvas);
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: false, antialias: tier === "desktop", stencil: false });
+  renderer.setClearColor(new THREE.Color(COLORS.background), 1);
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
+  const CAM_POS = new THREE.Vector3(0, 11, 13), CAM_AIM = new THREE.Vector3(0.6, 0, 0.4);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0xd9dfdc, 1.4));
+  const sun = new THREE.DirectionalLight(0xffffff, 1.1);
+  sun.position.set(-6, 12, 4);
+  scene.add(sun);
+
+  const market = new THREE.Group();
+  scene.add(market);
+  const wx = (x) => (x - 720) / 90, wz = (y) => (y - 400) / 90;
+
+  /* ---- backdrop: contour field เต็ม frustum ด้านหลังทุกอย่าง + เงาของเลนส์บนกระดาษ ---- */
+  const TRAIL_MAX = 48;
+  const backdropUniforms = {
+    uTime: { value: 0 }, uRes: { value: new THREE.Vector2(1, 1) }, uDpr: { value: 1 },
+    uPaper: { value: new THREE.Vector3(...srgb(COLORS.background)) },
+    uLine: { value: new THREE.Vector3(...srgb(COLORS.contourLight)) },
+    uInvViewProj: { value: new THREE.Matrix4() }, uGroupInv: { value: new THREE.Matrix4() },
+    uTrail: { value: Array.from({ length: TRAIL_MAX }, () => new THREE.Vector2()) },
+    uCount: { value: 0 }, uRadius: { value: 1 }, uLens: { value: 0 }, uTrailBox: { value: new THREE.Vector4() },
+  };
+  const backdrop = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
+    uniforms: backdropUniforms,
+    depthTest: false, depthWrite: false,
+    vertexShader: /* glsl */ `void main() { gl_Position = vec4(position.xy, 0.9999, 1.0); }`,
+    fragmentShader: /* glsl */ `
+      precision highp float;
+      uniform float uTime, uDpr, uRadius, uLens;
+      uniform vec2 uRes;
+      uniform vec3 uPaper, uLine;
+      uniform mat4 uInvViewProj, uGroupInv;
+      uniform vec2 uTrail[${TRAIL_MAX}];
+      uniform int uCount;
+      uniform vec4 uTrailBox;
+      ${GLSL_FIELD}
+      float toSrgb(float c) { return c <= 0.0031308 ? 12.92 * c : 1.055 * pow(c, 1.0 / 2.4) - 0.055; }
+      float segDist(vec2 p, vec2 a, vec2 b) {
+        vec2 pa = p - a, ba = b - a;
+        float h = clamp(dot(pa, ba) / max(dot(ba, ba), 1e-6), 0.0, 1.0);
+        return length(pa - ba * h);
+      }
+      void main() {
+        vec2 frag = gl_FragCoord.xy;
+        vec2 p = vec2(frag.x, uRes.y - frag.y) / min(uRes.x, uRes.y) * ${CONTOUR.LINE_SCALE.toFixed(2)};
+        vec2 q = p + vec2(sin(p.y * 0.8 + uTime * 0.7), cos(p.x * 0.7 - uTime * 0.6)) * ${CONTOUR.WAVE_AMOUNT.toFixed(2)};
+        float v = field(q, uTime) * ${CONTOUR.LINE_COUNT.toFixed(2)};
+        // fwidth บนค่าที่ยังไม่ถูก fract ให้เส้นคม 1.4px
+        float pxDist = abs(fract(v) - 0.5) / max(fwidth(v), 1e-5);
+        float line = 1.0 - smoothstep(0.7 * uDpr - 0.5, 0.7 * uDpr + 0.5, pxDist);
+        vec3 col = mix(uPaper, uLine, line * ${CONTOUR.LINE_OPACITY.toFixed(2)});
+        if (uLens > 0.0 && uCount > 0) {
+          vec2 ndc = frag / uRes * 2.0 - 1.0;
+          vec4 n = uInvViewProj * vec4(ndc, -1.0, 1.0); n /= n.w;
+          vec4 f = uInvViewProj * vec4(ndc, 1.0, 1.0); f /= f.w;
+          vec3 o = (uGroupInv * vec4(n.xyz, 1.0)).xyz;
+          vec3 d = (uGroupInv * vec4(f.xyz, 1.0)).xyz - o;
+          if (d.y < -1e-5) {
+            vec2 hit = (o + d * (-o.y / d.y)).xz;
+            if (hit.x > uTrailBox.x && hit.x < uTrailBox.z && hit.y > uTrailBox.y && hit.y < uTrailBox.w) {
+              float m = 1.0 - smoothstep(uRadius * 0.35, uRadius, length(hit - uTrail[0]));
+              for (int i = 0; i < ${TRAIL_MAX - 1}; i++) {
+                if (i >= uCount - 1) break;
+                float w = pow(1.0 - float(i) / ${(TRAIL_MAX - 1).toFixed(1)}, 1.9);
+                m = max(m, w * (1.0 - smoothstep(uRadius * 0.35, uRadius, segDist(hit, uTrail[i], uTrail[i + 1]))));
+              }
+              // แถบระหว่างเส้น contour ใต้เลนส์สลับเทาสองระดับ
+              float band = mod(floor(v - 0.5), 2.0);
+              col = mix(col, vec3(toSrgb(band < 0.5 ? 0.62 : 0.44)), m * uLens);
+            }
+          }
+        }
+        gl_FragColor = vec4(col, 1.0);
+      }`,
+  }));
+  backdrop.frustumCulled = false;
+  backdrop.renderOrder = -1;
+  scene.add(backdrop);
+
+  /* ---- พื้น: เส้นกริดทางเดินทุก 22px เฉพาะในทางเดิน + เส้นประรอบโซน ---- */
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(18, 11), new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false,
+    uniforms: {
+      uGrid: { value: new THREE.Vector3(...srgb(COLORS.soft)) },
+      uInk: { value: new THREE.Vector3(...srgb(COLORS.foreground)) },
+      uZones: { value: ZONES.map((z) => new THREE.Vector4(z.rect.x, z.rect.y, z.rect.w, z.rect.h)) },
+    },
+    vertexShader: /* glsl */ `
+      varying vec2 vArt;
+      void main() {
+        vArt = vec2(720.0 + (uv.x - 0.5) * 1620.0, 400.0 + (0.5 - uv.y) * 990.0);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
+    fragmentShader: /* glsl */ `
+      precision highp float;
+      uniform vec3 uGrid, uInk;
+      uniform vec4 uZones[${ZONES.length}];
+      varying vec2 vArt;
+      // แผงในโซนเรียงเป็นคู่: คาบแนวนอน = 2 แผง + ช่อง + ทางเดินระหว่างคู่ แนวตั้ง = แผง + ช่อง
+      float inStall(vec2 p, vec4 z) {
+        vec2 l = p - z.xy;
+        if (l.x < 0.0 || l.y < 0.0 || l.x > z.z || l.y > z.w) return 0.0;
+        float mx = mod(l.x, ${(2 * (STALL.w + STALL.gap) + STALL.aisle).toFixed(1)}), my = mod(l.y, ${(STALL.h + STALL.gap).toFixed(1)});
+        float ix = (mx < ${STALL.w.toFixed(1)} || (mx >= ${(STALL.w + STALL.gap).toFixed(1)} && mx < ${(2 * STALL.w + STALL.gap).toFixed(1)})) ? 1.0 : 0.0;
+        float iy = my < ${STALL.h.toFixed(1)} ? 1.0 : 0.0;
+        return ix * iy;
+      }
+      void main() {
+        vec2 p = vArt;
+        vec2 aa = fwidth(p);
+        vec2 k = abs(mod(p + 11.0, 22.0) - 11.0);
+        vec2 gl = 1.0 - smoothstep(aa * 0.5, aa * 1.5, k);
+        float grid = max(gl.x, gl.y);
+        // เส้นกริดอยู่เฉพาะทางเดินในโซน (ในกรอบโซนแต่ไม่ทับแผง)
+        float zone = 0.0;
+        for (int i = 0; i < ${ZONES.length}; i++) {
+          vec2 l = p - (uZones[i].xy - 10.0);
+          zone = max(zone, step(0.0, l.x) * step(0.0, l.y) * step(l.x, uZones[i].z + 20.0) * step(l.y, uZones[i].w + 20.0));
+        }
+        float stall = 0.0;
+        for (int i = 0; i < ${ZONES.length}; i++) stall = max(stall, inStall(p, uZones[i]));
+        float gridA = grid * zone * (1.0 - stall);
+        float outline = 0.0;
+        for (int i = 0; i < ${ZONES.length}; i++) {
+          vec4 z = uZones[i];
+          vec2 half_ = z.zw * 0.5 + 10.0;
+          vec2 q = abs(p - (z.xy + z.zw * 0.5)) - half_;
+          float sd = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0);
+          float along = q.y > q.x ? p.x : p.y;
+          float dash = step(mod(along, 10.0), 6.0);
+          outline = max(outline, (1.0 - smoothstep(max(aa.x, aa.y) * 0.5, max(aa.x, aa.y) * 1.5, abs(sd))) * dash);
+        }
+        float oA = outline * 0.25;
+        float a = oA + gridA * (1.0 - oA);
+        vec3 c = mix(uGrid, uInk, oA / max(a, 1e-4));
+        gl_FragColor = vec4(c, a);
+      }`,
+  }));
+  floor.rotation.x = -Math.PI / 2;
+  market.add(floor);
+
+  /* ---- ชื่อโซน: วาดลง CanvasTexture ครั้งเดียว วางข้างแต่ละโซน ---- */
+  await document.fonts.load('500 44px Anuphan', "โซนอาหารสด");
+  for (const zone of ZONES) {
+    const text = `${zone.id} · ${zone.name}`;
+    const c = document.createElement("canvas");
+    const cx = c.getContext("2d");
+    const font = '500 44px Anuphan, sans-serif';
+    cx.font = font;
+    c.width = Math.ceil(cx.measureText(text).width) + 8;
+    c.height = 64;
+    cx.font = font;
+    cx.textBaseline = "middle";
+    cx.fillStyle = COLORS.foreground;
+    cx.globalAlpha = 0.55;
+    cx.fillText(text, 4, 34);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 4;
+    const hgt = 0.2, wid = hgt * (c.width / c.height);
+    const label = new THREE.Mesh(new THREE.PlaneGeometry(wid, hgt),
+      new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, toneMapped: false }));
+    label.rotation.x = -Math.PI / 2;
+    label.position.set(wx(zone.rect.x - 10) + wid / 2, 0.002, wz(zone.rect.y - 10) - hgt / 2 - 0.03);
+    market.add(label);
+  }
+
+  /* ---- แผงทั้ง 140: InstancedMesh ตัวเดียว ฐานอยู่ที่ y 0 ---- */
+  const geo = new THREE.BoxGeometry(1, 1, 1);
+  geo.translate(0, 0.5, 0);
+  const mesh = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0 }), stalls.length);
+  mesh.frustumCulled = false;
+  market.add(mesh);
+  const WHITE = new THREE.Color("#ffffff");
+  // แผงที่ยังนิ่งเป็นหมึกผสมกระดาษ 78% ไม่เป็นก้อนเข้มทับข้อความ
+  const INK = new THREE.Color(COLORS.ink).lerp(new THREE.Color(COLORS.background), 0.78);
+  const BASE_H = 0.12;
+  const S = stalls.map((st) => {
+    const band = new THREE.Color(toneOf(st, false));
+    return {
+      st, x: wx(st.x + st.w / 2), z: wz(st.y + st.h / 2), xn: (st.x - PLAN.x) / PLAN.w,
+      band, glow: band.clone().lerp(WHITE, 0.6), glowing: false,
+      lift: { value: BASE_H, velocity: 0, precision: 0.001, resting: true }, liftTarget: BASE_H,
+      tint: { value: 0, velocity: 0, precision: 0.001, resting: true }, tintTarget: 0,
+    };
+  });
+  const m4 = new THREE.Matrix4(), col = new THREE.Color();
+  const writeStall = (i) => {
+    const s = S[i];
+    m4.makeScale(s.st.w / 90, Math.max(0.001, s.lift.value), s.st.h / 90);
+    m4.setPosition(s.x, 0, s.z);
+    mesh.setMatrixAt(i, m4);
+    col.copy(INK).lerp(s.glowing ? s.glow : s.band, clamp(s.tint.value));
+    mesh.setColorAt(i, col);
+  };
+  S.forEach((_, i) => writeStall(i));
+  // ข้อมูลสด (ล็อกว่างวันนี้ แผงของฉัน) มาทีหลัง: คำนวณสีใหม่ทุกแผง
+  addEventListener("guide:data", () => {
+    S.forEach((s, i) => { s.band.set(toneOf(s.st, false)); s.glow.copy(s.band).lerp(WHITE, 0.6); s.liftTarget = -1; writeStall(i); });
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.instanceColor.needsUpdate = true;
+  });
+
+  /* ---- กล้อง: ≥ xl ตามค่าในสเปก · ต่ำกว่า xl ถอย 15% แล้วเลื่อนภาพให้ตลาดอยู่ 65% ล่าง (lg ดันไปขวา) ---- */
+  const placeCamera = () => {
+    const w = host.clientWidth || innerWidth, h = host.clientHeight || innerHeight;
+    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, DPR_CAP[tier]));
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    const dir = CAM_POS.clone().sub(CAM_AIM);
+    let dist = dir.length();
+    dir.normalize();
+    if (!MQ.xl.matches) dist *= 1.15;
+    // ตำแหน่งตลาดบนจอ (สัดส่วนของจอ) และครึ่งความกว้างของตลาดที่ต้องเห็น
+    // lg: ครึ่งขวา ไม่ทับชื่อและแผงข้อมูล · sm–lg: 65% ล่าง · มือถือ: แถบว่างใต้ข้อความ ยอมตัดขอบซ้ายขวาเล็กน้อย
+    const place = MQ.xl.matches ? { cx: 0.5, cy: 0.5, half: 7 }
+      : MQ.lg.matches ? { cx: 0.74, cy: 0.58, half: 14 }
+      : MQ.sm.matches ? { cx: 0.5, cy: 0.675, half: 7 }
+      : { cx: 0.5, cy: 0.77, half: 5.4 };
+    const halfW = Math.tan(THREE.MathUtils.degToRad(15)) * camera.aspect;
+    dist = Math.max(dist, place.half / halfW);
+    camera.position.copy(CAM_AIM).addScaledVector(dir, dist);
+    camera.lookAt(CAM_AIM);
+    if (MQ.xl.matches) camera.clearViewOffset();
+    else camera.setViewOffset(w, h, -(place.cx - 0.5) * w, -(place.cy - 0.5) * h, w, h);
+    camera.updateProjectionMatrix();
+    const size = renderer.getDrawingBufferSize(new THREE.Vector2());
+    backdropUniforms.uRes.value.copy(size);
+    backdropUniforms.uDpr.value = renderer.getPixelRatio();
+    dirty = true;
+  };
+
+  /* ---- ตัวชี้: lerp 0.17 ต่อเฟรม, ฉายลงพื้นด้วย raycast ในพิกัดของกลุ่มตลาด ---- */
+  const ptr = new THREE.Vector2(), smooth = new THREE.Vector2(), prevNdc = new THREE.Vector2();
+  const tiltA = new THREE.Vector2(), tiltB = new THREE.Vector2();
+  let hasMouse = false;
+  const raycaster = new THREE.Raycaster(), floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  const inv = new THREE.Matrix4(), localRay = new THREE.Ray(), hit = new THREE.Vector3(), tmp = new THREE.Vector3();
+  const floorPoint = (ndc) => {
+    raycaster.setFromCamera(ndc, camera);
+    inv.copy(market.matrixWorld).invert();
+    localRay.copy(raycaster.ray).applyMatrix4(inv);
+    return localRay.intersectPlane(floorPlane, hit) ? { x: hit.x, z: hit.z } : null;
+  };
+  const toNdc = (x, y, z, out) => {
+    tmp.set(x, y, z);
+    market.localToWorld(tmp);
+    tmp.project(camera);
+    return out.set(tmp.x, tmp.y);
+  };
+  const parkAtHub = () => {
+    market.updateMatrixWorld();
+    toNdc(wx(HUB.x), 0, wz(HUB.y), ptr);
+    smooth.copy(ptr);
+    prevNdc.copy(ptr);
+  };
+  addEventListener("pointermove", (e) => {
+    if (e.pointerType !== "mouse") return;
+    const r = canvas.getBoundingClientRect();
+    ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    hasMouse = true;
+  }, { passive: true });
+  document.documentElement.addEventListener("mouseleave", () => { hasMouse = false; });
+
+  /* ---- เลนส์: เส้นทาง 48 จุดล่าสุด แต่ละช่วงถ่วง (1 - i/47)^1.9 รัศมีตาม pace ---- */
+  const trail = [];
+  let pace = 0;
+  const smoothstep = (a, b, x) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
+  const segDist = (px, pz, a, b) => {
+    const bx = b.x - a.x, bz = b.z - a.z, ax = px - a.x, az = pz - a.z;
+    const hh = clamp((ax * bx + az * bz) / Math.max(bx * bx + bz * bz, 1e-6));
+    return Math.hypot(ax - bx * hh, az - bz * hh);
+  };
+  const lensAt = (x, z, r) => {
+    const n = trail.length;
+    if (!n) return 0;
+    const inner = r * 0.35;
+    if (1 - smoothstep(inner, r, Math.hypot(x - trail[0].x, z - trail[0].z)) > 0.08) return 1;
+    for (let i = 0; i < n - 1; i++) {
+      const w = Math.pow(1 - i / (TRAIL_MAX - 1), 1.9);
+      if (w <= 0.08) break;
+      if (w * (1 - smoothstep(inner, r, segDist(x, z, trail[i], trail[i + 1]))) > 0.08) return 1;
+    }
+    return 0;
+  };
+  /* จอสัมผัส: เลนส์เดินวนทีละโซน A → F โซนละ 2 วินาที */
+  const SWEEP = ZONES.map((z) => ({ x: wx(z.rect.x + z.rect.w / 2), z: wz(z.rect.y + z.rect.h / 2) }));
+  const sweepAt = (ms) => {
+    const n = SWEEP.length, period = 2000 * n;
+    const u = ((ms % period) / period) * n, i = Math.floor(u), k = EASE.inOutSine(u - i);
+    const a = SWEEP[i], b = SWEEP[(i + 1) % n];
+    return { x: lerp(a.x, b.x, k), z: lerp(a.z, b.z, k) };
+  };
+
+  /* ---- ป้ายแผง ---- */
+  const tag = hero.querySelector(".stall-tag");
+  const tagBox = tag.querySelector(".stall-tag__box");
+  let tagIndex = -1, tagShow = 0;
+  const tagSpring = new Spring(0, C.ITEM, (v) => { tagShow = v; tag.style.opacity = clamp(v); }, 0.001);
+  const tagNdc = new THREE.Vector2();
+  const setTag = (i) => {
+    const st = S[i].st;
+    tagBox.innerHTML = tagOf(st);
+  };
+
+  /* ---- การสแกนตอนเปิดหน้า ---- */
+  let scanF = null, lensOn = false, lensFade = 0;
+  const beginScan = () => {
+    if (REDUCED) return;
+    tween({
+      from: -0.2, to: 1.2, duration: 2800, easing: EASE.inOutSine,
+      onUpdate: (f) => { scanF = f; },
+      onDone: () => { scanF = null; lensOn = true; },
+    });
+  };
+
+  /* ---- เฟรม ---- */
+  const YAW = THREE.MathUtils.degToRad(3), PITCH = THREE.MathUtils.degToRad(2);
+  const started = performance.now();
+  let dirty = true;
+  const frame = (time, rawDt) => {
+    const dt = Math.min(rawDt, 64);
+    const idle = !canHover.matches;
+    // เมาส์: เลนส์เริ่มหลังขยับเมาส์ครั้งแรก · จอสัมผัส: เลนส์เดินวนเอง
+    const lensLive = lensOn && !REDUCED && tier !== "mobile" && (idle || hasMouse);
+
+    if (!REDUCED) {
+      if (!hasMouse && idle) parkAtHubTarget();
+      smooth.lerp(ptr, 0.17);
+      tiltA.lerp(smooth, 0.17);
+      tiltB.lerp(tiltA, 0.17);
+      market.rotation.set(-tiltB.y * PITCH, tiltB.x * YAW, 0);
+      market.position.set(0.02 * tiltB.x, 0, -0.02 * tiltB.y);
+    }
+    market.updateMatrixWorld();
+
+    if (lensLive) {
+      let p = null;
+      const ndc = new THREE.Vector2();
+      if (idle) { p = sweepAt(time - started); toNdc(p.x, 0, p.z, ndc); }
+      else { p = floorPoint(smooth); ndc.copy(smooth); }
+      const speed = ndc.distanceTo(prevNdc);
+      prevNdc.copy(ndc);
+      const target = Math.min(1, speed / 0.029);
+      pace += (target - pace) * (target > pace ? 0.09 : 0.205);
+      if (p) { trail.unshift(p); if (trail.length > TRAIL_MAX) trail.length = TRAIL_MAX; }
+      lensFade = Math.min(1, lensFade + dt / 600);
+    } else {
+      trail.length = 0;
+      lensFade = 0;
+    }
+    const radius = 1.1 * lerp(0.35, 1, pace) * (innerWidth >= 640 && innerWidth < 1024 ? 1.2 : 1);
+
+    let moving = false;
+    for (let i = 0; i < S.length; i++) {
+      const s = S[i];
+      let reveal = 0, glowing = false;
+      if (scanF !== null && s.xn < scanF && s.xn >= scanF - 0.55) {
+        reveal = 1;
+        glowing = s.xn >= scanF - 0.06;
+      }
+      if (lensLive && !reveal) reveal = lensAt(s.x, s.z, radius);
+      if (lensLive && i === tagIndex && tagSpring.target === 1) reveal = 1;
+      const liftT = BASE_H + liftOf(s.st) * reveal;
+      let changed = false;
+      if (liftT !== s.liftTarget) { s.liftTarget = liftT; s.lift.resting = false; }
+      if (reveal !== s.tintTarget) { s.tintTarget = reveal; s.tint.resting = false; }
+      if (!s.lift.resting) { stepSpring(s.lift, s.liftTarget, C.LIFT, dt); changed = true; }
+      if (!s.tint.resting) { stepSpring(s.tint, s.tintTarget, C.ROW, dt); changed = true; }
+      if (glowing !== s.glowing) { s.glowing = glowing; changed = true; }
+      if (changed) { writeStall(i); moving = true; }
+    }
+    if (moving) {
+      mesh.instanceMatrix.needsUpdate = true;
+      mesh.instanceColor.needsUpdate = true;
+    }
+
+    // uniforms ของ backdrop
+    const u = backdropUniforms;
+    if (!REDUCED) u.uTime.value = ((time - started) / 1000) * CONTOUR.WAVE_SPEED * TIME_SCALE;
+    u.uInvViewProj.value.multiplyMatrices(camera.matrixWorld, camera.projectionMatrixInverse);
+    u.uGroupInv.value.copy(market.matrixWorld).invert();
+    u.uLens.value = lensLive && innerWidth >= 1024 ? lensFade : 0;
+    u.uCount.value = trail.length;
+    u.uRadius.value = radius;
+    if (trail.length) {
+      let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+      trail.forEach((t, i) => {
+        u.uTrail.value[i].set(t.x, t.z);
+        x0 = Math.min(x0, t.x); z0 = Math.min(z0, t.z); x1 = Math.max(x1, t.x); z1 = Math.max(z1, t.z);
+      });
+      u.uTrailBox.value.set(x0 - radius, z0 - radius, x1 + radius, z1 + radius);
+    }
+
+    // ป้ายแผงที่ใกล้เคอร์เซอร์ที่สุด (ภายใน 0.5 หน่วย)
+    let near = -1;
+    if (lensLive && !idle && hasMouse && trail.length) {
+      let best = 0.5;
+      for (let i = 0; i < S.length; i++) {
+        const d = Math.hypot(S[i].x - trail[0].x, S[i].z - trail[0].z);
+        if (d < best) { best = d; near = i; }
+      }
+    }
+    if (near >= 0 && near !== tagIndex) { tagIndex = near; setTag(near); }
+    tagSpring.to(near >= 0 ? 1 : 0);
+    if (tagIndex >= 0 && tagShow > 0.001) {
+      const s = S[tagIndex];
+      toNdc(s.x, s.lift.value, s.z, tagNdc);
+      const w = host.clientWidth, h = host.clientHeight;
+      const px = (tagNdc.x + 1) / 2 * w, py = (1 - tagNdc.y) / 2 * h + (1 - tagShow) * 8;
+      tag.style.transform = `translate(${px.toFixed(1)}px, ${py.toFixed(1)}px) translate(-0.5px, -100%)`;
+    }
+
+    if (dirty || moving || !REDUCED) renderer.render(scene, camera);
+    dirty = false;
+  };
+  // จอสัมผัสที่ไม่มีเมาส์: จุดชี้จอดไว้ที่สำนักงานตลาด
+  const hubNdc = new THREE.Vector2();
+  function parkAtHubTarget() { toNdc(wx(HUB.x), 0, wz(HUB.y), hubNdc); ptr.copy(hubNdc); }
+
+  /* ---- วนเรนเดอร์เฉพาะตอน hero อยู่ในจอ แท็บมองเห็น และยังเลื่อนไม่เกิน 1.15 จอ ---- */
+  let inView = true, running = null;
+  const rate = () => (tier === "desktop" ? 0 : 1000 / 60 - 2);
+  const gate = () => {
+    const want = inView && document.visibilityState === "visible" && scrollY <= innerHeight * 1.15;
+    if (want && !running) { dirty = true; running = subscribe(frame, rate); }
+    else if (!want && running) { running(); running = null; }
+  };
+  new IntersectionObserver(([e]) => { inView = e.isIntersecting; gate(); }).observe(hero);
+  document.addEventListener("visibilitychange", gate);
+  addEventListener("scroll", gate, { passive: true });
+
+  const onResize = () => { tier = tierOf(); placeCamera(); if (!hasMouse) parkAtHub(); };
+  new ResizeObserver(onResize).observe(host);
+  coarse.addEventListener("change", onResize);
+  placeCamera();
+  parkAtHub();
+
+  // พร้อมเมื่อ shader คอมไพล์เสร็จ และเรนเดอร์ทิ้งหนึ่งเฟรมแล้ว
+  await renderer.compileAsync(scene, camera);
+  renderer.render(scene, camera);
+  gate();
+  return { ready: Promise.resolve(), beginScan };
+}
+
+/* minimap ในแผงรอบบิลถัดไป */
+function drawMinimap(cv) {
+  const ctx = cv.getContext("2d");
+  const draw = () => {
+    const ratio = fitCanvas(cv);
+    const w = cv.clientWidth, h = cv.clientHeight;
+    if (!w || !h) return;
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    const s = Math.min(w / PLAN.w, h / PLAN.h);
+    const ox = (w - PLAN.w * s) / 2 - PLAN.x * s, oy = (h - PLAN.h * s) / 2 - PLAN.y * s;
+    for (const st of stalls) {
+      ctx.globalAlpha = st.walkin || st.mine ? 1 : 0.18;
+      ctx.fillStyle = st.walkin || st.mine ? toneOf(st, false) : COLORS.foreground;
+      ctx.fillRect(ox + st.x * s, oy + st.y * s, Math.max(0.5, st.w * s - 1), Math.max(0.5, st.h * s - 1));
+    }
+    ctx.globalAlpha = 1;
+  };
+  new ResizeObserver(draw).observe(cv);
+  addEventListener("guide:data", draw);
+}
+
+/* =====================================================================
+   hero — ข้อความ แผงข้อมูล และจังหวะเข้า
+   ===================================================================== */
+guard("Hero copy", () => {
+  const mast = $(".mast");
+  const mastIn = rise(mast, { config: C.REVEAL });
+  atEntrance(() => mastIn.to(1, 0));
+
+  const idIn = rise($(".ident__id"), { config: C.REVEAL });
+  atEntrance(() => idIn.to(1, 180));
+
+  const name = reveal($(".ident__name"), { by: "word", stagger: 110, config: C.REVEAL });
+  atEntrance(() => name.play(180));
+
+  const subIn = rise($(".ident__sub"), { config: C.REVEAL });
+  atEntrance(() => subIn.to(1, 180 + 320));
+
+  $$(".ident__meta li").forEach((li, i) => {
+    const sp = rise(li, { y: 0.75, config: C.REVEAL });
+    atEntrance(() => sp.to(1, 180 + 260 + i * 130));
+  });
+
+  const panels = $(".panels");
+  const panelsIn = rise(panels, { y: 1.25, config: C.REVEAL });
+  atEntrance(() => panelsIn.to(1, 900));
+  atEntrance(() => $$("[data-fig]").forEach((dd, i) => reveal(dd, { by: "letter", stagger: 26, config: C.FIGURE }).play(900 + i * 90)));
+  const map = $("[data-minimap]");
+  if (map) drawMinimap(map);
+
+  const actionsIn = rise($(".actions"), { y: 0.75, config: C.REVEAL });
+  atEntrance(() => actionsIn.to(1, 1500));
+});
+
+/* =====================================================================
+   loading veil — progress ไม่ได้วัดจริง: คลานไป 0.7 แล้ววิ่งถึง 1 เมื่อฉากพร้อม
+   ===================================================================== */
+function runVeil(scene) {
+  const veil = $(".veil");
+  const sheet = $(".veil__sheet", veil), bar = $(".veil__meter span", veil);
+  const content = $(".veil__content", veil), label = $(".veil__label", veil);
+  const progress = new Spring(0, C.WAITING, (p) => {
+    sheet.style.transform = `scaleY(${clamp(p)})`;
+    bar.style.transform = `scaleX(${clamp(p)})`;
+  }, 0.001);
+  progress.to(0.7);
+  rise(label, { y: 0.6, config: C.LABEL }).to(1, 260);
+
+  let lifted = false;
+  const lift = () => {
+    if (lifted) return;
+    lifted = true;
+    veil.setAttribute("aria-label", "โหลดเสร็จแล้ว");
+    veil.style.pointerEvents = "none";
+    new Spring(1, C.VEIL, (v) => { veil.style.opacity = clamp(v); }, 0.001).to(0);
+    document.documentElement.classList.remove("is-loading");
+    lenis?.start();
+    startEntrance();
+    guard("Hero scene", () => scene.beginScan());
+    const t0 = performance.now();
+    const unsub = subscribe(() => {
+      if (+getComputedStyle(veil).opacity <= 0.004 || performance.now() - t0 > 3000) {
+        unsub();
+        veil.remove();
+      }
+    });
+  };
+  const onReady = () => {
+    progress.to(1, 0, C.READY);
+    new Spring(1, C.CLEAR, (v) => {
+      content.style.opacity = clamp(v);
+      content.style.transform = `translateY(${((1 - v) * -0.75).toFixed(4)}rem)`;
+    }, 0.001).to(0);
+    setTimeout(lift, 430 + 240);
+  };
+  const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("ฉากโหลดนานเกิน 10 วินาที")), 10000));
+  Promise.race([scene.ready, timeout]).then(onReady, (e) => { fail("Hero scene", e); onReady(); });
+}
+
+/* ฉาก hero: WebGL ถ้าใช้ได้ ไม่เช่นนั้นผังตลาด 2D (ม่านยกทันที) */
+const sceneHost = $("[data-scene]");
+let heroScene = null, scanWanted = false;
+const sceneReady = (async () => {
+  try {
+    if (!webglAvailable()) throw null;
+    heroScene = await createHeroScene(sceneHost);
+  } catch (e) {
+    if (e) fail("Hero scene (WebGL)", e);
+    sceneHost.replaceChildren();
+    heroScene = guard("Hero scene (2D)", () => createPlanScene(sceneHost));
+    await heroScene?.ready;
+  }
+  if (scanWanted) heroScene?.beginScan();
+})();
+runVeil({
+  ready: Promise.all([sceneReady, LIVE_GATE]),
+  beginScan() { if (heroScene) heroScene.beginScan(); else scanWanted = true; },
+});
+
+/* =====================================================================
+   sticky stack — ชั้นที่ถูกทับจะหดเป็น 0.9 และมืดลง 55%
+   ===================================================================== */
+guard("Sticky stack", () => {
+  const RECEDE_SCALE = 0.9, RECEDE_SHADE = 0.55;
+  const phone = matchMedia("(max-width: 639px)");
+  const layers = $$(".stack > .layer");
+  const pinned = layers.slice(0, -1).map((layer, i) => ({
+    inner: $(".layer__inner", layer), shade: $(".layer__shade", layer), next: layers[i + 1],
+  }));
+  const apply = () => {
+    const view = innerHeight || 1;
+    const shrink = phone.matches ? 0 : 1 - RECEDE_SCALE;
+    for (const { inner, shade, next } of pinned) {
+      const p = Math.min(1, Math.max(0, 1 - next.getBoundingClientRect().top / view));
+      inner.style.transform = p > 0 && shrink > 0 ? `scale(${1 - shrink * p})` : "";
+      inner.style.willChange = p > 0 && shrink > 0 ? "transform" : "";
+      shade.style.opacity = `${RECEDE_SHADE * p}`;
+      inner.style.visibility = p >= 1 ? "hidden" : "visible";
+    }
+  };
+  let queued = false;
+  const onScroll = () => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => { queued = false; apply(); });
+  };
+  addEventListener("scroll", onScroll, { passive: true });
+  addEventListener("resize", onScroll);
+  apply();
+});
+
+/* =====================================================================
+   ลิงก์ในหน้า — ชั้นที่ pin อยู่ต้องคำนวณตำแหน่งจริงจากชั้นก่อนหน้า
+   ===================================================================== */
+function naturalTop(el) {
+  const layer = el.closest(".stack > .layer");
+  if (!layer) return el.getBoundingClientRect().top + scrollY;
+  let y = layer.parentElement.getBoundingClientRect().top + scrollY;
+  for (let n = layer.parentElement.firstElementChild; n && n !== layer; n = n.nextElementSibling) y += n.offsetHeight;
+  return y;
+}
+document.addEventListener("click", (e) => {
+  const a = e.target.closest('a[href^="#"]');
+  if (!a) return;
+  const id = a.getAttribute("href").slice(1);
+  if (!id) { e.preventDefault(); return; }
+  const target = document.getElementById(id);
+  if (!target) return;
+  e.preventDefault();
+  const y = naturalTop(target);
+  if (lenis) lenis.scrollTo(y, { duration: 1.2 });
+  else window.scrollTo({ top: y, behavior: REDUCED ? "auto" : "smooth" });
+});
+
+/* =====================================================================
+   เมนูเต็มจอ (ต่ำกว่า xl)
+   ===================================================================== */
+guard("Menu", () => {
+  const burger = $(".burger");
+  const LINKS = [["ภาพรวม", "#overview"], ["ผังตลาด", "#map"], ["ขั้นตอน", "#steps"], ["บิลน้ำไฟ", "#bill"], ["เริ่มใช้งาน", "#start"], ["จองพื้นที่", "/walkin"]];
+  let sheet = null, sheetSpring = null, items = [], open = false, lastFocus = null;
+
+  const lock = (on) => {
+    document.documentElement.classList.toggle("is-locked", on);
+    if (on) lenis?.stop(); else lenis?.start();
+  };
+  const build = () => {
+    sheet = document.createElement("div");
+    sheet.className = "sheet";
+    sheet.id = "menu-sheet";
+    sheet.hidden = true;
+    sheet.setAttribute("role", "dialog");
+    sheet.setAttribute("aria-modal", "true");
+    sheet.setAttribute("aria-label", "เมนู");
+    sheet.innerHTML = `<div class="sheet__top">${$("[data-logo]").outerHTML}<button class="sheet__close" type="button" aria-label="ปิดเมนู"></button></div>
+      <nav class="sheet__nav" aria-label="เมนู">${LINKS.map(([t, h]) => `<a href="${h}">${t}</a>`).join("")}</nav>`;
+    document.body.append(sheet);
+    sheetSpring = new Spring(0, C.SHEET, (v) => {
+      sheet.style.opacity = clamp(v);
+      if (v === 0 && !open) sheet.hidden = true;
+    }, 0.001);
+    items = $$(".sheet__nav a", sheet).map((a) => rise(a, { y: 0.75, config: C.ITEM }));
+    $(".sheet__close", sheet).addEventListener("click", close);
+    sheet.addEventListener("click", (e) => { if (e.target.closest(".sheet__nav a")) close(); });
+    sheet.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") { e.preventDefault(); close(); return; }
+      if (e.key !== "Tab") return;
+      const focusables = $$("a, button", sheet);
+      const first = focusables[0], last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
+  };
+  const openSheet = () => {
+    if (!sheet) build();
+    open = true;
+    lastFocus = document.activeElement;
+    sheet.hidden = false;
+    burger.setAttribute("aria-expanded", "true");
+    sheetSpring.to(1);
+    items.forEach((sp, i) => { sp.jump(0); sp.to(1, 120 + i * 55); });
+    lock(true);
+    $(".sheet__close", sheet).focus();
+  };
+  function close() {
+    if (!open) return;
+    open = false;
+    burger.setAttribute("aria-expanded", "false");
+    sheetSpring.to(0);
+    lock(false);
+    lastFocus?.focus?.();
+  }
+  burger.addEventListener("click", openSheet);
+  MQ.xl.addEventListener("change", (e) => { if (e.matches) close(); });
+});
+
+
+/* ข้อความในบล็อกด้านล่างใช้ข้อมูลสด: รอให้ข้อมูลมาก่อน (ม่านยังปิดอยู่ ผู้ใช้ไม่เห็นการรอ) */
+await LIVE_GATE;
+
+/* =====================================================================
+   สี และตัวช่วยสำหรับบล็อก 3–6
+   ===================================================================== */
+Object.assign(COLORS, {
+  mapDot: token("--map-dot"), mapGrid: token("--map-grid"), mapGhost: token("--map-grid-ghost"),
+  onDark: token("--foreground-on-dark"), onDarkMuted: token("--foreground-on-dark-muted"), onDarkFaint: token("--foreground-on-dark-faint"),
+  accentMuted: token("--accent-muted"), rail: token("--rail"), meterContour: token("--meter-contour"), footerContour: token("--footer-contour"),
+  muted: token("--foreground-muted"),
+});
+const mulberry32 = (seed) => () => {
+  seed |= 0; seed = (seed + 0x6d2b79f5) | 0;
+  let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+};
+const hexRgb = (hex) => { const n = parseInt(hex.replace("#", ""), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+const withAlpha = (hex, a) => { const [r, g, b] = hexRgb(hex); return `rgba(${r},${g},${b},${a})`; };
+const mixHex = (a, b, t) => { const A = hexRgb(a), B = hexRgb(b); return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(",")})`; };
+const SANS = (px, w = 500) => `${w} ${px.toFixed(1)}px Anuphan, "Noto Sans Thai", sans-serif`;
+const DISPLAY = (px, w = 500) => `${w} ${px.toFixed(1)}px Prompt, Anuphan, sans-serif`;
+const median = (xs) => { const a = [...xs].sort((p, q) => p - q), m = a.length >> 1; return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; };
+const approach = (from, to, dtSec, tau) => from + (to - from) * (1 - Math.exp(-dtSec / tau));
+const sum = (xs) => xs.reduce((a, x) => a + x, 0);
+const CREAM = (a) => withAlpha(COLORS.onDark, a);
+const addBrackets = (el) => {
+  for (const corner of ["tr", "tl", "bl", "br"]) {
+    el.insertAdjacentHTML("beforeend", `<svg class="br br--${corner}" viewBox="0 0 10.5 10.5" aria-hidden="true"><path d="M0 0.5H10V10.5"/></svg>`);
+  }
+};
+/** ลำดับเวลาเข้าของบล็อก: เพิ่มแอนิเมชันพร้อม delay แล้วเล่น/ย้อนทั้งชุด */
+function timeline() {
+  const items = [];
+  return {
+    add(anim, delay = 0) { items.push({ anim, delay }); return this; },
+    play() { for (const { anim, delay } of items) (anim.play ? anim.play(delay) : anim.to(1, delay)); },
+    reverse() { for (const { anim } of items) (anim.reverse ? anim.reverse() : anim.to(0)); },
+  };
+}
+/** โหมด forward: เล่นเมื่อเข้าจอ ถ้าเลื่อนผ่านขึ้นไปแล้วค้างไว้ ย้อนกลับเมื่อบล็อกอยู่ใต้จอ */
+function forwardGate(el, tl, rootMargin = "0% 0% -30% 0%") {
+  if (REDUCED) { tl.play(); return; }
+  new IntersectionObserver(([e]) => {
+    if (e.isIntersecting) tl.play();
+    else if (e.boundingClientRect.top > 0) tl.reverse();
+  }, { rootMargin }).observe(el);
+}
+/* บิลตัวอย่าง: ถ้าเป็นผู้ค้าประจำที่ล็อกอินอยู่ ใช้บิลจริงของคนนั้น */
+const EXAMPLE = (() => {
+  const R = LIVE.rates, cyc = billCycle();
+  const make = (label, useW, useE, due) => {
+    const water = useW * R.water_rate, elec = useE * R.elec_rate, rent = 3000;
+    return { label, rent, useW, useE, rateW: R.water_rate, rateE: R.elec_rate, water, elec, total: rent + water + elec, due };
+  };
+  const t = parseD(cyc.issue);
+  const prev = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth() - 2, 1));
+  const out = [make(cyc.periodLabel, 23, 137, cyc.due), make(`${TH_MONTH_FULL[prev.getUTCMonth()]} ${prev.getUTCFullYear() + 543}`, 21, 128, addDays(cyc.issue, -22))];
+  const real = LIVE.openBills.find((b) => b.kind === "monthly");
+  if (real) {
+    const [y, m] = String(real.period || "").split("-").map(Number);
+    out[0] = {
+      label: y ? `${TH_MONTH_FULL[m - 1]} ${y + 543}` : cyc.periodLabel, rent: Number(real.rent), useW: Number(real.use_water), useE: Number(real.use_elec),
+      rateW: Number(real.water_rate), rateE: Number(real.elec_rate), water: Number(real.water_amount), elec: Number(real.elec_amount),
+      total: Number(real.total), due: String(real.due_date).slice(0, 10), real: true,
+    };
+  }
+  return out;
+})();
+const firstFree = () => stalls.find((s) => s.walkin && !s.taken) || stalls.find((s) => s.walkin);
+
+/* =====================================================================
+   3 — ผังตลาดและล็อกขาจร
+   ===================================================================== */
+guard("Map block", () => {
+  const section = $("#map");
+  const frameEl = $(".risk__frame", section), stage = $(".risk__stage", section);
+  const dotsCv = $(".risk__dots", section), routeCv = $(".risk__route", section), svg = $(".risk__svg", section);
+  const coarse = matchMedia("(pointer: coarse)"), canHover = matchMedia("(hover: hover)");
+  const tapMode = () => !canHover.matches || REDUCED;
+
+  /* ---- หัวข้อ บทนำ และแผ่นสรุปวันนี้ ---- */
+  const tl = timeline();
+  $$("[data-line]", $(".risk__title", section)).forEach((el, i) => tl.add(reveal(el, { by: "word", config: C.REVEAL }), i * 130));
+  tl.add(rise($(".risk__stop", section), { y: 0.35, unit: "em", config: C.REVEAL }), 130 + 110);
+  const rule = $(".risk__rule", section);
+  tl.add(new Spring(0, C.REVEAL, (v) => { rule.style.transform = `scaleX(${clamp(v)})`; }, 0.001), 2 * 130);
+  tl.add(reveal($(".risk__intro", section), { by: "word", stagger: 34, config: C.INTRO }), 2 * 130 + 90);
+  tl.add(rise($(".mplate", section), { y: 0.75, config: C.REVEAL }), 260);
+  $$(".mplate__ver [data-l]", section).forEach((el, i) => tl.add(reveal(el, { by: "letter", stagger: 22, config: C.TYPE }), 430 + i * 70));
+  $$(".mplate__stats > div", section).forEach((row, r) => {
+    tl.add(reveal($("dt", row), { by: "letter", stagger: 22, config: C.TYPE }), 430 + r * 110);
+    tl.add(reveal($("dd", row), { by: "letter", stagger: 22, config: C.TYPE }), 430 + r * 110 + 70);
+  });
+  forwardGate(section, tl);
+
+  /* ---- halftone: จุดอยู่ในแผงหรือห่างแผงไม่เกิน 6px (จำไว้ว่าจุดไหนเป็นของแผงไหน) ---- */
+  const PITCH = { x: 7.8, y: 7.7 }, ORIGIN = { x: 5, y: 16.6 }, DOT_R = 1.1;
+  const COLS = Math.floor((ART.w - ORIGIN.x) / PITCH.x) + 1, ROWS = Math.floor((ART.h - ORIGIN.y) / PITCH.y) + 1;
+  const lx = (i) => ORIGIN.x + i * PITCH.x, ly = (j) => ORIGIN.y + j * PITCH.y;
+  const owner = new Int16Array(COLS * ROWS).fill(-1);
+  stalls.forEach((s, si) => {
+    const i0 = Math.max(0, Math.ceil((s.x - 6 - ORIGIN.x) / PITCH.x)), i1 = Math.min(COLS - 1, Math.floor((s.x + s.w + 6 - ORIGIN.x) / PITCH.x));
+    const j0 = Math.max(0, Math.ceil((s.y - 6 - ORIGIN.y) / PITCH.y)), j1 = Math.min(ROWS - 1, Math.floor((s.y + s.h + 6 - ORIGIN.y) / PITCH.y));
+    for (let j = j0; j <= j1; j++) {
+      for (let i = i0; i <= i1; i++) {
+        const dx = Math.max(s.x - lx(i), 0, lx(i) - (s.x + s.w)), dy = Math.max(s.y - ly(j), 0, ly(j) - (s.y + s.h));
+        if (dx * dx + dy * dy <= 36 && owner[j * COLS + i] < 0) owner[j * COLS + i] = si;
+      }
+    }
+  });
+
+  /* ---- ทางเดินจากทางเข้า: เลียบแถวล็อกขาจร ขึ้นฝั่งสำนักงาน งูเลื้อยแถวบน แถวล่าง แล้ววนกลับทางเข้า ---- */
+  const KEYS = [
+    [140, 700], [140, 650], [1260, 650], [1260, 140], [1084, 140], [1084, 323], [894, 323], [894, 140], [704, 140], [704, 323],
+    [514, 323], [514, 140], [324, 140], [324, 323], [140, 323], [140, 520], [324, 520], [324, 323], [480, 323], [480, 520],
+    [704, 520], [704, 323], [894, 323], [894, 575], [140, 575], [140, 650],
+  ];
+  const ROUTE = [];
+  for (let k = 0; k < KEYS.length - 1; k++) {
+    const [ax, ay] = KEYS[k], [bx, by] = KEYS[k + 1];
+    const n = Math.max(1, Math.round(Math.hypot(bx - ax, by - ay) / 3));
+    for (let s = 0; s < n; s++) ROUTE.push([ax + ((bx - ax) * s) / n, ay + ((by - ay) * s) / n]);
+  }
+  ROUTE.push(KEYS[KEYS.length - 1]);
+  const CUMULATIVE = [0];
+  for (let i = 1; i < ROUTE.length; i++) CUMULATIVE.push(CUMULATIVE[i - 1] + Math.hypot(ROUTE[i][0] - ROUTE[i - 1][0], ROUTE[i][1] - ROUTE[i - 1][1]));
+  const TOTAL = CUMULATIVE[CUMULATIVE.length - 1];
+  const CORNER_BRAKE = 9, LINE_WIDTH = 4.2, GLOW_WIDTH = 12, HEAD_UNITS = 180;
+  const TIME_AT = (() => {
+    const n = ROUTE.length, turn = new Array(n).fill(0);
+    for (let i = 1; i < n - 1; i++) {
+      const [ax, ay] = ROUTE[i - 1], [bx, by] = ROUTE[i], [cx, cy] = ROUTE[i + 1];
+      const ux = bx - ax, uy = by - ay, vx = cx - bx, vy = cy - by;
+      const l = (Math.hypot(ux, uy) || 1) * (Math.hypot(vx, vy) || 1);
+      turn[i] = Math.acos(Math.min(1, Math.max(-1, (ux * vx + uy * vy) / l)));
+    }
+    const smooth = turn.map((_, i) => {
+      let s = 0, c = 0;
+      for (let j = Math.max(0, i - 6); j <= Math.min(n - 1, i + 6); j++) { s += turn[j]; c++; }
+      return s / c;
+    });
+    const acc = [0];
+    for (let i = 1; i < n; i++) acc.push(acc[i - 1] + (CUMULATIVE[i] - CUMULATIVE[i - 1]) * (1 + CORNER_BRAKE * smooth[i]));
+    return acc.map((v) => v / acc[n - 1]);
+  })();
+  const search = (arr, v) => { let lo = 0, hi = arr.length - 1; while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (arr[mid] <= v) lo = mid; else hi = mid; } return lo; };
+  const distanceAtTime = (t) => {
+    if (t <= 0) return 0;
+    if (t >= 1) return TOTAL;
+    const i = search(TIME_AT, t), k = (t - TIME_AT[i]) / Math.max(1e-9, TIME_AT[i + 1] - TIME_AT[i]);
+    return CUMULATIVE[i] + (CUMULATIVE[i + 1] - CUMULATIVE[i]) * k;
+  };
+  const pointAt = (d) => {
+    if (d <= 0) return ROUTE[0];
+    if (d >= TOTAL) return ROUTE[ROUTE.length - 1];
+    const i = search(CUMULATIVE, d), k = (d - CUMULATIVE[i]) / Math.max(1e-9, CUMULATIVE[i + 1] - CUMULATIVE[i]);
+    return [lerp(ROUTE[i][0], ROUTE[i + 1][0], k), lerp(ROUTE[i][1], ROUTE[i + 1][1], k)];
+  };
+  /* ป้าย: แถวล็อกขาจร · ประตูสำนักงาน · โซน C · โซน D หมุนตามทิศทางเดิน */
+  const MARKERS = [[300, 650], [1260, 428], [1084, 200], [324, 460]].map(([x, y]) => {
+    let best = 0, bd = Infinity;
+    ROUTE.forEach(([rx, ry], i) => { const d = Math.hypot(rx - x, ry - y); if (d < bd) { bd = d; best = i; } });
+    const a = ROUTE[Math.max(0, best - 1)], b = ROUTE[Math.min(ROUTE.length - 1, best + 1)];
+    return { x: ROUTE[best][0], y: ROUTE[best][1], d: CUMULATIVE[best], deg: (Math.atan2(b[1] - a[1], b[0] - a[0]) * 180) / Math.PI, lit: false };
+  });
+  for (const s of stalls) {
+    s.passD = Infinity;
+    s.flashAt = -1;
+    for (let i = 0; i < ROUTE.length; i++) {
+      const [px, py] = ROUTE[i];
+      const dx = Math.max(s.x - px, 0, px - (s.x + s.w)), dy = Math.max(s.y - py, 0, py - (s.y + s.h));
+      if (dx * dx + dy * dy <= 324) { s.passD = CUMULATIVE[i]; break; }
+    }
+  }
+
+  /* ---- SVG: แกนทางเดิน สำนักงาน มุม เส้นขอบแผง ชื่อโซน ป้าย ทางเข้า ---- */
+  const corners = [[60, 110], [1380, 110], [60, 480], [1380, 480], [60, 760], [640, 760], [800, 760]];
+  svg.innerHTML = [
+    `<g class="risk__axes" fill="none" stroke="${COLORS.mapGrid}" stroke-width="1.2" stroke-dasharray="7 4.7"><line x1="514" y1="-4000" x2="514" y2="4800"/><line x1="894" y1="-4000" x2="894" y2="4800"/><line x1="-4000" y1="323" x2="5440" y2="323"/></g>`,
+    `<g fill="none"><circle cx="${HUB.x}" cy="${HUB.y}" r="250" stroke="${COLORS.mapGhost}" stroke-width="1.2"/><circle cx="${HUB.x}" cy="${HUB.y}" r="200" stroke="${COLORS.mapGhost}" stroke-width="1.2"/><circle cx="${HUB.x}" cy="${HUB.y}" r="40" stroke="${COLORS.mapGrid}" stroke-width="1.7"/></g>`,
+    `<circle class="risk__ping" cx="${HUB.x}" cy="${HUB.y}" r="6" fill="${COLORS.gold}" opacity="0"/>`,
+    `<circle cx="${HUB.x}" cy="${HUB.y}" r="6" fill="${COLORS.onDark}"/>`,
+    `<text x="${HUB.x}" y="${HUB.y + 62}" text-anchor="middle" fill="${COLORS.onDarkMuted}" font-family="Anuphan, sans-serif" font-size="13">สำนักงานตลาด</text>`,
+    corners.map(([x, y]) => `<rect x="${x - 4.7}" y="${y - 4.7}" width="9.4" height="9.4" fill="${COLORS.background}"/>`).join(""),
+    `<g fill="none" stroke="${COLORS.onDark}" stroke-opacity="0.14" stroke-width="0.75">${stalls.map((s) => `<rect x="${s.x}" y="${s.y}" width="${s.w}" height="${s.h}"/>`).join("")}</g>`,
+    `<g fill="${COLORS.onDarkMuted}" font-family="Anuphan, sans-serif" font-size="13">${ZONES.map((z) => `<text x="${z.rect.x}" y="${z.rect.y - 10}">${z.id} · ${z.name}</text>`).join("")}</g>`,
+    MARKERS.map((m) => `<polygon class="risk__marker" points="7.7,0 -3.85,6.67 -3.85,-6.67" transform="translate(${m.x} ${m.y}) rotate(${m.deg.toFixed(1)})" fill="${COLORS.gold}" opacity="0.25"/>`).join(""),
+    `<g fill="${COLORS.onDark}" stroke="${COLORS.onDark}" stroke-width="1">`
+      + `<rect x="${ENTRANCE.x - 18}" y="${ENTRANCE.y + 8}" width="17" height="13"/><rect x="${ENTRANCE.x + 1}" y="${ENTRANCE.y + 8}" width="17" height="13" fill="none"/>`
+      + `<rect x="${ENTRANCE.x - 18}" y="${ENTRANCE.y + 23}" width="17" height="13" fill="none"/><rect x="${ENTRANCE.x + 1}" y="${ENTRANCE.y + 23}" width="17" height="13"/></g>`,
+    `<text x="${ENTRANCE.x + 26}" y="${ENTRANCE.y + 32}" fill="${COLORS.onDarkMuted}" font-family="Anuphan, sans-serif" font-size="13">ทางเข้า</text>`,
+  ].join("");
+  const markerEls = $$(".risk__marker", svg);
+  const markerSprings = markerEls.map((el) => new Spring(0.25, C.ITEM, (v) => el.setAttribute("opacity", clamp(v).toFixed(3)), 0.001));
+
+  const axes = $(".risk__axes", svg), ping = $(".risk__ping", svg), coinIn = $(".mplate__coin-in", section);
+  if (!REDUCED) {
+    whileInView(section, (time) => {
+      axes.style.strokeDashoffset = (((time % 7000) / 7000) * 11.7).toFixed(3);
+      const v = EASE.outQuad((time % 4200) / 4200);
+      ping.setAttribute("r", (6 + v * 48).toFixed(2));
+      ping.setAttribute("opacity", (0.4 * (1 - v) ** 2).toFixed(3));
+      const turn = ((time % 10000) / 10000) * Math.PI * 2;
+      coinIn.setAttribute("rx", Math.max(0.5, Math.abs(Math.cos(turn)) * 18).toFixed(2));
+    }, () => 0);
+  }
+
+  let scale = 1, ratio = 1;
+  const baked = document.createElement("canvas"), routeBaked = document.createElement("canvas");
+  const k = () => scale * ratio;
+  /* จุดของล็อกขาจรเป็นสีตามสถานะวันนี้ แผงของผู้ที่ล็อกอินเป็นสีครีม */
+  const bakeDots = () => {
+    const c = baked.getContext("2d");
+    c.setTransform(k(), 0, 0, k(), 0, 0);
+    c.clearRect(0, 0, ART.w, ART.h);
+    const groups = new Map();
+    for (let j = 0; j < ROWS; j++) {
+      for (let i = 0; i < COLS; i++) {
+        const o = owner[j * COLS + i];
+        if (o < 0) continue;
+        const st = stalls[o];
+        const col = st.walkin || st.mine ? toneOf(st, true) : COLORS.mapDot;
+        if (!groups.has(col)) groups.set(col, []);
+        groups.get(col).push(i, j);
+      }
+    }
+    for (const [col, pts] of groups) {
+      c.fillStyle = col;
+      c.beginPath();
+      for (let n = 0; n < pts.length; n += 2) {
+        const x = lx(pts[n]), y = ly(pts[n + 1]);
+        c.moveTo(x + DOT_R, y);
+        c.arc(x, y, DOT_R, 0, Math.PI * 2);
+      }
+      c.fill();
+    }
+  };
+
+  const tracePath = (ctx, from, to) => {
+    const a = pointAt(from);
+    ctx.moveTo(a[0], a[1]);
+    let i = search(CUMULATIVE, from) + 1;
+    while (i < ROUTE.length && CUMULATIVE[i] < to) { ctx.lineTo(ROUTE[i][0], ROUTE[i][1]); i++; }
+    const b = pointAt(to);
+    ctx.lineTo(b[0], b[1]);
+    return b;
+  };
+  const renderRoute = (ctx, D, heat, now) => {
+    ctx.setTransform(k(), 0, 0, k(), 0, 0);
+    ctx.clearRect(0, 0, ART.w, ART.h);
+    if (D <= 0) return;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.globalCompositeOperation = "lighter";
+    ctx.strokeStyle = COLORS.gold;
+    ctx.beginPath();
+    tracePath(ctx, 0, D);
+    ctx.globalAlpha = 0.05; ctx.lineWidth = GLOW_WIDTH; ctx.stroke();
+    ctx.globalAlpha = 0.1; ctx.lineWidth = GLOW_WIDTH * 0.45; ctx.stroke();
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = 0.55; ctx.lineWidth = 1.4; ctx.stroke();
+    const headFrom = Math.max(0, D - HEAD_UNITS), a = pointAt(headFrom), tip = pointAt(D);
+    const grad = ctx.createLinearGradient(a[0], a[1], tip[0], tip[1]);
+    grad.addColorStop(0, withAlpha(COLORS.gold, 0));
+    grad.addColorStop(1, mixHex(COLORS.gold, "#fff6de", heat));
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = LINE_WIDTH;
+    ctx.beginPath();
+    tracePath(ctx, headFrom, D);
+    ctx.stroke();
+    if (heat > 0.001) {
+      ctx.globalAlpha = 0.95 * heat;
+      ctx.strokeStyle = COLORS.onDark;
+      ctx.lineWidth = 0.38 * LINE_WIDTH;
+      ctx.beginPath();
+      tracePath(ctx, Math.max(0, D - HEAD_UNITS * 0.42), D);
+      ctx.stroke();
+      const spark = ctx.createRadialGradient(tip[0], tip[1], 0, tip[0], tip[1], 11);
+      spark.addColorStop(0, CREAM(0.9));
+      spark.addColorStop(1, CREAM(0));
+      ctx.globalAlpha = heat;
+      ctx.fillStyle = spark;
+      ctx.beginPath(); ctx.arc(tip[0], tip[1], 11, 0, Math.PI * 2); ctx.fill();
+    }
+    for (const m of MARKERS) {
+      if (D < m.d || D > m.d + 90) continue;
+      const age = (D - m.d) / 90, r = 12 + (1 - age) * 14;
+      const glow = ctx.createRadialGradient(m.x, m.y, 0, m.x, m.y, r);
+      glow.addColorStop(0, withAlpha(COLORS.gold, 0.6 * (1 - age)));
+      glow.addColorStop(1, withAlpha(COLORS.gold, 0));
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = glow;
+      ctx.beginPath(); ctx.arc(m.x, m.y, r, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1 - age;
+      ctx.strokeStyle = COLORS.gold;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.arc(m.x, m.y, 9 + age * 20, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.lineWidth = 1.2;
+    for (const s of stalls) {
+      if (s.flashAt < 0) continue;
+      const age = (now - s.flashAt) / 400;
+      if (age >= 1 || age < 0) continue;
+      ctx.globalAlpha = 1 - age;
+      ctx.strokeStyle = toneOf(s, true);
+      ctx.strokeRect(s.x, s.y, s.w, s.h);
+    }
+    ctx.globalAlpha = 1;
+  };
+
+  let D = 0, heat = 1, phase = "idle";
+  const ctxRoute = routeCv.getContext("2d");
+  const stepWalk = () => {
+    const now = performance.now();
+    for (const s of stalls) if (s.flashAt < 0 && s.passD <= D) s.flashAt = now;
+    MARKERS.forEach((m, i) => { if (!m.lit && D >= m.d) { m.lit = true; markerSprings[i].to(1); } });
+    renderRoute(ctxRoute, D, heat, now);
+  };
+  const bakeRoute = () => {
+    renderRoute(routeBaked.getContext("2d"), TOTAL, 0, -1e9);
+    drawRouteLayer();
+  };
+  const startWalk = () => {
+    if (phase !== "idle") return;
+    phase = "walking";
+    tween({
+      duration: 6000, easing: EASE.inOutSine,
+      onUpdate: (lap) => { D = distanceAtTime(lap); stepWalk(); },
+      onDone: () => {
+        phase = "cooling";
+        tween({ from: 1, to: 0, duration: 800, easing: EASE.outCubic, onUpdate: (h) => { heat = h; stepWalk(); }, onDone: () => { phase = "rest"; bakeRoute(); } });
+      },
+    });
+  };
+  if (REDUCED) {
+    D = TOTAL; heat = 0; phase = "rest";
+    MARKERS.forEach((m, i) => { m.lit = true; markerSprings[i].jump(1); });
+  } else {
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { io.disconnect(); startWalk(); } }, { threshold: 0.35 });
+    io.observe(section);
+  }
+
+  /* ---- reticle: แสงตามเคอร์เซอร์ สว่างตามแถวและคอลัมน์ของตัวเอง + บลูม 46 ---- */
+  const lit = new Float32Array(COLS * ROWS);
+  const litSet = new Set();
+  const light = { x: 0, y: 0, tx: 0, ty: 0, spread: 0, active: false, seeded: false };
+  const MIX_GW = mixHex(COLORS.gold, "#ffffff", 0.55);
+  const addLevel = (i, j, v) => {
+    if (i < 0 || j < 0 || i >= COLS || j >= ROWS || v <= 0) return;
+    const idx = j * COLS + i;
+    if (owner[idx] < 0 || v <= lit[idx]) return;
+    lit[idx] = v;
+    litSet.add(idx);
+  };
+  const addLight = () => {
+    const ci = Math.round((light.x - ORIGIN.x) / PITCH.x), cj = Math.round((light.y - ORIGIN.y) / PITCH.y);
+    const R = 320 * light.spread;
+    if (R > 1) {
+      const si = Math.ceil(R / PITCH.x), sj = Math.ceil(R / PITCH.y);
+      for (let i = ci - si; i <= ci + si; i++) addLevel(i, cj, 1 - Math.abs(lx(i) - light.x) / R);
+      for (let j = cj - sj; j <= cj + sj; j++) addLevel(ci, j, 1 - Math.abs(ly(j) - light.y) / R);
+    }
+    const B = 46, bi = Math.ceil(B / PITCH.x), bj = Math.ceil(B / PITCH.y);
+    for (let j = cj - bj; j <= cj + bj; j++) {
+      for (let i = ci - bi; i <= ci + bi; i++) {
+        const d = Math.hypot(lx(i) - light.x, ly(j) - light.y);
+        if (d < B) addLevel(i, j, 1 - d / B);
+      }
+    }
+  };
+  const drawDots = () => {
+    const c = dotsCv.getContext("2d");
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.clearRect(0, 0, dotsCv.width, dotsCv.height);
+    c.drawImage(baked, 0, 0);
+    if (!litSet.size) return;
+    c.setTransform(k(), 0, 0, k(), 0, 0);
+    for (const idx of litSet) {
+      const v = lit[idx], i = idx % COLS, j = (idx / COLS) | 0, x = lx(i), y = ly(j);
+      const col = v > 0.8 ? COLORS.onDark : v > 0.5 ? MIX_GW : COLORS.gold;
+      if (v > 0.34) {
+        const f = 0.7 + 0.3 * clamp((v - 0.34) / 0.66);
+        const w = PITCH.x * f, h = PITCH.y * f;
+        if (((i + j) & 1) === 0) { c.fillStyle = col; c.fillRect(x - w / 2, y - h / 2, w, h); }
+        else c.clearRect(x - w / 2, y - h / 2, w, h);
+      } else {
+        c.globalAlpha = v / 0.34;
+        c.fillStyle = col;
+        c.beginPath(); c.arc(x, y, DOT_R * 1.5, 0, Math.PI * 2); c.fill();
+        c.globalAlpha = 1;
+      }
+    }
+  };
+
+  /* ---- แผงที่เลือก + การ์ดรายละเอียด ---- */
+  let snapped = null;
+  const card = $(".tcard", section);
+  let cardShow = 0, cardAt = { x: 0, y: 0 };
+  const placeCard = () => {
+    const sw = section.clientWidth, sh = section.clientHeight, cw = card.offsetWidth, ch = card.offsetHeight;
+    let x = cardAt.x + 20, y = cardAt.y + 20;
+    if (x + cw > sw - 16) x = cardAt.x - 20 - cw;
+    if (y + ch > sh - 16) y = cardAt.y - 20 - ch;
+    x = clamp(x, 16, Math.max(16, sw - cw - 16));
+    y = clamp(y, 16, Math.max(16, sh - ch - 16));
+    card.style.transform = `translate(${x.toFixed(1)}px, ${(y + (1 - cardShow) * 8).toFixed(1)}px)`;
+  };
+  const cardSpring = new Spring(0, C.ITEM, (v) => { cardShow = v; card.style.opacity = clamp(v); placeCard(); }, 0.001);
+  const linkOf = (s) => (s.mine ? "/vendor" : s.walkin ? `/walkin?spot=${s.id}${s.taken ? "" : `&date=${LIVE.today}`}` : null);
+  const fillCard = (s) => {
+    const R = LIVE.rates, tap = tapMode() ? "แตะอีกครั้ง" : "คลิก";
+    $(".tcard__id", card).textContent = s.id;
+    const st = $(".tcard__risk", card);
+    st.textContent = statusOf(s);
+    st.style.color = toneOf(s, true);
+    $(".tcard__name", card).textContent = s.walkin ? "ล็อกขาจร · แถวหน้าตลาด ใกล้ทางเข้า" : `โซน${s.zoneName} · แผงผู้ค้าประจำ`;
+    $(".tcard__money", card).textContent = s.walkin ? `ค่าพื้นที่ ${fmt(R.walkin_fee)} บาท/วัน` : `ค่าแผง ${fmt(s.rent)} บาท/เดือน`;
+    $(".tcard__hist", card).textContent = s.walkin
+      ? (s.taken ? `วันนี้มีผู้จองแล้ว ยังจองวันอื่นได้อีก ${LIVE.dates.length - 1} วัน` : `จองล่วงหน้าได้ ${LIVE.dates.length} วัน · จ่ายผ่าน QR พร้อมเพย์`)
+      : `ค่าน้ำ ${fmt(R.water_rate)} · ค่าไฟ ${fmt(R.elec_rate)} บาท/หน่วย · บิลออกทุกต้นเดือน`;
+    $(".tcard__why", card).textContent = s.mine ? `${tap}เพื่อไปหน้าบิลของคุณ`
+      : s.walkin ? (s.taken ? `${tap}เพื่อเลือกวันอื่นของล็อกนี้` : `${tap}เพื่อจองล็อกนี้`)
+      : "เช่ารายเดือน สอบถามได้ที่สำนักงานตลาด";
+    card.classList.toggle("is-link", !!linkOf(s));
+  };
+  const drawRouteLayer = () => {
+    const c = routeCv.getContext("2d");
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.clearRect(0, 0, routeCv.width, routeCv.height);
+    c.drawImage(routeBaked, 0, 0);
+    if (!snapped) return;
+    const s = snapped, o = 3, t = 6;
+    c.setTransform(k(), 0, 0, k(), 0, 0);
+    c.strokeStyle = toneOf(s, true);
+    c.lineWidth = 1.5;
+    c.strokeRect(s.x, s.y, s.w, s.h);
+    c.beginPath();
+    for (const [cx, cy, sx, sy] of [[s.x - o, s.y - o, 1, 1], [s.x + s.w + o, s.y - o, -1, 1], [s.x - o, s.y + s.h + o, 1, -1], [s.x + s.w + o, s.y + s.h + o, -1, -1]]) {
+      c.moveTo(cx + sx * t, cy); c.lineTo(cx, cy); c.lineTo(cx, cy + sy * t);
+    }
+    c.stroke();
+  };
+  const setSnap = (s) => {
+    if (s === snapped) return;
+    snapped = s;
+    if (s) { fillCard(s); cardSpring.to(1); } else cardSpring.to(0);
+    if (phase === "rest") drawRouteLayer();
+  };
+  const nearestStall = (x, y, max) => {
+    let best = null, bd = max;
+    for (const s of stalls) {
+      const d = Math.hypot(Math.max(s.x - x, 0, x - (s.x + s.w)), Math.max(s.y - y, 0, y - (s.y + s.h)));
+      if (d < bd) { bd = d; best = s; }
+    }
+    return best;
+  };
+  const artFrom = (clientX, clientY) => {
+    const r = stage.getBoundingClientRect();
+    return { x: ((clientX - r.left) / r.width) * ART.w, y: ((clientY - r.top) / r.height) * ART.h };
+  };
+
+  let reticleUnsub = null;
+  const reticleTick = (time, rawDt) => {
+    const dt = Math.min(rawDt, 64) / 1000;
+    if (light.active) {
+      const px = light.x, py = light.y;
+      light.x = approach(light.x, light.tx, dt, 0.07);
+      light.y = approach(light.y, light.ty, dt, 0.07);
+      const speed = Math.hypot(light.x - px, light.y - py) / Math.max(dt, 1e-3);
+      const want = speed < 900 ? 1 : 0;
+      light.spread = approach(light.spread, want, dt, want > light.spread ? 0.38 : 0.09);
+    }
+    const f = Math.exp(-dt / 0.3);
+    for (const idx of litSet) {
+      lit[idx] *= f;
+      if (lit[idx] < 0.01) { lit[idx] = 0; litSet.delete(idx); }
+    }
+    if (light.active) addLight();
+    drawDots();
+    if (!light.active && !litSet.size) { reticleUnsub(); reticleUnsub = null; }
+  };
+  const wake = () => { if (!reticleUnsub) reticleUnsub = subscribe(reticleTick, () => 0); };
+
+  section.addEventListener("pointermove", (e) => {
+    if (e.pointerType !== "mouse" || phase !== "rest" || tapMode()) return;
+    const p = artFrom(e.clientX, e.clientY);
+    light.tx = p.x;
+    light.ty = p.y;
+    if (!light.seeded) { light.x = p.x; light.y = p.y; light.seeded = true; }
+    light.active = true;
+    const r = section.getBoundingClientRect();
+    cardAt = { x: e.clientX - r.left, y: e.clientY - r.top };
+    setSnap(nearestStall(p.x, p.y, 40));
+    section.style.cursor = snapped && linkOf(snapped) ? "pointer" : "";
+    placeCard();
+    wake();
+  });
+  section.addEventListener("pointerleave", () => { light.active = false; if (!tapMode()) setSnap(null); section.style.cursor = ""; });
+  // คลิกแผงที่จองได้ → ไปหน้าจองพร้อมเลือกล็อกไว้ให้ · จอสัมผัส: แตะครั้งแรกดูการ์ด แตะซ้ำเพื่อไป
+  section.addEventListener("click", (e) => {
+    if (phase !== "rest" || e.target.closest("a")) return;
+    const p = artFrom(e.clientX, e.clientY);
+    const hit = nearestStall(p.x, p.y, tapMode() ? 24 : 40);
+    if (!tapMode()) { if (hit && linkOf(hit)) location.href = linkOf(hit); return; }
+    if (hit && hit === snapped && linkOf(hit)) { location.href = linkOf(hit); return; }
+    const r = section.getBoundingClientRect();
+    cardAt = { x: e.clientX - r.left, y: e.clientY - r.top };
+    setSnap(hit);
+    placeCard();
+  });
+  document.addEventListener("click", (e) => {
+    if (tapMode() && snapped && !section.contains(e.target)) setSnap(null);
+  });
+
+  const layout = () => {
+    const w = frameEl.clientWidth, h = frameEl.clientHeight;
+    if (!w || !h) return;
+    let ox, oy;
+    if (w >= 1024) {
+      scale = Math.max(w / ART.w, h / ART.h);
+      ox = (w - ART.w * scale) / 2;
+      oy = (h - ART.h * scale) / 2;
+    } else {
+      const bx = PLAN.x - 46, by = PLAN.y - 46, bw = PLAN.w + 92, bh = PLAN.h + 92;
+      scale = w / bw;
+      ox = -bx * scale;
+      oy = (h - bh * scale) / 2 - by * scale + h * 0.08;
+    }
+    stage.style.transform = `translate(${ox.toFixed(2)}px, ${oy.toFixed(2)}px) scale(${scale.toFixed(5)})`;
+    ratio = coarse.matches ? 1 : Math.min(devicePixelRatio || 1, 2);
+    for (const cv of [dotsCv, routeCv, baked, routeBaked]) {
+      cv.width = Math.max(1, Math.round(ART.w * k()));
+      cv.height = Math.max(1, Math.round(ART.h * k()));
+    }
+    bakeDots();
+    drawDots();
+    if (phase === "rest") bakeRoute(); else stepWalk();
+  };
+  new ResizeObserver(layout).observe(frameEl);
+
+  const writeTable = () => {
+    $("[data-risk-table]", section).innerHTML = `<caption>สถานะล็อกขาจรวันที่ ${thDate(LIVE.today)} (ค่าพื้นที่ ${fmt(LIVE.rates.walkin_fee)} บาทต่อวัน)</caption>
+      <thead><tr><th scope="col">ล็อก</th><th scope="col">สถานะวันนี้</th></tr></thead>
+      <tbody>${stalls.filter((s) => s.walkin).map((s) => `<tr><th scope="row">${s.id}</th><td>${s.taken ? "จองแล้ว" : "ว่าง"}</td></tr>`).join("")}</tbody>`;
+  };
+  writeTable();
+  addEventListener("guide:data", () => { bakeDots(); drawDots(); writeTable(); if (snapped) fillCard(snapped); });
+});
+
+/* =====================================================================
+   4 — จองแผง จ่ายค่าน้ำไฟ: แผ่นเจ็ดขั้น แต่ละแผ่นมีภาพเคลื่อนไหวของขั้นนั้น
+   ===================================================================== */
+const PLATE_CLIP = "M 0.01915,0.00107H 0.98085C 0.98574,0.00107 0.99044,0.00300 0.99390,0.00642C 0.99736,0.00984 0.99930,0.01449 0.99930,0.01933V 0.88815C 0.99930,0.89299 0.99736,0.89763 0.99390,0.90105C 0.99044,0.90448 0.98574,0.90640 0.98085,0.90640H 0.64733C 0.63864,0.90640 0.63007,0.90834 0.62224,0.91206C 0.61442,0.91579 0.60754,0.92122 0.60212,0.92794L 0.56153,0.97830C 0.55635,0.98474 0.54976,0.98993 0.54227,0.99350C 0.53478,0.99707 0.52656,0.99892 0.51825,0.99892H 0.01915C 0.01426,0.99892 0.00956,0.99700 0.00610,0.99358C 0.00264,0.99016 0.00070,0.98551 0.00070,0.98067V 0.01933C 0.00070,0.01449 0.00264,0.00984 0.00610,0.00642C 0.00956,0.00300 0.01426,0.00107 0.01915,0.00107Z";
+function scalePath(d, sx, sy) {
+  let cmd = "", axis = 0;
+  return d.match(/[a-zA-Z]|-?\d*\.?\d+/g).map((tk) => {
+    if (/[a-zA-Z]/.test(tk)) { cmd = tk; axis = 0; return tk; }
+    const v = parseFloat(tk);
+    if (cmd === "H") return (v * sx).toFixed(3);
+    if (cmd === "V") return (v * sy).toFixed(3);
+    return (v * (axis++ % 2 === 0 ? sx : sy)).toFixed(3);
+  }).join(" ");
+}
+const OFF_SEG = "rgba(242,237,227,0.07)";
+const SEG = [0x3f, 0x06, 0x5b, 0x4f, 0x66, 0x6d, 0x7d, 0x07, 0x7f, 0x6f];
+function seg7(ctx, x, y, w, h, digit, on) {
+  const th = w * 0.17, g = th * 0.35, half = h / 2 - th / 2 - 2 * g;
+  const segs = [
+    [x + th / 2 + g, y, w - th - 2 * g, th], [x + w - th, y + th / 2 + g, th, half], [x + w - th, y + h / 2 + g, th, half],
+    [x + th / 2 + g, y + h - th, w - th - 2 * g, th], [x, y + h / 2 + g, th, half], [x, y + th / 2 + g, th, half],
+    [x + th / 2 + g, y + h / 2 - th / 2, w - th - 2 * g, th],
+  ];
+  segs.forEach((r, i) => { ctx.fillStyle = SEG[digit] & (1 << i) ? on : OFF_SEG; ctx.fillRect(r[0], r[1], r[2], r[3]); });
+}
+function rollingDigit(ctx, x, y, w, h, v, on) {
+  const base = Math.floor(v), frac = v - base, d0 = ((base % 10) + 10) % 10, d1 = (d0 + 1) % 10, step = h * 1.2;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(x - 2, y - 2, w + 4, h + 4); ctx.clip();
+  seg7(ctx, x, y - frac * step, w, h, d0, on);
+  if (frac > 0.001) seg7(ctx, x, y + (1 - frac) * step, w, h, d1, on);
+  ctx.restore();
+}
+const roundRect = (ctx, x, y, w, h, r) => { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); };
+const loopFade = (T, period, out = 700) => (T > period - out ? 1 - (T - (period - out)) / out : 1);
+/* QR พร้อมเพย์จำลอง 25×25 โมดูล (ลายสุ่มคงที่ + finder สามมุม) */
+const QR = (() => {
+  const n = 25, r = mulberry32(150), m = Array.from({ length: n * n }, () => (r() > 0.52 ? 1 : 0));
+  const finder = (ox, oy) => {
+    for (let i = -1; i <= 7; i++) for (const [x, y] of [[ox + i, oy - 1], [ox + i, oy + 7], [ox - 1, oy + i], [ox + 7, oy + i]]) if (x >= 0 && y >= 0 && x < n && y < n) m[y * n + x] = 0;
+    for (let y = 0; y < 7; y++) for (let x = 0; x < 7; x++) {
+      const edge = x === 0 || y === 0 || x === 6 || y === 6, core = x >= 2 && x <= 4 && y >= 2 && y <= 4;
+      m[(oy + y) * n + ox + x] = edge || core ? 1 : 0;
+    }
+  };
+  finder(0, 0); finder(n - 7, 0); finder(0, n - 7);
+  return { n, m };
+})();
+function drawQR(ctx, x, y, size, alpha = 1) {
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = COLORS.background;
+  ctx.fillRect(x, y, size, size);
+  const q = size * 0.08, cell = (size - q * 2) / QR.n;
+  ctx.fillStyle = COLORS.foreground;
+  for (let j = 0; j < QR.n; j++) for (let i = 0; i < QR.n; i++) if (QR.m[j * QR.n + i]) ctx.fillRect(x + q + i * cell, y + q + j * cell, Math.ceil(cell), Math.ceil(cell));
+  ctx.globalAlpha = 1;
+}
+function drawCheck(ctx, cx, cy, r, color, k = 1) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = Math.max(1.5, r * 0.14);
+  ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * clamp(k * 1.6)); ctx.stroke();
+  const t = clamp(k * 2 - 0.8);
+  if (t > 0) {
+    ctx.beginPath();
+    ctx.moveTo(cx - r * 0.42, cy + r * 0.02);
+    const mx = cx - r * 0.12, my = cy + r * 0.32;
+    if (t < 0.4) ctx.lineTo(lerp(cx - r * 0.42, mx, t / 0.4), lerp(cy + r * 0.02, my, t / 0.4));
+    else { ctx.lineTo(mx, my); ctx.lineTo(lerp(mx, cx + r * 0.45, (t - 0.4) / 0.6), lerp(my, cy - r * 0.3, (t - 0.4) / 0.6)); }
+    ctx.stroke();
+  }
+}
+const typedText = (text, since, T, perChar = 70) => {
+  if (T < since) return "";
+  const g = [...graphemes.segment(text)].map((s) => s.segment);
+  return g.slice(0, Math.floor((T - since) / perChar) + 1).join("");
+};
+
+/* 01 เลือกวันที่: ปุ่มวันที่เจ็ดวันแรก ไฮไลต์เลื่อนไปเลือกวันที่สาม */
+function vDates() {
+  const PERIOD = 7000, sel = { value: 0, velocity: 0, precision: 0.001 };
+  return {
+    finalT: 3200,
+    draw(ctx, w, h, t, dt, final) {
+      const T = final ? 3200 : t % PERIOD;
+      ctx.globalAlpha = loopFade(T, PERIOD);
+      const dates = LIVE.dates.slice(0, 7), n = dates.length, pad = w * 0.07, gap = w * 0.014;
+      const cw = (w - pad * 2 - gap * (n - 1)) / n, ch = h * 0.34, y = h * 0.28;
+      ctx.textBaseline = "alphabetic";
+      ctx.fillStyle = COLORS.onDarkMuted;
+      ctx.font = SANS(Math.max(10, h * 0.044), 400);
+      ctx.fillText(`หน้า “จองพื้นที่” · เลือกวันที่ขาย (จองล่วงหน้าได้ ${LIVE.dates.length} วัน)`, pad, h * 0.19);
+      if (final) sel.value = 2; else stepSpring(sel, T < 700 ? 0 : 2, C.ROW, dt);
+      const picked = final || T > 2300;
+      dates.forEach((d, i) => {
+        const x = pad + i * (cw + gap), on = picked && i === 2, dd = parseD(d);
+        roundRect(ctx, x, y, cw, ch, 6);
+        if (on) { ctx.fillStyle = COLORS.gold; ctx.fill(); } else { ctx.strokeStyle = CREAM(0.22); ctx.lineWidth = 1; ctx.stroke(); }
+        ctx.textAlign = "center";
+        ctx.fillStyle = on ? COLORS.surfaceBlack : COLORS.onDarkMuted;
+        ctx.font = SANS(Math.max(9, ch * 0.13), 500);
+        ctx.fillText(i === 0 ? "วันนี้" : TH_WEEKDAY[dd.getUTCDay()], x + cw / 2, y + ch * 0.26);
+        ctx.fillStyle = on ? COLORS.surfaceBlack : COLORS.onDark;
+        ctx.font = DISPLAY(ch * 0.36, 500);
+        ctx.fillText(String(dd.getUTCDate()), x + cw / 2, y + ch * 0.66);
+        ctx.fillStyle = on ? COLORS.surfaceBlack : COLORS.onDarkMuted;
+        ctx.font = SANS(Math.max(9, ch * 0.12), 400);
+        ctx.fillText(TH_MONTH[dd.getUTCMonth()], x + cw / 2, y + ch * 0.86);
+      });
+      ctx.textAlign = "left";
+      const hx = pad + sel.value * (cw + gap);
+      ctx.strokeStyle = COLORS.gold;
+      ctx.lineWidth = 2;
+      roundRect(ctx, hx - 4, y - 4, cw + 8, ch + 8, 9);
+      ctx.stroke();
+      if (picked) {
+        ctx.fillStyle = COLORS.gold;
+        ctx.font = SANS(Math.max(10, h * 0.05), 600);
+        ctx.fillText(`เลือกวันที่ ${thDate(dates[2])} แล้ว → ต่อไปเลือกล็อก`, pad, y + ch + h * 0.13);
+      }
+      ctx.globalAlpha = 1;
+    },
+  };
+}
+
+/* 02 เลือกล็อก: ล็อก F 12 ล็อกตามสถานะวันนี้ แล้วเลือกล็อกแรกที่ว่าง */
+function vSpots() {
+  const PERIOD = 6000;
+  return {
+    finalT: 2600,
+    draw(ctx, w, h, t, dt, final) {
+      const T = final ? 2600 : t % PERIOD;
+      ctx.globalAlpha = loopFade(T, PERIOD);
+      const spots = stalls.filter((s) => s.walkin), pick = firstFree();
+      const pad = w * 0.08, gap = w * 0.02, cols = 6, cw = (w - pad * 2 - gap * (cols - 1)) / cols, ch = cw * 0.72, top = h * 0.24;
+      ctx.fillStyle = COLORS.onDarkMuted;
+      ctx.font = SANS(Math.max(9, h * 0.06), 400);
+      ctx.textBaseline = "alphabetic";
+      ctx.fillText("ล็อก F · แถวหน้าตลาด", pad, h * 0.16);
+      spots.forEach((s, i) => {
+        const x = pad + (i % cols) * (cw + gap), y = top + Math.floor(i / cols) * (ch + gap * 1.6);
+        const chosen = s === pick && (final || T > 1900);
+        roundRect(ctx, x, y, cw, ch, 4);
+        if (chosen) { ctx.fillStyle = COLORS.gold; ctx.fill(); }
+        else if (s.taken) { ctx.fillStyle = CREAM(0.08); ctx.fill(); }
+        else { ctx.strokeStyle = COLORS.okDark; ctx.lineWidth = 1.2; ctx.stroke(); }
+        ctx.fillStyle = chosen ? COLORS.surfaceBlack : s.taken ? COLORS.onDarkFaint : COLORS.onDark;
+        ctx.font = DISPLAY(Math.max(8, ch * 0.3), 500);
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(s.id, x + cw / 2, y + ch / 2);
+        ctx.textAlign = "left";
+        ctx.textBaseline = "alphabetic";
+        if (s === pick && !final && T > 700 && T < 1900) {
+          const v = ((T - 700) % 600) / 600;
+          ctx.strokeStyle = withAlpha(COLORS.gold, 1 - v);
+          ctx.lineWidth = 1.5;
+          roundRect(ctx, x - v * 6, y - v * 6, cw + v * 12, ch + v * 12, 5);
+          ctx.stroke();
+        }
+      });
+      const ly2 = top + ch * 2 + gap * 1.6 + h * 0.12;
+      ctx.font = SANS(Math.max(9, h * 0.055), 400);
+      ctx.fillStyle = COLORS.okDark;
+      ctx.fillText(`□ ว่าง ${STATS.free}`, pad, ly2);
+      ctx.fillStyle = COLORS.onDarkFaint;
+      ctx.fillText(`■ จองแล้ว ${STATS.taken}`, pad + w * 0.3, ly2);
+      ctx.globalAlpha = 1;
+    },
+  };
+}
+
+/* 03 กรอกข้อมูลแล้วสแกนจ่าย: พิมพ์ชื่อ เบอร์ สินค้า → QR ยอดค่าพื้นที่ → เส้นสแกน → ชำระสำเร็จ */
+function vQR() {
+  const PERIOD = 8800;
+  const FIELDS = [["ชื่อ-นามสกุล", "สมใจ ใจดี"], ["เบอร์โทร", "081-234-5678"], ["ประเภทสินค้า", "ผักผลไม้"]];
+  return {
+    finalT: 6000,
+    draw(ctx, w, h, t, dt, final) {
+      const T = final ? 6000 : t % PERIOD;
+      ctx.globalAlpha = loopFade(T, PERIOD);
+      const pad = w * 0.07, colW = w * 0.4, fh = h * 0.1, top = h * 0.14;
+      ctx.textBaseline = "alphabetic";
+      FIELDS.forEach(([label, value], i) => {
+        const y = top + i * h * 0.2;
+        ctx.fillStyle = COLORS.onDarkMuted;
+        ctx.font = SANS(Math.max(10, h * 0.04), 400);
+        ctx.fillText(label, pad, y);
+        roundRect(ctx, pad, y + h * 0.02, colW, fh, 4);
+        ctx.strokeStyle = CREAM(0.25);
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        const typed = final ? value : typedText(value, 200 + i * 650, T, 55);
+        ctx.fillStyle = COLORS.onDark;
+        ctx.font = SANS(Math.max(10, fh * 0.46), 500);
+        ctx.fillText(typed, pad + fh * 0.3, y + h * 0.02 + fh * 0.66);
+        if (!final && typed && typed !== value && Math.floor(T / 300) % 2) {
+          const cx = pad + fh * 0.3 + ctx.measureText(typed).width + 2;
+          ctx.fillRect(cx, y + h * 0.02 + fh * 0.22, 1.5, fh * 0.56);
+        }
+      });
+      const btnY = top + h * 0.6;
+      const pressed = final || T > 2200;
+      roundRect(ctx, pad, btnY, colW, fh * 1.05, 4);
+      ctx.fillStyle = pressed ? COLORS.gold : CREAM(0.1);
+      ctx.fill();
+      ctx.fillStyle = pressed ? COLORS.surfaceBlack : COLORS.onDarkMuted;
+      ctx.font = SANS(Math.max(10, fh * 0.42), 600);
+      ctx.textAlign = "center";
+      // แผ่นแคบ: ย่อข้อความให้อยู่ในปุ่ม
+      let btnLabel = `จองและชำระผ่าน QR · ฿${fmt(LIVE.rates.walkin_fee)}`;
+      if (ctx.measureText(btnLabel).width > colW - 14) btnLabel = `ชำระ QR · ฿${fmt(LIVE.rates.walkin_fee)}`;
+      ctx.fillText(btnLabel, pad + colW / 2, btnY + fh * 0.68);
+      ctx.textAlign = "left";
+      const qa = final ? 1 : clamp((T - 2300) / 400);
+      if (qa > 0) {
+        const size = Math.min(h * 0.52, w * 0.27), qx = w * 0.6, qy = h * 0.12;
+        drawQR(ctx, qx, qy, size, qa * (T > 4400 && !final ? 0.35 : 1));
+        ctx.globalAlpha = qa * loopFade(T, PERIOD);
+        ctx.fillStyle = COLORS.gold;
+        ctx.font = DISPLAY(Math.max(12, h * 0.07), 500);
+        ctx.fillText(`฿${fmt(LIVE.rates.walkin_fee)}`, qx, qy + size + h * 0.09);
+        ctx.fillStyle = COLORS.onDarkMuted;
+        ctx.font = SANS(Math.max(10, h * 0.038), 400);
+        ctx.fillText("สแกนด้วยแอปธนาคาร", qx, qy + size + h * 0.15);
+        const scan = final ? -1 : clamp((T - 2700) / 1500);
+        if (scan > 0 && scan < 1) {
+          const sy = qy + size * scan;
+          ctx.fillStyle = withAlpha(COLORS.gold, 0.9);
+          ctx.fillRect(qx - 4, sy - 1, size + 8, 2);
+          ctx.fillStyle = withAlpha(COLORS.gold, 0.18);
+          ctx.fillRect(qx, sy - size * 0.12, size, size * 0.12);
+        }
+        const ok = final ? 1 : clamp((T - 4400) / 900);
+        if (ok > 0) {
+          ctx.globalAlpha = loopFade(T, PERIOD);
+          drawCheck(ctx, qx + size / 2, qy + size / 2, size * 0.24, COLORS.okDark, ok);
+          ctx.fillStyle = COLORS.okDark;
+          ctx.font = SANS(Math.max(11, h * 0.05), 600);
+          ctx.fillText("ชำระสำเร็จ · ล็อกเป็นของคุณ", qx, qy - h * 0.035);
+        }
+      }
+      ctx.globalAlpha = 1;
+    },
+  };
+}
+
+/* ใบเสร็จที่พิมพ์ลงมาทีละบรรทัด ใช้ทั้งขั้น 04 */
+function drawReceipt(ctx, w, h, T, lines, stamp, final) {
+  const pw = w * 0.5, px = (w - pw) / 2, py = h * 0.12, fullH = h * 0.74, lineH = fullH / (lines.length + 1.6);
+  const printed = final ? 1 : clamp(T / 2400), ph = fullH * printed;
+  ctx.fillStyle = CREAM(0.4);
+  ctx.fillRect(px - pw * 0.08, py - 3, pw * 1.16, 2);
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(px, py);
+  ctx.lineTo(px + pw, py);
+  if (printed >= 1) {
+    const teeth = 10, tw = pw / teeth, tb = py + ph;
+    ctx.lineTo(px + pw, tb - 5);
+    for (let i = teeth; i > 0; i--) { ctx.lineTo(px + (i - 0.5) * tw, tb); ctx.lineTo(px + (i - 1) * tw, tb - 5); }
+  } else { ctx.lineTo(px + pw, py + ph); ctx.lineTo(px, py + ph); }
+  ctx.closePath();
+  ctx.fillStyle = COLORS.background;
+  ctx.fill();
+  ctx.clip();
+  const pad = pw * 0.09;
+  ctx.textBaseline = "middle";
+  lines.forEach(([label, value, strong], i) => {
+    const ly = py + lineH * (0.8 + i) + (strong ? lineH * 0.3 : 0);
+    ctx.fillStyle = COLORS.foreground;
+    ctx.font = strong ? DISPLAY(lineH * 0.5, 600) : SANS(lineH * 0.4, i === 0 ? 600 : 400);
+    ctx.textAlign = "left";
+    ctx.fillText(label, px + pad, ly);
+    ctx.textAlign = "right";
+    ctx.fillText(value, px + pw - pad, ly);
+    if (i === lines.length - 2) {
+      ctx.setLineDash([3, 3]);
+      ctx.strokeStyle = COLORS.muted;
+      ctx.beginPath(); ctx.moveTo(px + pad, ly + lineH * 0.6); ctx.lineTo(px + pw - pad, ly + lineH * 0.6); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  });
+  ctx.textAlign = "left";
+  if (stamp && (final || T > 2600)) {
+    ctx.save();
+    ctx.translate(px + pw * 0.66, py + lineH * 2.2);
+    ctx.rotate(-0.21);
+    ctx.strokeStyle = stamp.color;
+    ctx.fillStyle = stamp.color;
+    ctx.lineWidth = 1.5;
+    ctx.font = DISPLAY(lineH * 0.42, 600);
+    const tw = ctx.measureText(stamp.text).width;
+    ctx.strokeRect(-tw / 2 - 6, -lineH * 0.34, tw + 12, lineH * 0.68);
+    ctx.textAlign = "center";
+    ctx.fillText(stamp.text, 0, 1);
+    ctx.restore();
+  }
+  ctx.restore();
+}
+/* 04 ใบเสร็จการจอง */
+function vWalkReceipt() {
+  const PERIOD = 6500;
+  return {
+    finalT: 3200,
+    draw(ctx, w, h, t, dt, final) {
+      const T = final ? 3200 : t % PERIOD;
+      ctx.globalAlpha = loopFade(T, PERIOD);
+      const spot = firstFree()?.id || "F-01", d = parseD(LIVE.today);
+      const no = `BK${String(d.getUTCFullYear()).slice(2)}${pad2(d.getUTCMonth() + 1)}${pad2(d.getUTCDate())}-0012`;
+      drawReceipt(ctx, w, h, T, [
+        ["ใบเสร็จรับเงิน", ""], ["เลขที่จอง", no], ["ล็อก", spot], ["วันที่ขาย", thDay(LIVE.today)], ["ค่าพื้นที่", fmt(LIVE.rates.walkin_fee)],
+        ["รวม", `฿${fmt(LIVE.rates.walkin_fee)}`, true],
+      ], { text: "ชำระแล้ว", color: COLORS.ok }, final);
+      ctx.globalAlpha = 1;
+    },
+  };
+}
+
+/* 05 ดูบิล: การ์ดบิลเหมือนหน้าระบบ บรรทัดขึ้นทีละรายการ ยอดรวมนับขึ้น + สามขั้นย่อยด้านขวา */
+function vBills() {
+  const PERIOD = 8000;
+  return {
+    finalT: 4200,
+    draw(ctx, w, h, t, dt, final) {
+      const T = final ? 4200 : t % PERIOD, b = EXAMPLE[0];
+      ctx.globalAlpha = loopFade(T, PERIOD);
+      const x = w * 0.07, y = h * 0.12, cw = w * 0.52, chh = h * 0.68;
+      roundRect(ctx, x, y, cw, chh, 8);
+      ctx.fillStyle = CREAM(0.05); ctx.fill();
+      ctx.strokeStyle = CREAM(0.2); ctx.lineWidth = 1; ctx.stroke();
+      const pad = cw * 0.07, lh = chh / 7.2;
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = COLORS.onDark;
+      ctx.font = DISPLAY(Math.max(11, lh * 0.5), 500);
+      ctx.fillText(`บิล${b.label}`, x + pad, y + lh * 0.85);
+      ctx.font = SANS(Math.max(9, lh * 0.34), 500);
+      const chip = `ครบกำหนด ${thDay(b.due)}`, chipW = ctx.measureText(chip).width + 14;
+      roundRect(ctx, x + cw - pad - chipW, y + lh * 0.55, chipW, lh * 0.6, 4);
+      ctx.strokeStyle = COLORS.warnDark; ctx.stroke();
+      ctx.fillStyle = COLORS.warnDark;
+      ctx.fillText(chip, x + cw - pad - chipW + 7, y + lh * 0.86);
+      const rows = [["ค่าแผง", b.rent], [`ค่าน้ำ ${fmt(b.useW)} หน่วย × ${fmt(b.rateW)}`, b.water], [`ค่าไฟ ${fmt(b.useE)} หน่วย × ${fmt(b.rateE)}`, b.elec]];
+      rows.forEach(([label, amount], i) => {
+        const a = final ? 1 : clamp((T - 400 - i * 450) / 300);
+        if (a <= 0) return;
+        const ly = y + lh * (2.1 + i);
+        ctx.globalAlpha = a * loopFade(T, PERIOD);
+        ctx.fillStyle = COLORS.onDarkMuted;
+        ctx.font = SANS(Math.max(10, lh * 0.36), 400);
+        ctx.textAlign = "left";
+        ctx.fillText(label, x + pad, ly);
+        ctx.fillStyle = COLORS.onDark;
+        ctx.textAlign = "right";
+        ctx.fillText(fmt(amount), x + cw - pad, ly);
+        ctx.textAlign = "left";
+      });
+      ctx.globalAlpha = loopFade(T, PERIOD);
+      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = CREAM(0.25);
+      ctx.beginPath(); ctx.moveTo(x + pad, y + lh * 4.8); ctx.lineTo(x + cw - pad, y + lh * 4.8); ctx.stroke();
+      ctx.setLineDash([]);
+      const count = final ? 1 : EASE.outCubic(clamp((T - 1900) / 900));
+      ctx.fillStyle = COLORS.onDarkMuted;
+      ctx.font = SANS(Math.max(10, lh * 0.36), 500);
+      ctx.fillText("ยอดที่ต้องชำระ", x + pad, y + lh * 5.8);
+      ctx.fillStyle = COLORS.gold;
+      ctx.font = DISPLAY(Math.max(14, lh * 0.72), 500);
+      ctx.textAlign = "right";
+      ctx.fillText(`฿${fmt(Math.round(b.total * count))}`, x + cw - pad, y + lh * 5.8);
+      ctx.textAlign = "left";
+      const steps = [`เข้าสู่ระบบด้วยเลขแผง เช่น ${LIVE.vendor ? LIVE.vendor.stall_id.replace("-", "").toLowerCase() : "a04"}`, "เปิดเมนู “บิลและชำระเงิน”", "ตรวจยอดและวันครบกำหนด"];
+      steps.forEach((s, i) => {
+        const a = final ? 1 : clamp((T - 2600 - i * 350) / 300);
+        if (a <= 0) return;
+        const sy = y + chh * (0.18 + i * 0.28), sx = w * 0.64;
+        ctx.globalAlpha = a * loopFade(T, PERIOD);
+        ctx.strokeStyle = COLORS.gold;
+        ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.arc(sx + 10, sy, 10, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = COLORS.gold;
+        ctx.font = DISPLAY(11, 600);
+        ctx.textAlign = "center";
+        ctx.fillText(String(i + 1), sx + 10, sy + 1);
+        ctx.textAlign = "left";
+        ctx.fillStyle = COLORS.onDark;
+        ctx.font = SANS(Math.max(10, h * 0.036), 400);
+        const words = s.length > 22 && w < 520 ? [s.slice(0, s.indexOf(" ", 12)), s.slice(s.indexOf(" ", 12) + 1)] : [s];
+        words.forEach((line, n) => ctx.fillText(line, sx + 28, sy + n * h * 0.05));
+      });
+      ctx.globalAlpha = 1;
+    },
+  };
+}
+
+/* 06 มิเตอร์ → บิล: เลขเดือนก่อน เลขเดือนนี้หมุนขึ้น แล้วคำนวณเป็นเงิน */
+function vMeter() {
+  const PERIOD = 6800, prev = 4521, b = EXAMPLE[0];
+  const cur = prev + b.useE;
+  const digits = Array.from({ length: 5 }, () => ({ value: 0, velocity: 0, precision: 0.001 }));
+  const target = (num) => String(num).padStart(5, "0").split("").map(Number);
+  return {
+    finalT: 3800,
+    draw(ctx, w, h, t, dt, final) {
+      const T = final ? 3800 : t % PERIOD;
+      ctx.globalAlpha = loopFade(T, PERIOD);
+      const pad = w * 0.08, dh = h * 0.17, dw = dh * 0.56, gap = dw * 0.3;
+      ctx.textBaseline = "middle";
+      const rowsY = [h * 0.22, h * 0.47];
+      [["เดือนก่อน", target(prev)], ["เดือนนี้", null]].forEach(([label, fixed], r) => {
+        const y = rowsY[r];
+        ctx.fillStyle = COLORS.onDarkMuted;
+        ctx.font = SANS(Math.max(9, h * 0.06), 400);
+        ctx.fillText(label, pad, y + dh / 2);
+        const x0 = pad + w * 0.24;
+        for (let i = 0; i < 5; i++) {
+          let v;
+          if (fixed) v = fixed[i];
+          else {
+            const want = T < 500 ? target(prev)[i] : target(cur)[i] + (target(cur)[i] < target(prev)[i] ? 10 : 0);
+            if (final) digits[i].value = target(cur)[i];
+            else { if (T < 60) digits[i].value = target(prev)[i]; stepSpring(digits[i], T > 500 + (4 - i) * 90 ? want : target(prev)[i], C.ROW, dt); }
+            v = digits[i].value;
+          }
+          rollingDigit(ctx, x0 + i * (dw + gap), y, dw, dh, v, r === 1 ? COLORS.gold : COLORS.onDark);
+        }
+        ctx.fillStyle = COLORS.onDarkMuted;
+        ctx.font = SANS(Math.max(9, h * 0.055), 400);
+        ctx.fillText("kWh", x0 + 5 * (dw + gap) + 2, y + dh / 2);
+      });
+      const a = final ? 1 : clamp((T - 2200) / 400);
+      if (a > 0) {
+        ctx.globalAlpha = a * loopFade(T, PERIOD);
+        ctx.fillStyle = COLORS.onDark;
+        ctx.font = SANS(Math.max(10, h * 0.066), 500);
+        ctx.fillText(`ใช้ ${fmt(b.useE)} หน่วย × ${fmt(b.rateE)} บาท`, pad, h * 0.76);
+        ctx.fillStyle = COLORS.gold;
+        ctx.font = DISPLAY(Math.max(12, h * 0.085), 500);
+        ctx.textAlign = "right";
+        ctx.fillText(`= ฿${fmt(b.elec)}`, w - pad, h * 0.76);
+        ctx.textAlign = "left";
+      }
+      ctx.globalAlpha = 1;
+    },
+  };
+}
+
+/* 07 จ่ายรวม: ติ๊กบิล ยอดรวม ปุ่มชำระ QR สแกน แล้วได้ใบเสร็จ */
+function vPay() {
+  const PERIOD = 9000;
+  return {
+    finalT: 6200,
+    draw(ctx, w, h, t, dt, final) {
+      const T = final ? 6200 : t % PERIOD;
+      ctx.globalAlpha = loopFade(T, PERIOD);
+      const bills = [EXAMPLE[1], EXAMPLE[0]], pad = w * 0.07, colW = w * 0.46, rowH = h * 0.15;
+      ctx.textBaseline = "middle";
+      let total = 0;
+      bills.forEach((b, i) => {
+        const y = h * 0.14 + i * (rowH + h * 0.03), on = final || T > 500 + i * 450;
+        if (on) total += b.total;
+        roundRect(ctx, pad, y, colW, rowH, 6);
+        ctx.strokeStyle = on ? COLORS.gold : CREAM(0.2);
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        const bx = pad + rowH * 0.3, by = y + rowH * 0.3, bs = rowH * 0.4;
+        ctx.strokeStyle = on ? COLORS.gold : CREAM(0.4);
+        ctx.strokeRect(bx, by, bs, bs);
+        if (on) {
+          ctx.fillStyle = COLORS.gold;
+          ctx.fillRect(bx, by, bs, bs);
+          ctx.strokeStyle = COLORS.surfaceBlack;
+          ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(bx + bs * 0.2, by + bs * 0.52); ctx.lineTo(bx + bs * 0.42, by + bs * 0.74); ctx.lineTo(bx + bs * 0.8, by + bs * 0.28); ctx.stroke();
+        }
+        ctx.fillStyle = COLORS.onDark;
+        ctx.font = SANS(Math.max(10, rowH * 0.3), 500);
+        ctx.fillText(`บิล${b.label}`, bx + bs + rowH * 0.3, y + rowH / 2);
+        ctx.textAlign = "right";
+        ctx.fillText(`฿${fmt(b.total)}`, pad + colW - rowH * 0.3, y + rowH / 2);
+        ctx.textAlign = "left";
+      });
+      const ty = h * 0.14 + 2 * (rowH + h * 0.03) + h * 0.04;
+      ctx.fillStyle = COLORS.onDarkMuted;
+      ctx.font = SANS(Math.max(10, h * 0.042), 500);
+      ctx.fillText("ยอดที่เลือก", pad, ty);
+      ctx.fillStyle = COLORS.gold;
+      ctx.font = DISPLAY(Math.max(13, h * 0.07), 500);
+      ctx.textAlign = "right";
+      ctx.fillText(`฿${fmt(total)}`, pad + colW, ty);
+      ctx.textAlign = "left";
+      const by2 = ty + h * 0.08, pressed = final || T > 2000;
+      roundRect(ctx, pad, by2, colW, rowH * 0.8, 4);
+      ctx.fillStyle = pressed ? COLORS.gold : CREAM(0.1);
+      ctx.fill();
+      ctx.fillStyle = pressed ? COLORS.surfaceBlack : COLORS.onDarkMuted;
+      ctx.font = SANS(Math.max(10, rowH * 0.3), 600);
+      ctx.textAlign = "center";
+      const payLabel = ctx.measureText("ชำระผ่าน QR PromptPay").width > colW - 14 ? "ชำระผ่าน QR" : "ชำระผ่าน QR PromptPay";
+      ctx.fillText(payLabel, pad + colW / 2, by2 + rowH * 0.4);
+      ctx.textAlign = "left";
+      const qa = final ? 1 : clamp((T - 2300) / 400);
+      if (qa > 0) {
+        const size = Math.min(h * 0.46, w * 0.24), qx = w * 0.64, qy = h * 0.14;
+        const done = final ? 1 : clamp((T - 4200) / 900);
+        drawQR(ctx, qx, qy, size, qa * (done > 0 ? 0.3 : 1));
+        const scan = final ? -1 : clamp((T - 2700) / 1400);
+        if (scan > 0 && scan < 1 && done === 0) {
+          ctx.fillStyle = withAlpha(COLORS.gold, 0.9);
+          ctx.fillRect(qx - 4, qy + size * scan - 1, size + 8, 2);
+        }
+        if (done > 0) {
+          drawCheck(ctx, qx + size / 2, qy + size / 2, size * 0.24, COLORS.okDark, done);
+          ctx.fillStyle = COLORS.okDark;
+          ctx.font = SANS(Math.max(11, h * 0.048), 600);
+          ctx.fillText("ชำระสำเร็จ", qx, qy + size + h * 0.08);
+          ctx.fillStyle = COLORS.onDarkMuted;
+          ctx.font = SANS(Math.max(10, h * 0.038), 400);
+          ctx.fillText("ได้ใบเสร็จอิเล็กทรอนิกส์ พิมพ์ได้ทันที", qx, qy + size + h * 0.14);
+        }
+      }
+      ctx.globalAlpha = 1;
+    },
+  };
+}
+
+guard("Steps", () => {
+  const section = $("#steps");
+  const wrap = $(".pipe__wrap", section), list = $(".pl-rows", section);
+  document.body.insertAdjacentHTML("afterbegin",
+    `<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><clipPath id="plateClip" clipPathUnits="objectBoundingBox"><path d="${PLATE_CLIP}"/></clipPath></svg>`);
+
+  const tl = timeline();
+  const title = $(".pipe__title", section);
+  $$("[data-line]", title).forEach((el, i) => tl.add(reveal(el, { by: "word", config: C.REVEAL }), i * 130));
+  tl.add(rise($(".pipe__stop", section), { y: 0.35, unit: "em", config: C.REVEAL }), 240);
+  forwardGate(title, tl, "0px");
+
+  const R = LIVE.rates, days = LIVE.dates.length;
+  const STEPS = [
+    { n: "01", frame: "centre", track: "ผู้ค้าขาจร", title: "เลือกวันที่ขาย", visual: vDates,
+      copy: ["เลือกวันที่ขาย", `เปิดหน้า “จองพื้นที่” ได้เลยโดยไม่ต้องสมัครสมาชิก จองล่วงหน้าได้ ${days} วัน`] },
+    { n: "02", frame: "side", align: "right", track: "ผู้ค้าขาจร", title: "เลือกล็อกที่ว่าง", visual: vSpots,
+      copy: ["เลือกล็อกที่ว่าง", `ล็อก F ทั้ง ${STATS.spots} ล็อกอยู่แถวหน้าตลาด ล็อกสีเทามีคนจองแล้ว`] },
+    { n: "03", frame: "centre", track: "ผู้ค้าขาจร", title: "กรอกข้อมูลแล้วสแกนจ่าย", visual: vQR,
+      copy: ["กรอกข้อมูลแล้วสแกน QR", `ใส่ชื่อ เบอร์โทร และประเภทสินค้า แล้วจ่าย ${fmt(R.walkin_fee)} บาทผ่านแอปธนาคาร ระบบยืนยันให้เอง ถ้าจ่ายไม่สำเร็จ ล็อกจะถูกปล่อยคืน`] },
+    { n: "04", frame: "side", align: "left", track: "ผู้ค้าขาจร", title: "เก็บใบเสร็จ", visual: vWalkReceipt,
+      copy: ["เก็บใบเสร็จไว้", "ดูการจองย้อนหลังได้ที่ “การจองของฉัน” ด้วยเบอร์โทรที่ใช้จอง"] },
+    { n: "05", frame: "centre", track: "ผู้ค้าประจำ", title: "เข้าสู่ระบบดูบิล", visual: vBills,
+      copy: ["ดูบิลทุกต้นเดือน", "เข้าสู่ระบบด้วยเลขแผงแบบไม่มีขีด เช่น a04 บิลแยกค่าแผง ค่าน้ำ ค่าไฟ พร้อมวันครบกำหนด"] },
+    { n: "06", frame: "side", align: "right", track: "ผู้ค้าประจำ", title: "ค่าน้ำไฟคิดจากมิเตอร์", visual: vMeter,
+      copy: ["ค่าน้ำไฟคิดจากมิเตอร์", `เลขเดือนนี้ ลบเลขเดือนก่อน = หน่วยที่ใช้ แล้วคูณ ${fmt(R.water_rate)} บาท (น้ำ) หรือ ${fmt(R.elec_rate)} บาท (ไฟ)`] },
+    { n: "07", frame: "centre", track: "ผู้ค้าประจำ", title: "เลือกบิลแล้วจ่ายครั้งเดียว", visual: vPay,
+      copy: ["เลือกหลายบิลจ่ายครั้งเดียว", "ติ๊กบิลที่ต้องการ กดชำระผ่าน QR พร้อมเพย์ ได้ใบเสร็จทันที ถ้าเคยถูกระงับน้ำไฟ ระบบแจ้งเจ้าหน้าที่ให้คืนอัตโนมัติ"] },
+  ];
+  const OUTLINE = scalePath(PLATE_CLIP, 711, 463);
+  const rows = STEPS.map((st) => {
+    const li = document.createElement("li");
+    li.className = `pl-row pl-row--${st.frame}${st.align ? ` pl-row--${st.align}` : ""}`;
+    li.innerHTML = `<h3 class="sr">ขั้นที่ ${Number(st.n)} (${st.track}): ${st.title}</h3>
+      <div class="pl-plate"><div class="pl-plate__fill"><canvas aria-hidden="true"></canvas></div><svg class="pl-plate__outline" viewBox="0 0 711 463" preserveAspectRatio="none" aria-hidden="true"><path d="${OUTLINE}"/></svg></div>
+      <div class="pl-step" aria-hidden="true">${st.n}</div>
+      <p class="pl-copy${st.frame === "side" ? " pl-copy--side" : ""}"><span><small>${st.track}</small><b>${st.copy[0]}</b> ${st.copy[1]}</span></p>`;
+    list.append(li);
+    return { li, st, plate: $(".pl-plate", li), step: $(".pl-step", li), copy: $(".pl-copy", li), cv: $("canvas", li) };
+  });
+
+  const startVisual = (r) => {
+    const v = r.st.visual();
+    const ctx = r.cv.getContext("2d");
+    let start = null;
+    const frame = (time, dt) => {
+      if (start === null) start = time;
+      const ratio = fitCanvas(r.cv, 2), w = r.cv.clientWidth, h = r.cv.clientHeight;
+      if (!w || !h) return;
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+      v.draw(ctx, w, h, REDUCED ? v.finalT : time - start, Math.min(dt || 16, 64), REDUCED);
+    };
+    if (REDUCED) {
+      frame(0, 16);
+      new ResizeObserver(() => frame(0, 16)).observe(r.cv);
+    } else whileInView(r.cv, frame, () => 0);
+  };
+
+  for (const r of rows) {
+    const stepIn = reveal(r.step, { by: "letter", stagger: 26, config: C.STEP });
+    const settle = new Spring(1, C.STEP_SETTLE, (v) => { r.step.style.opacity = v.toFixed(3); }, 0.001);
+    const copyIn = rise(r.copy.firstElementChild, { y: 0.75, config: C.COPY });
+    inViewOnce(r.li, () => {
+      stepIn.play();
+      if (r.st.frame === "centre") settle.to(0.4, 2200 + 26 * r.st.n.length);
+      copyIn.to(1, 220);
+      guard(`Step visual ${r.st.n}`, () => startVisual(r));
+    }, "0% 0% -25% 0%");
+    const plateTravel = r.st.frame === "side" ? 60 : 20;
+    scrollTrigger(r.li, {
+      start: "top_bottom", end: "bottom_top",
+      onUpdate: (raw) => {
+        if (REDUCED || !MQ.sm.matches) { r.plate.style.top = ""; r.step.style.top = ""; r.copy.style.top = ""; return; }
+        const k = 1 - 2 * raw;
+        r.plate.style.top = `calc(var(--u) * ${(plateTravel * k).toFixed(2)})`;
+        r.step.style.top = `calc(50% + var(--u) * ${(plateTravel * k).toFixed(2)})`;
+        r.copy.style.top = `calc(50% + var(--u) * ${(110 * k).toFixed(2)})`;
+      },
+    });
+  }
+
+  const railSvg = $(".pipe__rail svg", section);
+  let rest = 1, runEl = null, markEl = null, progress = 0;
+  const applyRail = () => {
+    if (!runEl) return;
+    const run = progress * rest;
+    runEl.setAttribute("height", run.toFixed(2));
+    markEl.setAttribute("transform", `translate(8 ${run.toFixed(2)}) rotate(${((run / rest) * 1800).toFixed(1)})`);
+  };
+  const buildRail = () => {
+    const U = section.clientWidth / 1440;
+    if (!U) return;
+    const H = wrap.clientHeight / U, last = rows[rows.length - 1].li;
+    rest = (list.offsetTop + last.offsetTop + last.offsetHeight / 2) / U - 50;
+    const side = MQ.lg.matches ? 9 : 20;
+    railSvg.setAttribute("viewBox", `0 0 16 ${H.toFixed(1)}`);
+    railSvg.innerHTML = `<line x1="8" y1="0" x2="8" y2="98" stroke="${COLORS.rail}" stroke-width="1"/>
+      <line x1="8" y1="98" x2="8" y2="${rest.toFixed(1)}" stroke="${COLORS.rail}" stroke-width="1" stroke-dasharray="6 6"/>
+      <rect x="7.5" y="0" width="1" height="0" fill="${COLORS.onDark}"/>
+      <rect x="${-side / 2}" y="${-side / 2}" width="${side}" height="${side}" fill="${COLORS.onDark}"/>`;
+    [, , runEl, markEl] = railSvg.children;
+    applyRail();
+  };
+  new ResizeObserver(buildRail).observe(wrap);
+  scrollTrigger(wrap, { start: "top_center", end: "bottom_bottom", onUpdate: (raw, smooth) => { progress = smooth; applyRail(); } });
+});
+
+/* =====================================================================
+   5 — บิลน้ำไฟทุกต้นเดือน
+   ===================================================================== */
+const MAD_K = 1.4826, Z_LIMIT = 3.5;
+/** rolling median + MAD: ค่าที่ห่างมัธยฐานเกิน 3.5 เท่าของ MAD ถือว่าผิดปกติ */
+function detect(xs, win = 7) {
+  const n = xs.length, half = win >> 1;
+  const out = { med: [], mad: [], anomaly: [], cleaned: [], lo: [], hi: [] };
+  for (let i = 0; i < n; i++) {
+    const w = xs.slice(Math.max(0, i - half), Math.min(n, i + half + 1));
+    const m = median(w), mad = Math.max(median(w.map((x) => Math.abs(x - m))), 2);
+    const z = Math.abs(xs[i] - m) / (MAD_K * mad);
+    out.med.push(m);
+    out.mad.push(mad);
+    out.anomaly.push(z > Z_LIMIT);
+    out.cleaned.push(z > Z_LIMIT ? Math.round(m) : xs[i]);
+    out.lo.push(Math.max(0, m - Z_LIMIT * MAD_K * mad));
+    out.hi.push(m + Z_LIMIT * MAD_K * mad);
+  }
+  return out;
+}
+/* ตัวอย่าง: หน่วยไฟรายเดือนของแผงหนึ่ง 12 รอบบิลล่าสุด มีเดือนหนึ่งที่เลขมิเตอร์กระโดด */
+const USAGE = (() => {
+  const r = mulberry32(2569), t = parseD(LIVE.today), out = [];
+  const SEASON = [0.95, 1, 1.15, 1.3, 1.25, 1.05, 0.95, 0.95, 0.95, 0.95, 0.95, 0.95];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth() - 1 - i, 1)), m = d.getUTCMonth();
+    out.push({ short: TH_MONTH[m], full: `${TH_MONTH_FULL[m]} ${d.getUTCFullYear() + 543}`, raw: Math.round(130 * SEASON[m] + (r() * 16 - 8)) });
+  }
+  out[3].raw = Math.round(out[3].raw * 3.4);   // จดเลขเกินมา
+  out[9].raw = Math.round(out[9].raw * 0.15);  // มิเตอร์ค้าง เลขแทบไม่ขยับ
+  return out;
+})();
+const READINGS = USAGE.map((u) => u.raw);
+const DETECT = detect(READINGS);
+
+guard("Bill block", () => {
+  const section = $("#bill");
+  guard("Bill contour", () => contourCanvas($(".meter__contour", section), { color: COLORS.meterContour }));
+  const R = LIVE.rates;
+  const report = $("[data-meter-report]", section);
+  report.dataset.text = `ทุก|สิ้น|เดือน|เจ้าหน้าที่|จด|มิเตอร์|น้ำ|ไฟ|ทุก|แผง|ระบบ|ออก|บิล|วันที่|1|และ|ครบ|กำหนด|วันที่|${R.pay_within_days}|—|เลข|มิเตอร์|ที่|ผิด|ปกติ|จะ|ถูก|พัก|ไว้|ตรวจ|ซ้ำ|ก่อน|ถึง|มือ|คุณ`;
+
+  const tl = timeline();
+  $$("[data-line]", $(".meter__title", section)).forEach((el, i) => tl.add(reveal(el, { by: "word", config: C.REVEAL }), i * 130));
+  tl.add(rise($(".meter__stop", section), { y: 0.35, unit: "em", config: C.REVEAL }), 240);
+  tl.add(reveal(report, { by: "word", stagger: 30, config: C.INTRO }), 350);
+  tl.add(rise($(".cbtn--meter", section), { y: 0.75, config: C.REVEAL }), 520);
+  const [cyclePanel, statsPanel] = $$(".mpanel", section);
+  tl.add(rise(cyclePanel, { y: 0.75, config: C.REVEAL }), 320);
+  tl.add(rise(statsPanel, { y: 0.75, config: C.REVEAL }), 460);
+  $$(".mstat", section).forEach((row, r) => {
+    const rule = $(".mstat__rule", row);
+    if (rule) tl.add(new Spring(0, C.ROW, (v) => { rule.style.transform = `scaleX(${clamp(v)})`; }, 0.001), 460 + r * 90);
+    tl.add(reveal($("b", row), { by: "letter", stagger: 26, config: C.FIGURE }), 460 + r * 90 + 120);
+  });
+  forwardGate(section, tl);
+
+  /* ---- กราฟ: เลขที่จดมา เทียบกับหลังตรวจซ้ำ ---- */
+  const stageEl = $(".meter__stage", section), cv = $(".chart__cv", stageEl);
+  const divEl = $(".chart__div", stageEl), handle = $(".chart__handle", stageEl);
+  const labelRaw = $(".chart__label--raw", stageEl), labelClean = $(".chart__label--clean", stageEl);
+  const N = READINGS.length, flagged = DETECT.anomaly.flatMap((a, i) => (a ? [i] : [])), spike = flagged[0];
+  $(".chart__caption", stageEl).textContent = flagged.length
+    ? `ตัวอย่างหน่วยไฟรายเดือนของแผงหนึ่ง · พบเลขผิดปกติ ${flagged.length} เดือน (${flagged.map((i) => USAGE[i].full).join(", ")}) ระบบพักบิลให้เจ้าหน้าที่ตรวจซ้ำก่อนออกบิล · เช่นเดือน${USAGE[spike].full} ค่าไฟที่ถูกต้อง ${fmt(DETECT.cleaned[spike] * R.elec_rate)} บาท (ไม่ใช่ ${fmt(READINGS[spike] * R.elec_rate)} บาท)`
+    : "ตัวอย่างหน่วยไฟรายเดือนของแผงหนึ่ง";
+  const yMax = Math.ceil((Math.max(...READINGS) * 1.1) / 100) * 100;
+  const geo = () => {
+    const w = cv.clientWidth, h = cv.clientHeight, U = w / 700;
+    return { w, h, U, l: Math.max(44 * U, 30), r: w - 12 * U, t: Math.max(26 * U, 24), b: h - Math.max(30 * U, 22) };
+  };
+  const xOf = (g, d) => g.l + ((d - 0.5) / N) * (g.r - g.l);
+  const yOf = (g, v) => g.b - (v / yMax) * (g.b - g.t);
+  const dayOf = (g, x) => clamp(0.5 + ((x - g.l) / (g.r - g.l)) * N, 0.5, N + 0.5);
+  const ctx = cv.getContext("2d");
+  const series = (g, xs, color, width) => {
+    ctx.beginPath();
+    xs.forEach((v, i) => ctx.lineTo(xOf(g, i + 1), yOf(g, v)));
+    ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineJoin = "round"; ctx.stroke();
+  };
+  const draw = () => {
+    const ratio = fitCanvas(cv), g = geo();
+    if (!g.w || !g.h) return;
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    ctx.clearRect(0, 0, g.w, g.h);
+    const tick = Math.max(10, g.U * 11);
+    ctx.font = DISPLAY(tick, 400);
+    ctx.lineWidth = 1;
+    ctx.textBaseline = "middle";
+    for (let v = 0; v <= yMax; v += 100) {
+      const y = Math.round(yOf(g, v)) + 0.5;
+      ctx.strokeStyle = COLORS.soft;
+      ctx.beginPath(); ctx.moveTo(g.l, y); ctx.lineTo(g.r, y); ctx.stroke();
+      ctx.fillStyle = COLORS.muted;
+      ctx.textAlign = "right";
+      ctx.fillText(String(v), g.l - 8 * g.U, y);
+    }
+    ctx.textAlign = "left";
+    ctx.fillText("หน่วย", 2, Math.max(tick * 0.6, yOf(g, yMax) - tick * 1.7));
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    USAGE.forEach((u, i) => ctx.fillText(u.short, xOf(g, i + 1), g.b + 8 * g.U));
+    ctx.textAlign = "left";
+    ctx.beginPath();
+    DETECT.hi.forEach((v, i) => ctx.lineTo(xOf(g, i + 1), yOf(g, Math.min(v, yMax))));
+    for (let i = N - 1; i >= 0; i--) ctx.lineTo(xOf(g, i + 1), yOf(g, DETECT.lo[i]));
+    ctx.closePath();
+    ctx.fillStyle = COLORS.accentMuted;
+    ctx.fill();
+    const dx = xOf(g, divider.value);
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0, 0, dx, g.h); ctx.clip();
+    series(g, READINGS, COLORS.foreground, 1.5);
+    READINGS.forEach((v, i) => {
+      const x = xOf(g, i + 1), y = yOf(g, v);
+      if (DETECT.anomaly[i]) {
+        ctx.strokeStyle = COLORS.bad;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.stroke();
+        const ty = y - 22 < g.t ? y + 12 : y - 22;
+        ctx.fillStyle = COLORS.bad;
+        ctx.fillRect(x - 6, ty, 12, 14);
+        ctx.fillStyle = COLORS.background;
+        ctx.font = DISPLAY(11, 600);
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("!", x, ty + 7.5);
+        ctx.textAlign = "left";
+      } else {
+        ctx.fillStyle = COLORS.foreground;
+        ctx.beginPath(); ctx.arc(x, y, 2.4, 0, Math.PI * 2); ctx.fill();
+      }
+    });
+    ctx.restore();
+    ctx.save();
+    ctx.beginPath(); ctx.rect(dx, 0, g.w - dx, g.h); ctx.clip();
+    series(g, DETECT.cleaned, COLORS.accent, 2);
+    DETECT.cleaned.forEach((v, i) => {
+      const x = xOf(g, i + 1), y = yOf(g, v);
+      if (DETECT.anomaly[i]) { ctx.strokeStyle = COLORS.accent; ctx.lineWidth = 1.5; ctx.strokeRect(x - 4, y - 4, 8, 8); }
+      else { ctx.fillStyle = COLORS.accent; ctx.beginPath(); ctx.arc(x, y, 2.4, 0, Math.PI * 2); ctx.fill(); }
+    });
+    ctx.restore();
+    divEl.style.left = `${dx.toFixed(1)}px`;
+    labelRaw.style.opacity = dx - g.l > 80 ? "1" : "0";
+    labelClean.style.opacity = g.r - dx > 100 ? "1" : "0";
+    const m = clamp(Math.round(divider.value), 1, N);
+    handle.setAttribute("aria-valuenow", String(m));
+    handle.setAttribute("aria-valuetext", `${USAGE[m - 1].full}: ซ้ายเป็นเลขที่จดมา ขวาเป็นค่าหลังตรวจซ้ำ`);
+  };
+  let queued = false;
+  const requestDraw = () => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => { queued = false; draw(); });
+  };
+  const divider = new Spring(N + 0.5, C.HOVER, requestDraw, 0.001);
+  let owned = false;
+  // เข้ามาจากขอบขวา (เลขที่จดมาทั้งหมด) แล้วกวาดมาครึ่งทางจนเห็นเดือนที่ถูกแก้
+  scrollTrigger(stageEl, {
+    start: "top_bottom", end: "center_center",
+    onUpdate: (raw) => { if (owned) return; divider.to(lerp(N + 0.5, 6.5, raw)); if (raw >= 1) owned = true; },
+  });
+  let dragging = false;
+  const monthAt = (clientX) => dayOf(geo(), clientX - cv.getBoundingClientRect().left);
+  stageEl.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    if (e.pointerType !== "mouse" && !e.target.closest(".chart__handle")) return;
+    dragging = true;
+    owned = true;
+    stageEl.setPointerCapture(e.pointerId);
+    divider.to(monthAt(e.clientX));
+    handle.focus({ preventScroll: true });
+    e.preventDefault();
+  });
+  stageEl.addEventListener("pointermove", (e) => { if (dragging) divider.to(monthAt(e.clientX)); });
+  const endDrag = () => { dragging = false; };
+  stageEl.addEventListener("pointerup", endDrag);
+  stageEl.addEventListener("pointercancel", endDrag);
+  handle.addEventListener("keydown", (e) => {
+    const cur = clamp(Math.round(divider.target), 1, N);
+    const next = { ArrowLeft: cur - 1, ArrowDown: cur - 1, ArrowRight: cur + 1, ArrowUp: cur + 1, Home: 1, End: N }[e.key];
+    if (next === undefined) return;
+    e.preventDefault();
+    owned = true;
+    divider.to(clamp(next, 1, N));
+  });
+  new ResizeObserver(requestDraw).observe(stageEl);
+  document.fonts.ready.then(requestDraw);
+
+  $("[data-meter-table]", stageEl).innerHTML = `<caption>ตัวอย่างหน่วยไฟรายเดือน 12 รอบบิล และผลตรวจค่าผิดปกติ</caption>
+    <thead><tr><th scope="col">รอบบิล</th><th scope="col">เลขที่จดมา (หน่วย)</th><th scope="col">หลังตรวจซ้ำ (หน่วย)</th><th scope="col">ผลตรวจ</th></tr></thead>
+    <tbody>${USAGE.map((u, i) => `<tr><th scope="row">${u.full}</th><td>${READINGS[i]}</td><td>${DETECT.cleaned[i]}</td><td>${DETECT.anomaly[i] ? "ผิดปกติ ตรวจซ้ำแล้ว" : "ปกติ"}</td></tr>`).join("")}</tbody>`;
+
+  /* ---- ปฏิทินรอบบิล: ห้าช่วงของเดือน วงที่เต้นคือวันนี้ ---- */
+  const cal = $("[data-cal]", section);
+  const cyc = billCycle(), due = R.pay_within_days;
+  const STAGES = [
+    { label: "สิ้นเดือน", title: "จดมิเตอร์", note: "เจ้าหน้าที่จด", x: 347, w: 100 },
+    { label: "วันที่ 1", title: "ออกบิล", note: "แจ้งในระบบ", x: 511, w: 100 },
+    { label: `วันที่ ${due - 5}–${due - 1}`, title: "เตือนล่วงหน้า", note: "ก่อนครบกำหนด", x: 675, w: 100 },
+    { label: `วันที่ ${due}`, title: "ครบกำหนด", note: "จ่ายผ่าน QR", x: 839, w: 100 },
+    { label: `เกิน ${R.overdue_days} วัน`, title: "แจ้งเจ้าหน้าที่", note: "อาจระงับน้ำไฟ", x: 1003, w: 100 },
+  ];
+  const d = cyc.day;
+  const live = d >= cyc.lastDay - 1 ? 0 : d < due - 5 ? 1 : d < due ? 2 : d <= due + R.overdue_days ? 3 : 4;
+  const CONN = [[416, 126], [580, 126], [744, 126], [908, 126]].map(([x, w], i) => [x, w, i < live ? 1 : -1]);
+  const spread = (x) => `calc(50% + (${x} - 720) * var(--u) * var(--cal-spread))`;
+  cal.innerHTML = CONN.map(([x, w]) => `<i class="cal__conn" style="left: ${spread(x)}; width: calc(${w} * var(--u) * var(--cal-spread))"></i>`).join("")
+    + STAGES.map((c, i) => `<div class="cal__card${i === live ? " is-live" : ""}" data-i="${i}" style="left: ${spread(c.x)}; width: calc(var(--u) * ${c.w})">
+        <span class="cal__label">${c.label}</span><span class="cal__month">${c.title}</span><span class="cal__result">${i === live ? `วันนี้ · ${thDay(LIVE.today)}` : c.note}</span></div>`).join("")
+    + STAGES.map((c, i) => `<div class="cal__marker" style="left: calc(${spread(c.x)} + var(--u) * ${c.w / 2})"><svg viewBox="-5.5 -5.5 11 11">${
+      i === live ? `<circle class="cal__pulse" r="5.5" fill="none" stroke="${COLORS.gold}" opacity="0"/><circle r="5.5" fill="${COLORS.gold}"/>`
+        : i < live ? `<circle r="3.5" fill="${COLORS.onDarkMuted}"/>`
+        : `<circle r="5" fill="none" stroke="${COLORS.onDark}"/>`}</svg></div>`).join("")
+    + `<div class="cal__bracket"></div>`;
+  const conns = $$(".cal__conn", cal), cards = $$(".cal__card", cal), markers = $$(".cal__marker", cal);
+  const bracket = $(".cal__bracket", cal), pulse = $(".cal__pulse", cal);
+  addBrackets(bracket);
+  const bx = STAGES[live].x - 6, bw = STAGES[live].w + 12;
+  let opened = 0;
+  const placeBracket = () => {
+    bracket.style.left = `calc(${spread(bx)} - var(--u) * ${opened})`;
+    bracket.style.width = `calc(${bw} * var(--u) + var(--u) * ${opened * 2})`;
+    bracket.style.top = `calc(var(--u) * ${32 - opened})`;
+    bracket.style.height = `calc(var(--u) * ${81 + opened * 2})`;
+  };
+  placeBracket();
+  const open = new Spring(0, C.ITEM, (v) => { opened = v; placeBracket(); }, 0.01);
+  cards[live].addEventListener("pointerenter", () => open.to(5));
+  cards[live].addEventListener("pointerleave", () => open.to(0));
+
+  const calTl = timeline();
+  cards.forEach((card, i) => {
+    calTl.add(rise(card, { y: 0.75, config: C.ROW }), 560 + i * 90);
+    calTl.add(rise($(".cal__month", card), { y: 0.4, unit: "em", config: C.NAME }), 560 + i * 90 + 110);
+    calTl.add(rise(markers[i], { config: C.ROW }), 560 + i * 90 + 60);
+  });
+  conns.forEach((c, i) => calTl.add(new Spring(0, C.ROW, (v) => { c.style.transform = `scaleX(${clamp(v)})`; }, 0.001), 560 + i * 90));
+  calTl.add(rise(bracket, { config: C.ROW }), 560 + live * 90);
+  forwardGate(cal, calTl, "0% 0% -20% 0%");
+  if (!REDUCED) {
+    whileInView(cal, (time) => {
+      const U = section.clientWidth / 1440, shift = ((time % 5200) / 5200) * 11.45 * U;
+      conns.forEach((c, i) => { c.style.backgroundPositionX = `${(CONN[i][2] * shift).toFixed(2)}px`; });
+      const v = EASE.outQuad((time % 3200) / 3200);
+      pulse.setAttribute("r", (5.5 + v * 5.5 * 3.4).toFixed(2));
+      pulse.setAttribute("opacity", (0.5 * (1 - v) ** 2).toFixed(3));
+    }, () => 0);
+  }
+});
+
+/* =====================================================================
+   6 — เริ่มใช้งานได้เลย
+   ===================================================================== */
+guard("Start block", () => {
+  const section = $("#start");
+  guard("Start contour", () => contourCanvas($(".foot__contour", section), { color: COLORS.footerContour }));
+  const tl = timeline();
+  tl.add(rise($(".foot__logo", section), { config: C.REVEAL }), 120);
+  $$("[data-line]", $(".foot__title", section)).forEach((el, i) => tl.add(reveal(el, { by: "word", config: C.REVEAL }), i * 130));
+  tl.add(rise($(".pipe__stop", section), { y: 0.35, unit: "em", config: C.REVEAL }), 240);
+  $$(".foot__nav [data-l]", section).forEach((el, i) => tl.add(reveal(el, { by: "letter", stagger: 22, config: C.ROW }), 260 + i * 80));
+  [".foot__copy", ".foot__src", ".foot__links"].forEach((sel, i) => tl.add(rise($(sel, section), { y: 0.75, config: C.REVEAL }), 640 + i * 80));
+  forwardGate(section, tl);
+
+  /* ใบเสร็จสามใบ: หลังคือบิลเดือนก่อน กลางคือการจองขาจร หน้าคือบิลรอบนี้ (บิลจริงถ้าล็อกอินอยู่) */
+  const inner = $(".receipts__inner", section);
+  const billReceipt = (b, stamp, cls) => `<div class="rcpt">
+      <p class="rcpt__head">ตลาดบัญญัติทรัพย์ · ใบแจ้งหนี้</p>
+      <p class="rcpt__meta">${LIVE.vendor ? `แผง ${LIVE.vendor.stall_id} · ` : ""}บิล${b.label}<br>ครบกำหนด ${thDate(b.due)}</p>
+      <p class="rcpt__row"><span>ค่าแผง</span><span>${fmt(b.rent)}</span></p>
+      <p class="rcpt__row"><span>ค่าน้ำ ${fmt(b.useW)} หน่วย</span><span>${fmt(b.water)}</span></p>
+      <p class="rcpt__row"><span>ค่าไฟ ${fmt(b.useE)} หน่วย</span><span>${fmt(b.elec)}</span></p>
+      <div class="rcpt__rule"></div>
+      <p class="rcpt__total"><span>รวม</span><span>฿${fmt(b.total)}</span></p>
+      <p class="rcpt__stamp rcpt__stamp--${cls}">${stamp}</p>
+    </div>`;
+  const spot = firstFree()?.id || "F-01";
+  const walk = `<div class="rcpt">
+      <p class="rcpt__head">ตลาดบัญญัติทรัพย์ · ใบเสร็จ</p>
+      <p class="rcpt__meta">จองพื้นที่หน้าตลาด<br>ล็อก ${spot} · ${thDate(LIVE.today)}</p>
+      <p class="rcpt__row"><span>ค่าพื้นที่ 1 วัน</span><span>${fmt(LIVE.rates.walkin_fee)}</span></p>
+      <p class="rcpt__row"><span>ชำระผ่าน</span><span>QR พร้อมเพย์</span></p>
+      <div class="rcpt__rule"></div>
+      <p class="rcpt__total"><span>รวม</span><span>฿${fmt(LIVE.rates.walkin_fee)}</span></p>
+      <p class="rcpt__stamp rcpt__stamp--ok">ชำระแล้ว</p>
+    </div>`;
+  const front = EXAMPLE[0];
+  const overdue = LIVE.today > front.due;
+  inner.innerHTML = billReceipt(EXAMPLE[1], "ชำระแล้ว", "ok") + walk
+    + billReceipt(front, overdue ? `เกินกำหนดแล้ว` : `ครบกำหนด ${thDay(front.due)}`, overdue ? "bad" : "warn");
+  scrollTrigger(section, {
+    start: "top_bottom", end: "bottom_bottom",
+    onUpdate: (raw) => { inner.style.top = REDUCED ? "0px" : `calc(var(--u) * ${(60 * (1 - raw)).toFixed(2)})`; },
+  });
+});
+</script>
+</body>
+</html>

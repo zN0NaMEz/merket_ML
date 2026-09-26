@@ -57,6 +57,8 @@ export default function MarketFooter() {
         <div className="mk-foot__bar">
           <p>© {new Date().getFullYear()} ตลาดบัญญัติทรัพย์ สงวนลิขสิทธิ์</p>
           <p className="mk-foot__sys">
+            <a href="/guide/">คู่มือผู้ค้า</a>
+            <span aria-hidden="true">·</span>
             <Link to="/login">ระบบบริหารตลาด</Link>
             <span aria-hidden="true">·</span>
             <Link to="/walkin">จองแผงรายวัน</Link>

@@ -111,6 +111,9 @@ export default function Layout() {
               <span>{label}</span><small className="muted">{tag}</small>
             </NavLink>
           ))}
+          {user.role === 'vendor' && (
+            <a className="nav-item" href="/guide/"><span>คู่มือผู้ค้า</span><small className="muted">?</small></a>
+          )}
         </nav>
         <main className="main"><Outlet /></main>
       </div>
@@ -127,6 +130,7 @@ export function PublicLayout() {
         <nav className="btn-row">
           <NavLink className="btn sm" to="/walkin" end>จองพื้นที่</NavLink>
           <NavLink className="btn sm" to="/walkin/my">การจองของฉัน</NavLink>
+          <a className="btn sm" href="/guide/">คู่มือ</a>
           <NavLink className="btn sm" to="/">หน้าตลาด</NavLink>
           <NavLink className="btn sm ghost" to="/login">เข้าสู่ระบบ</NavLink>
         </nav>

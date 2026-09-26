@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Reveal from './Reveal';
 import SectionHeading from './SectionHeading';
 import { useMarket } from './store';
+import { pickupStops } from './pickup';
 import { IconArrow } from './icons';
 import { SELLERS, ZONES } from '../../data/market';
 
@@ -11,7 +12,20 @@ const ALL = 'ทั้งหมด';
 export default function MarketMap() {
   const [zoneId, setZoneId] = useState(ZONES[0].id);
   const [filter, setFilter] = useState(ALL);
-  const { setDetail } = useMarket();
+  const { setDetail, pickups, mapZone } = useMarket();
+  // แผงที่อยู่ในใบนัดรับ: ติดป้าย "นัดรับ" ในรายการ และจุดบนผัง
+  const pickupPlates = useMemo(
+    () => new Map(pickups.flatMap(p => pickupStops(p.lines).filter(g => !g.desk).map(g => [g.plate, p.code]))),
+    [pickups],
+  );
+  const pickupZones = useMemo(() => new Set(ZONES.filter(z => z.stalls.some(s => pickupPlates.has(s.plate))).map(z => z.id)), [pickupPlates]);
+
+  // กด "ดูจุดรับในผังตลาด" จากใบนัดรับ: เปิดโซนของจุดรับแรกและแสดงทุกประเภท
+  useEffect(() => {
+    if (!mapZone) return;
+    setZoneId(mapZone.zone);
+    setFilter(ALL);
+  }, [mapZone]);
 
   const zone = ZONES.find(z => z.id === zoneId) || ZONES[0];
   const tags = useMemo(() => [ALL, ...Array.from(new Set(ZONES.flatMap(z => z.stalls.map(s => s.tag))))], []);
@@ -43,6 +57,7 @@ export default function MarketMap() {
                     <rect key={i} x={z.x + g[0]} y={z.y + g[1]} width="10" height="8" rx="1" className="mk-map__stall" />
                   ))}
                   <text x={z.x + 10} y={z.y + 20} className="mk-map__id">{z.id}</text>
+                  {pickupZones.has(z.id) && <circle cx={z.x + z.w - 14} cy={z.y + 14} r="5" className="mk-map__pickup" />}
                   <text x={z.x + 10} y={z.h + z.y - 10} className="mk-map__label">{z.th}</text>
                 </g>
               ))}
@@ -91,11 +106,12 @@ export default function MarketMap() {
                 {stalls.map(s => {
                   const seller = SELLERS.find(x => x.id === s.seller);
                   return (
-                    <li key={s.plate}>
+                    <li key={s.plate} className={pickupPlates.has(s.plate) ? 'is-pickup' : ''}>
                       <span className="mk-map__plate">{s.plate}</span>
                       <span className="mk-map__info">
                         <strong>{s.name}</strong>
                         <small>{s.tag}</small>
+                        {pickupPlates.has(s.plate) && <small className="mk-map__pickuptag">นัดรับ {pickupPlates.get(s.plate)} · เปิด {s.hours}</small>}
                       </span>
                       {seller ? (
                         <button type="button" className="mk-map__go" onClick={() => setDetail({ kind: 'seller', id: seller.id })}>

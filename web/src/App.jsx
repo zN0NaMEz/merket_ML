@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { useApp } from './ui';
 import Layout, { PublicLayout } from './components/Layout';
@@ -23,6 +24,12 @@ function RequireRole({ role, children }) {
   if (!user) return <Navigate to="/login" replace />;
   if (user.role !== role) return <Navigate to={`/${user.role}`} replace />;
   return children;
+}
+
+/** คู่มือผู้ค้าเป็นหน้า static แยก (public/guide) โหลดเต็มหน้า */
+function GuideRedirect() {
+  useEffect(() => { window.location.replace(`/guide/index.html${window.location.hash}`); }, []);
+  return null;
 }
 
 export default function App() {
@@ -56,6 +63,7 @@ export default function App() {
         <Route path="ai" element={<AI />} />
         <Route path="notifications" element={<Notifications />} />
       </Route>
+      <Route path="/guide" element={<GuideRedirect />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
