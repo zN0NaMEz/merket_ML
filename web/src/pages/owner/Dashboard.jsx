@@ -2,6 +2,7 @@ import { api } from '../../api';
 import { baht, pct, periodLabel } from '../../format';
 import { Loader, PageHead, RISK_NAME, RiskCell, SecHead, useData } from '../../ui';
 import { RevenueChart } from '../../components/Charts';
+import DemoReset from '../../components/DemoReset';
 
 // 6.0 รายงานสำหรับเจ้าของตลาด
 export default function Dashboard() {
@@ -38,6 +39,7 @@ export default function Dashboard() {
                 </tr>))}</tbody>
             </table></div>
           </section>
+          <DemoReset />
         </div>
       );
     }}</Loader>

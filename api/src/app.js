@@ -19,6 +19,7 @@ app.use('/api/walkin', require('./routes/walkin'));
 app.use('/api/vendor', auth, role('vendor'), require('./routes/vendor'));
 app.use('/api/staff', auth, role('staff'), require('./routes/staff'));
 app.use('/api/owner', auth, role('owner'), require('./routes/owner'));
+app.use('/api/admin', require('./routes/admin'));
 app.use('/api', require('./routes/common'));
 
 app.use((_req, _res, next) => next(new HttpError(404, 'ไม่พบ API ที่เรียก')));

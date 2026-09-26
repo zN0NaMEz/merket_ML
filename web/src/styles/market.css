@@ -23,8 +23,10 @@ html[data-market] body { background: #12100d; }
   --line-2: rgba(18, 16, 13, 0.07);
   --line-on-dark: rgba(242, 237, 227, 0.16);
 
-  --serif: 'Trirong', 'Noto Serif Thai', Georgia, 'Times New Roman', serif;
-  --sans: 'IBM Plex Sans Thai', 'Noto Sans Thai', 'Leelawadee UI', 'Segoe UI', Tahoma, sans-serif;
+  /* --serif คือฟอนต์หัวข้อ (ชื่อตัวแปรเดิม) ตอนนี้ใช้ Prompt แบบไม่มีหัว */
+  --serif: 'Prompt', 'Noto Sans Thai', 'Leelawadee UI', 'Segoe UI', sans-serif;
+  --mark: 'Trirong', 'Noto Serif Thai', Georgia, serif;
+  --sans: 'Anuphan', 'Noto Sans Thai', 'Leelawadee UI', 'Segoe UI', Tahoma, sans-serif;
 
   --ease: cubic-bezier(0.16, 0.68, 0.28, 1);
   --gutter: clamp(20px, 5vw, 76px);
@@ -45,7 +47,7 @@ html[data-market] body { background: #12100d; }
 
 .mk h1, .mk h2, .mk h3, .mk h4 {
   font-family: var(--serif);
-  font-weight: 300;
+  font-weight: 400;
   line-height: 1.12;
   letter-spacing: -0.005em;
   margin: 0;
@@ -279,7 +281,7 @@ html[data-market] body { background: #12100d; }
   display: grid; place-items: center;
   width: 34px; height: 34px;
   border: 1px solid currentColor;
-  font-family: var(--serif);
+  font-family: var(--mark);
   font-size: 16px;
   line-height: 1;
 }
@@ -384,7 +386,7 @@ html[data-market] body { background: #12100d; }
 }
 .mk-hero__eyebrow { color: rgba(242, 237, 227, 0.78); margin-bottom: clamp(18px, 3vw, 34px); }
 .mk-hero__title {
-  font-size: clamp(54px, 13.5vw, 196px);
+  font-size: clamp(52px, 11vw, 164px);
   line-height: 1.04;
   letter-spacing: -0.02em;
   margin-bottom: clamp(20px, 3vw, 38px);
@@ -805,7 +807,7 @@ html[data-market] body { background: #12100d; }
   display: grid; place-items: center;
   width: 44px; height: 44px;
   border: 1px solid var(--line-on-dark);
-  font-family: var(--serif); font-size: 20px; line-height: 1;
+  font-family: var(--mark); font-size: 20px; line-height: 1;
   margin-bottom: 18px;
 }
 .mk-foot__name { font-family: var(--serif); font-size: clamp(24px, 2.6vw, 38px); line-height: 1.1; }

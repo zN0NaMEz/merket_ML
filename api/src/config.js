@@ -10,6 +10,8 @@ module.exports = {
   mlUrl: (process.env.ML_URL || 'http://localhost:8000').trim(),
   // กุญแจร่วมกับ ML service เมื่อ ML อยู่บนโฮสต์สาธารณะ เว้นว่างได้ถ้ารันในเครือข่ายภายใน
   mlApiKey: (process.env.ML_API_KEY || '').trim(),
+  // รหัสสำหรับปุ่มรีเซ็ตข้อมูลสาธิต เว้นว่าง = ปิด endpoint รีเซ็ตไปเลย
+  reseedKey: (process.env.RESEED_KEY || '').trim(),
   paymentProvider: provider,                        // 'omise' | 'mock'
   omise: { publicKey: process.env.OMISE_PUBLIC_KEY || '', secretKey: secret },
   // โหมดทดสอบ: ใช้ปุ่มจำลองผลการชำระได้ (Omise test key หรือ mock)

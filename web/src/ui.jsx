@@ -128,13 +128,16 @@ export function DueChip({ bill, today }) {
 
 export function Modal({ title, onClose, wide, children, footer }) {
   const ref = useRef(null);
+  // เก็บ onClose ล่าสุดไว้ใน ref เพื่อให้ย้ายโฟกัสแค่ตอนเปิด ไม่ดึงโฟกัสออกจากช่องกรอกทุกครั้งที่พิมพ์
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   useEffect(() => {
-    const onKey = e => { if (e.key === 'Escape') onClose(); };
+    const onKey = e => { if (e.key === 'Escape') closeRef.current(); };
     document.addEventListener('keydown', onKey);
     const first = ref.current?.querySelector('button, input, select, a');
     first?.focus();
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, []);
   return (
     <div className="modal-back" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className={`modal ${wide ? 'wide' : ''}`} role="dialog" aria-modal="true" aria-label={title} ref={ref}>

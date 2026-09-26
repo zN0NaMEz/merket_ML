@@ -2,6 +2,8 @@
  * สร้างข้อมูลตัวอย่าง: npm run seed  (ล้างข้อมูลเดิมทั้งหมด)
  *                     npm run seed:if-empty  (ข้ามถ้ามีข้อมูลแล้ว ใช้ตอนเริ่ม container)
  * ตั้ง SEED_ANCHOR=YYYY-MM-01 เพื่อกำหนดเดือนตั้งต้นเอง (ค่าเริ่มต้น = วันที่ 1 ของเดือนปัจจุบัน)
+ *
+ * reseed() ถูกเรียกจาก POST /api/admin/reseed ได้ด้วย (ปุ่มรีเซ็ตข้อมูลสาธิตก่อนนำเสนอ)
  */
 const fs = require('fs');
 const path = require('path');
@@ -27,12 +29,34 @@ async function main() {
     const { n } = await db.one('SELECT count(*)::int AS n FROM vendors');
     if (n > 0) { console.log('มีข้อมูลอยู่แล้ว ข้ามการ seed'); return; }
   }
+  const r = await reseed({ log: console.log });
+  if (!r.ml || r.ml.error) console.log('ML service ยังไม่พร้อม ระบบจะเทรนโมเดลอัตโนมัติเมื่อ ML service ทำงาน');
+  console.log('\nบัญชีทดลอง: staff / staff1234 | owner / owner1234 | ผู้ค้า: เลขแผงไม่มีขีด เช่น a04 / vendor1234');
+}
+
+/* ใช้โยนออกจาก transaction เพื่อให้ฐานข้อมูลย้อนกลับทั้งหมดในโหมดทดลอง */
+const DRY_RUN = Symbol('dry-run');
+/* หมายเลขล็อกของการรีเซ็ต กันการกดซ้ำพร้อมกันสองครั้ง */
+const RESEED_LOCK = 424242;
+
+/**
+ * ล้างข้อมูลทั้งหมดแล้วสร้างข้อมูลตัวอย่างชุดใหม่ จากนั้นเทรนโมเดลและประเมินความเสี่ยงบิลค้าง
+ *   dryRun  ทำทุกขั้นตอนใน transaction แล้วย้อนกลับ ใช้วัดเวลาโดยไม่แตะข้อมูลจริง (ไม่เทรนโมเดล)
+ *   train   เทรนโมเดลต่อหลังสร้างข้อมูล
+ * คืนสรุปจำนวนข้อมูล เวลาที่ใช้ และผลการเทรน (ถ้าเทรนไม่สำเร็จ ข้อมูลยังถูกรีเซ็ตแล้ว)
+ */
+async function reseed({ dryRun = false, train = true, log = () => {} } = {}) {
+  const started = Date.now();
   const anchor = process.env.SEED_ANCHOR || `${D.periodOf(D.bangkokToday())}-01`;
   const g = generate(anchor);
-  console.log(`สร้างข้อมูลตัวอย่าง: ประวัติ ${g.meta.hist_first} ถึง ${g.meta.hist_last} รอบมิเตอร์ปัจจุบัน ${g.meta.meter_period}`);
+  log(`สร้างข้อมูลตัวอย่าง: ประวัติ ${g.meta.hist_first} ถึง ${g.meta.hist_last} รอบมิเตอร์ปัจจุบัน ${g.meta.meter_period}`);
   const vendorPw = await bcrypt.hash('vendor1234', 10);
 
+  try {
   await tx(async t => {
+    // ล็อกผูกกับ transaction จึงปลดเองเมื่อจบ ใช้ได้แม้ผ่าน connection pooler
+    const { ok } = await t.one('SELECT pg_try_advisory_xact_lock($1) AS ok', [RESEED_LOCK]);
+    if (!ok) { const e = new Error('กำลังรีเซ็ตข้อมูลอยู่ รอให้รอบก่อนเสร็จก่อน'); e.status = 409; throw e; }
     await t.q(`TRUNCATE notifications, job_logs, model_runs, anomaly_logs, payment_bills, payments, walkin_bookings, bills,
       meter_drafts, meter_readings, contracts, users, vendors, stalls, stall_types, settings RESTART IDENTITY CASCADE`);
     for (const s of g.stall_types) await t.q('INSERT INTO stall_types VALUES ($1,$2,$3,$4)', [s.code, s.name, s.zone, s.monthly_rent]);
@@ -98,18 +122,43 @@ async function main() {
     await settings.set('clock', config.demoMode ? { demo_date: anchor } : {}, t);
     await settings.set('demo', { anomaly_period: g.meta.meter_period }, t);
     await settings.set('meter_round', g.meta.meter_round, t);
+    if (dryRun) throw DRY_RUN;
   });
-  console.log(`บันทึกแล้ว: ผู้ค้า ${g.vendors.length} ราย บิล ${g.bills.length} ใบ เลขมิเตอร์ ${g.meters.length} ค่า`);
+  } catch (e) {
+    if (e !== DRY_RUN) throw e;
+  }
 
+  const summary = {
+    dry_run: dryRun, demo_date: anchor,
+    vendors: g.vendors.length, stalls: g.stalls.length, bills: g.bills.length, meters: g.meters.length,
+    bookings: g.bookings.length, db_ms: Date.now() - started,
+  };
+  log(`${dryRun ? 'ทดลอง (ย้อนกลับแล้ว)' : 'บันทึกแล้ว'}: ผู้ค้า ${g.vendors.length} ราย บิล ${g.bills.length} ใบ เลขมิเตอร์ ${g.meters.length} ค่า · ${summary.db_ms} ms`);
+  if (dryRun) {
+    // ปลุก ML service ไว้ก่อน ตอนรีเซ็ตจริงจะได้ไม่เสียเวลารอเซิร์ฟเวอร์ตื่น
+    const t0 = Date.now();
+    summary.ml_awake = await ml.health().then(() => true, () => false);
+    summary.ml_ms = Date.now() - t0;
+    return summary;
+  }
+  if (!train) return summary;
+
+  const mlStarted = Date.now();
   try {
     const r = await ml.trainRisk();
-    await ml.trainAnomaly();
+    const a = await ml.trainAnomaly();
     const s = await billing.rescoreOpenBills();
-    console.log(`เทรนโมเดลแล้ว (AUC: LR ${r.models.lr.auc.toFixed(3)}, RF ${r.models.rf.auc.toFixed(3)}) ประเมินความเสี่ยง ${s.count} บิล`);
+    summary.ml = { auc_lr: r.models.lr.auc, auc_rf: r.models.rf.auc, n_samples: r.n_samples, n_meter: a.n_train, rescored: s.count, ms: Date.now() - mlStarted };
+    log(`เทรนโมเดลแล้ว (AUC: LR ${r.models.lr.auc.toFixed(3)}, RF ${r.models.rf.auc.toFixed(3)}) ประเมินความเสี่ยง ${s.count} บิล`);
   } catch (e) {
-    console.log('ML service ยังไม่พร้อม ระบบจะเทรนโมเดลอัตโนมัติเมื่อ ML service ทำงาน');
+    summary.ml = { error: e.message, ms: Date.now() - mlStarted };
   }
-  console.log('\nบัญชีทดลอง: staff / staff1234 | owner / owner1234 | ผู้ค้า: เลขแผงไม่มีขีด เช่น a04 / vendor1234');
+  summary.total_ms = Date.now() - started;
+  return summary;
 }
 
-main().then(() => pool.end()).catch(async e => { console.error(e); await pool.end(); process.exit(1); });
+module.exports = { reseed };
+
+if (require.main === module) {
+  main().then(() => pool.end()).catch(async e => { console.error(e); await pool.end(); process.exit(1); });
+}

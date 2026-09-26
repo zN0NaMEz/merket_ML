@@ -1,7 +1,10 @@
 const config = require('../config');
 const { HttpError } = require('../lib/http');
 
-async function call(path, body, method = body ? 'POST' : 'GET') {
+// การเทรนบนโฮสต์แพลนฟรีใช้ราว 40 วินาที จึงให้รอนานกว่าการเรียกทั่วไป
+const TRAIN_TIMEOUT = 110000;
+
+async function call(path, body, method = body ? 'POST' : 'GET', timeout = 60000) {
   let res;
   try {
     res = await fetch(config.mlUrl + path, {
@@ -11,7 +14,7 @@ async function call(path, body, method = body ? 'POST' : 'GET') {
         ...(config.mlApiKey ? { 'x-ml-key': config.mlApiKey } : {}),
       },
       body: body ? JSON.stringify(body) : undefined,
-      signal: AbortSignal.timeout(60000),
+      signal: AbortSignal.timeout(timeout),
     });
   } catch (e) {
     throw new HttpError(503, 'ML service ไม่พร้อมใช้งาน ตรวจว่า ML service ทำงานอยู่ที่ ' + config.mlUrl);
@@ -23,10 +26,10 @@ async function call(path, body, method = body ? 'POST' : 'GET') {
 
 module.exports = {
   health: () => call('/health'),
-  trainRisk: () => call('/risk/train', {}),
+  trainRisk: () => call('/risk/train', {}, 'POST', TRAIN_TIMEOUT),
   riskMetrics: () => call('/risk/metrics'),
   scoreBills: (billIds, model) => call('/risk/score', { bill_ids: billIds, model }),
-  trainAnomaly: () => call('/anomaly/train', {}),
+  trainAnomaly: () => call('/anomaly/train', {}, 'POST', TRAIN_TIMEOUT),
   anomalyInfo: () => call('/anomaly/info'),
   checkReadings: (period, readings, ai) => call('/anomaly/check', {
     period, readings, method: ai.anomaly_method, z_threshold: Number(ai.z_threshold), if_threshold: Number(ai.if_threshold),
