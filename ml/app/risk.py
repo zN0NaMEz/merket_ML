@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import io as _io
 import json
+import math
 import os
 from collections import defaultdict
 from datetime import datetime
@@ -94,12 +95,15 @@ def train() -> dict:
     if len(df) < 40 or df["label"].nunique() < 2:
         raise RuntimeError(f"ข้อมูลไม่พอสำหรับเทรน (มี {len(df)} แถว)")
     X, y = df[NUMERIC + CATEGORICAL], df["label"].to_numpy()
-    X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.25, stratify=y, random_state=42)
+    # ส่ง index ของแถวเข้าไปด้วยเพื่อรู้ว่าบิลไหนอยู่ในชุดทดสอบ (การแบ่งยังเหมือนเดิมทุกประการ)
+    X_tr, X_te, y_tr, y_te, _, idx_te = train_test_split(
+        X, y, df.index.to_numpy(), test_size=0.25, stratify=y, random_state=42)
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-    results, final = {}, {}
+    results, final, probs = {}, {}, {}
     for name, pipe in _make_models().items():
         pipe.fit(X_tr, y_tr)
         p = pipe.predict_proba(X_te)[:, 1]
+        probs[name] = p
         pred = (p >= 0.5).astype(int)
         tn, fp, fn, tp = confusion_matrix(y_te, pred, labels=[0, 1]).ravel()
         cv_auc = cross_val_score(_make_models()[name], X, y, cv=cv, scoring="roc_auc")
@@ -138,7 +142,19 @@ def train() -> dict:
         json.dump(metrics, fh, ensure_ascii=False, indent=2)
     _cache["models"] = final
     _cache["metrics"] = metrics
-    db.save_model_run("risk", metrics)
+    # คะแนนของบิลในชุดทดสอบ (บิลที่โมเดลไม่เคยเห็นตอนเทรน) พร้อมผลจริงและเหตุผล
+    # หน้าเว็บใช้คำนวณว่าถ้าเลื่อนเกณฑ์แล้วจะเตือนกี่ราย ถูกกี่ราย และยกเป็นตัวอย่างให้ดู
+    metrics["test"] = [
+        {
+            "bill_id": int(df.at[i, "bill_id"]),
+            "y": int(y_te[k]),
+            # ปัดลงเสมอ คะแนนจึงไม่มีทางถูกปัดข้ามเกณฑ์ที่มีทศนิยมไม่เกิน 4 ตำแหน่ง
+            **{name: math.floor(float(probs[name][k]) * 10000) / 10000 for name in probs},
+            "reasons": risk_reasons(df.loc[i].to_dict()),
+        }
+        for k, i in enumerate(idx_te)
+    ]
+    db.save_model_run("risk", {k: v for k, v in metrics.items() if k != "test"})
     # เก็บลงฐานข้อมูลด้วย เผื่อรันบนโฮสต์ที่ดิสก์หายเมื่อรีสตาร์ท
     try:
         buf = _io.BytesIO()

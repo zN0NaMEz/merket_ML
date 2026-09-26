@@ -54,7 +54,38 @@ router.get('/ai/overview', auth, role('staff', 'owner'), ah(async (_req, res) =>
   const runs = await db.q('SELECT id, model_type, trained_at FROM model_runs ORDER BY id DESC LIMIT 8');
   // ผลตรวจของค่าที่กำลังกรอกในรอบปัจจุบัน (ถ้ามี) ใช้แสดงบนกราฟ
   const draft = await meters.check([]).then(v => v.results).catch(() => []);
-  res.json({ ai, risk, anomaly, logs, runs, draft });
+
+  // ตัวอย่างการทำนาย: บิลในชุดทดสอบที่โมเดลไม่เคยเห็น พร้อมรายละเอียดจริงของบิลนั้น
+  let examples = [];
+  if (Array.isArray(risk.test) && risk.test.length) {
+    const rows = await db.q(
+      `SELECT b.id, b.stall_id, b.period, b.total, b.due_date, b.paid_date, v.full_name
+         FROM bills b JOIN vendors v ON v.id = b.vendor_id WHERE b.id = ANY($1)`,
+      [risk.test.map(t => t.bill_id)]);
+    const byId = new Map(rows.map(r => [r.id, r]));
+    const today = await settings.today();
+    examples = risk.test.map(t => {
+      const b = byId.get(t.bill_id);
+      if (!b) return null;
+      const settled = b.paid_date || today;
+      const late = Math.max(0, Math.round((Date.parse(settled) - Date.parse(b.due_date)) / 86400000));
+      return { ...t, stall_id: b.stall_id, vendor: b.full_name, period: b.period, total: Number(b.total), days_late: late, paid: Boolean(b.paid_date) };
+    }).filter(Boolean);
+  }
+  // บิลที่ค้างอยู่ตอนนี้ ใช้บอกว่าถ้าตั้งเกณฑ์นี้ วันนี้จะมีใครได้รับการเตือนบ้าง
+  const open = await db.q(
+    `SELECT b.id, b.stall_id, b.period, b.total, b.due_date, b.status, b.risk_score, b.risk_features, v.full_name AS vendor
+       FROM bills b JOIN vendors v ON v.id = b.vendor_id
+      WHERE b.kind = 'monthly' AND b.status IN ('unpaid','overdue') AND b.risk_score IS NOT NULL
+      ORDER BY b.risk_score DESC`);
+  const { n: stalls } = await db.one('SELECT count(*)::int AS n FROM stalls');
+
+  // คะแนนรายบิลย้ายไปอยู่ใน examples แล้ว ไม่ต้องส่งซ้ำ
+  const { test: _omit, ...riskSummary } = risk;
+  res.json({ ai, risk: riskSummary, anomaly, logs, runs, draft, examples, open: open.map(o => ({
+    id: o.id, stall_id: o.stall_id, vendor: o.vendor, period: o.period, total: Number(o.total), due_date: o.due_date,
+    status: o.status, score: Number(o.risk_score), reasons: o.risk_features?.reasons || [],
+  })), stalls });
 }));
 router.post('/ai/retrain', auth, role('staff', 'owner'), ah(async (_req, res) => {
   const risk = await ml.trainRisk();

@@ -255,12 +255,6 @@ legend{font-weight:500;margin-bottom:8px;font-family:var(--f-display);font-size:
 .s-elec{fill:var(--s-3);background:var(--s-3)} .s-walk{fill:var(--s-4);background:var(--s-4)}
 .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-top:6px}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
-.pt-hist{fill:var(--faint);opacity:.55}
-.pt-ok{fill:var(--ok)} .pt-bad{fill:var(--danger)}
-.wbar{display:grid;grid-template-columns:minmax(150px,220px) 1fr 52px;gap:10px;align-items:center;font-size:13.5px;padding:3px 0}
-.wbar .track{position:relative;height:10px;background:var(--surface-2);border-radius:3px}
-.wbar .track span{position:absolute;top:0;bottom:0;border-radius:3px}
-.wbar .track .mid{position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:var(--muted)}
 .cm{display:grid;grid-template-columns:auto 1fr 1fr;gap:4px;max-width:360px;font-size:13px}
 .cm div{padding:8px;border-radius:2px;text-align:center}
 .cm .h{color:var(--muted)}
@@ -328,7 +322,6 @@ legend{font-weight:500;margin-bottom:8px;font-family:var(--f-display);font-size:
   .bill-total{grid-column:2}
   .notis li{grid-template-columns:1fr;gap:2px}
   .doc{padding:20px 16px}
-  .wbar{grid-template-columns:120px 1fr 44px}
 }
 @media (prefers-reduced-motion: reduce){ *{transition:none !important;animation:none !important} }
 @media print{ .topbar,.nav,#toasts,.no-print{display:none !important} .shell{display:block} .main{padding:0} }

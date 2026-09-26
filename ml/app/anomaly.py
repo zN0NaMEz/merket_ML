@@ -40,6 +40,35 @@ def _load():
     return stalls, by_stall, by_type
 
 
+def _zscores(use_w, use_e, hist, peer):
+    """z ของการใช้น้ำ/ไฟ เทียบประวัติแผงตัวเอง และเทียบแผงประเภทเดียวกัน ใช้ทั้งตอนเทรนและตอนตรวจ"""
+    hw, he = [h["use_water"] for h in hist], [h["use_elec"] for h in hist]
+    mw, me = mean(hw), mean(he)
+    sw, se = max(_sd(hw), 0.08 * mw, 1), max(_sd(he), 0.08 * me, 1)
+    zw, ze = (use_w - mw) / sw, (use_e - me) / se
+    pzw = (use_w - peer["mw"]) / max(peer["sw"], 0.1 * peer["mw"], 1)
+    pze = (use_e - peer["me"]) / max(peer["se"], 0.1 * peer["me"], 1)
+    return zw, ze, pzw, pze
+
+
+def _zmax(zw, ze, pzw, pze) -> float:
+    """ค่า z เดียวที่เทียบกับเกณฑ์ได้ตรง ๆ: การเทียบกับเพื่อนร่วมประเภทได้ผ่อนให้ 1 หน่วยเหมือนใน check()"""
+    return max(abs(zw), abs(ze), abs(pzw) - 1, abs(pze) - 1)
+
+
+def _training_rows(by_stall, by_type) -> list[tuple[list[float], float]]:
+    rows = []
+    for sid, ms in by_stall.items():
+        for i in range(3, len(ms)):
+            peer = peer_stats(by_type, ms[i]["type_code"], ms[i]["period"])
+            if peer["n"] < 3:
+                continue
+            hist = ms[max(0, i - 12):i]
+            uw, ue = ms[i]["use_water"], ms[i]["use_elec"]
+            rows.append((anomaly_vector(uw, ue, hist, peer), _zmax(*_zscores(uw, ue, hist, peer))))
+    return rows
+
+
 def _training_points(by_stall, by_type) -> list[list[float]]:
     pts = []
     for sid, ms in by_stall.items():
@@ -53,7 +82,8 @@ def _training_points(by_stall, by_type) -> list[list[float]]:
 
 def train() -> dict:
     _, by_stall, by_type = _load()
-    pts = _training_points(by_stall, by_type)
+    rows = _training_rows(by_stall, by_type)
+    pts = [r[0] for r in rows]
     if len(pts) < 50:
         raise RuntimeError(f"เลขมิเตอร์ในอดีตไม่พอสำหรับเทรน (มี {len(pts)} จุด)")
     X = np.array(pts)
@@ -61,7 +91,7 @@ def train() -> dict:
     model.fit(X)
     scores = -model.score_samples(X)
     rnd = random.Random(1)
-    sample = rnd.sample(pts, min(600, len(pts)))
+    pick = rnd.sample(range(len(pts)), min(600, len(pts)))
     info = {
         "trained_at": datetime.now().isoformat(timespec="seconds"),
         "n_train": len(pts),
@@ -69,7 +99,9 @@ def train() -> dict:
         "score_p50": float(np.percentile(scores, 50)),
         "score_p95": float(np.percentile(scores, 95)),
         "score_p99": float(np.percentile(scores, 99)),
-        "points": [[round(p[0], 3), round(p[1], 3)] for p in sample],
+        # [น้ำเทียบค่าเฉลี่ยตัวเอง, ไฟเทียบค่าเฉลี่ยตัวเอง, คะแนน Isolation Forest, z สูงสุด]
+        # หน้าเว็บใช้ระบายสีว่าจุดไหนจะถูกทักเมื่อเลื่อนเกณฑ์
+        "points": [[round(pts[i][0], 3), round(pts[i][1], 3), round(float(scores[i]), 3), round(rows[i][1], 2)] for i in pick],
     }
     joblib.dump(model, MODEL_PATH)
     with open(INFO_PATH, "w", encoding="utf-8") as fh:
@@ -141,16 +173,12 @@ def check(period: str, readings: list[dict], method: str = "both", z_threshold: 
             out.append(res)
             continue
         uw, ue = res["use_water"], res["use_elec"]
-        hw, he = [h["use_water"] for h in hist], [h["use_elec"] for h in hist]
-        mw, me = mean(hw), mean(he)
-        sw, se = max(_sd(hw), 0.08 * mw, 1), max(_sd(he), 0.08 * me, 1)
+        mw, me = mean([h["use_water"] for h in hist]), mean([h["use_elec"] for h in hist])
         peer = peer_stats(by_type, st["type_code"], period)
-        zw, ze = (uw - mw) / sw, (ue - me) / se
-        pzw = (uw - peer["mw"]) / max(peer["sw"], 0.1 * peer["mw"], 1)
-        pze = (ue - peer["me"]) / max(peer["se"], 0.1 * peer["me"], 1)
+        zw, ze, pzw, pze = _zscores(uw, ue, hist, peer)
         x = anomaly_vector(uw, ue, hist, peer)
         ifs = float(-model.score_samples(np.array([x]))[0])
-        z_flag = abs(zw) > z_threshold or abs(ze) > z_threshold or abs(pzw) > z_threshold + 1 or abs(pze) > z_threshold + 1
+        z_flag = _zmax(zw, ze, pzw, pze) > z_threshold
         if_flag = ifs > if_threshold
         anomaly = z_flag if method == "z" else if_flag if method == "if" else (z_flag or if_flag)
         rw, re_ = (uw + 1) / (mw + 1), (ue + 1) / (me + 1)
