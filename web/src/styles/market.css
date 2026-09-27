@@ -58,7 +58,8 @@ html[data-market] body { background: #12100d; }
 .mk ul, .mk ol { margin: 0; padding: 0; list-style: none; }
 .mk img { display: block; max-width: 100%; }
 .mk a { color: inherit; text-decoration: none; }
-.mk button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+/* :where ทำให้ตัวรีเซ็ตนี้เบาที่สุด คลาสปุ่มอย่าง .mk-btn / .mk-chip จึงชนะเสมอ */
+:where(.mk) button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
 .mk dl, .mk dd { margin: 0; }
 
 .mk :focus-visible {
@@ -974,6 +975,56 @@ html[data-market] body { background: #12100d; }
 .mk-cart__slip li { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
 .mk-cart__slip li.is-total { font-family: var(--serif); font-size: 17px; border-bottom: 0; }
 .mk-cart__doneacts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+.mk-cart__slip li.is-sub { justify-content: space-between; font-size: 13px; color: var(--stone); border-bottom: 0; }
+.mk-cart__slip li.is-sub span:last-child { font-family: var(--serif); font-size: 15px; color: var(--ink); }
+
+/* ใบนัดรับที่ยังไม่หมดเวลา (บนสุดของตะกร้า) */
+.mk-pickups { margin-bottom: 26px; }
+.mk-pickups ul { border-top: 1px solid var(--line); }
+.mk-pickups li { border-bottom: 1px solid var(--line); }
+.mk-pickups button { display: flex; align-items: center; justify-content: space-between; gap: 14px; width: 100%; padding: 13px 0; text-align: left; }
+.mk-pickups strong { display: block; font-family: var(--serif); font-weight: 400; font-size: 16px; letter-spacing: 0.04em; }
+.mk-pickups small { display: block; margin-top: 2px; font-size: 12.5px; color: var(--stone); }
+.mk-pickups svg { flex: none; width: 16px; height: 16px; color: var(--stone); transition: transform 0.5s var(--ease); }
+.mk-pickups button:hover svg { transform: translateX(4px); color: var(--ink); }
+
+/* ใบนัดรับ */
+.mk-slip { display: flex; flex-direction: column; gap: 26px; }
+.mk-slip__ok { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: rgba(120, 93, 49, 0.09); color: var(--gold); font-size: 14px; animation: mk-note-in 0.4s var(--ease) both; }
+.mk-slip__ok svg { flex: none; width: 18px; height: 18px; }
+.mk-slip__code { display: flex; flex-direction: column; gap: 6px; padding: 20px 22px; background: var(--ink); color: var(--cream); }
+.mk-slip__code small { font-size: 12px; color: var(--stone-2); }
+.mk-slip__code strong { font-family: var(--serif); font-weight: 400; font-size: clamp(28px, 5vw, 36px); line-height: 1.15; letter-spacing: 0.06em; color: var(--gold-2); font-variant-numeric: tabular-nums; }
+.mk-slip__code span { font-size: 13px; color: rgba(242, 237, 227, 0.78); }
+.mk-slip__code b { font-weight: 500; color: var(--cream); }
+.mk-slip__h { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-bottom: 12px; font-family: var(--sans); font-size: 12px; font-weight: 500; color: var(--stone); }
+.mk .mk-slip__h { font-family: var(--sans); line-height: 1.4; }
+.mk-slip__h small { font-size: 12px; font-weight: 400; }
+.mk-slip__steps { counter-reset: mk-step; border-top: 1px solid var(--line); }
+.mk-slip__steps li { counter-increment: mk-step; position: relative; padding: 12px 0 12px 34px; border-bottom: 1px solid var(--line); font-size: 14px; line-height: 1.7; color: var(--stone); }
+.mk-slip__steps li::before { content: counter(mk-step); position: absolute; left: 2px; top: 11px; font-family: var(--serif); font-size: 16px; line-height: 1.5; color: var(--gold); }
+.mk-slip__steps b { display: block; }
+.mk-slip__steps b { font-weight: 500; color: var(--ink); }
+.mk-slip__stops > li + li { margin-top: 20px; }
+.mk-slip__stop { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: start; }
+.mk-slip__stop strong { display: block; font-weight: 500; font-size: 15px; line-height: 1.4; }
+.mk-slip__stop small { display: block; margin-top: 2px; font-size: 12.5px; color: var(--stone); }
+.mk-slip__total { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--ink); }
+.mk-slip__total span { font-size: 13px; color: var(--stone); }
+.mk-slip__total strong { font-family: var(--serif); font-weight: 400; font-size: 26px; }
+.mk-slip__acts { display: flex; flex-wrap: wrap; gap: 10px; }
+.mk-slip__cancel { padding-top: 16px; border-top: 1px solid var(--line-2); }
+.mk-slip__cancel p { margin-bottom: 12px; font-size: 14px; line-height: 1.6; }
+.mk-slip__link { font-size: 13px; color: var(--stone); border-bottom: 1px solid var(--line); padding-bottom: 2px; transition: color 0.3s, border-color 0.3s; }
+.mk-slip__link:hover { color: var(--ink); border-bottom-color: var(--ink); }
+
+/* ไอคอนตะกร้า: มีใบนัดรับแต่ตะกร้าว่าง */
+.mk-icon__count--dot { min-width: 9px; width: 9px; height: 9px; padding: 0; top: 9px; right: 7px; }
+
+/* ผังตลาด: แผงที่อยู่ในใบนัดรับ */
+.mk-map__pickup { fill: var(--gold-2); stroke: var(--ink); stroke-width: 2; }
+.mk-map__list li.is-pickup { background: linear-gradient(90deg, rgba(120, 93, 49, 0.08), transparent 70%); box-shadow: inset 2px 0 0 var(--gold); padding-left: 12px; }
+.mk .mk-map__info .mk-map__pickuptag { margin-top: 3px; color: var(--gold); font-weight: 500; }
 
 .mk-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; padding-block: 20px; }
 .mk-empty p { font-family: var(--serif); font-size: 22px; }
@@ -1093,4 +1144,28 @@ html[data-market] body { background: #12100d; }
   .mk-fill { color: var(--ink) !important; }
   .mk-scroll i::after { animation: none; transform: none; }
   .mk-feat__shot { transition: none; }
+}
+
+/* ==========================================================================
+   พิมพ์ใบนัดรับ: #mk-print ถูกเพิ่มที่ body ชั่วคราว (อยู่นอก .mk จึงใช้ค่าสีตรง)
+   ========================================================================== */
+#mk-print { display: none; }
+@media print {
+  body.mk-print-mode > :not(#mk-print) { display: none !important; }
+  html[data-market] body.mk-print-mode { background: #fff; }
+  body.mk-print-mode #mk-print {
+    display: block;
+    color: #12100d;
+    font: 400 12pt/1.6 'Anuphan', 'Noto Sans Thai', 'Leelawadee UI', sans-serif;
+  }
+  #mk-print h1 { margin: 0 0 6pt; font: 500 16pt/1.3 'Prompt', 'Noto Sans Thai', sans-serif; }
+  #mk-print .mk-print__code { margin: 0; font: 400 26pt/1.2 'Prompt', 'Noto Sans Thai', sans-serif; letter-spacing: 0.06em; }
+  #mk-print p { margin: 0 0 10pt; }
+  #mk-print h2 { margin: 16pt 0 4pt; font: 500 12.5pt/1.4 'Prompt', 'Noto Sans Thai', sans-serif; }
+  #mk-print h2 small { font-weight: 400; font-size: 10pt; color: #555; }
+  #mk-print table { width: 100%; border-collapse: collapse; }
+  #mk-print td { padding: 4pt 0; border-bottom: 0.5pt solid #bbb; }
+  #mk-print td + td { text-align: right; white-space: nowrap; }
+  #mk-print tr.sub td { border-bottom: 0; color: #555; }
+  #mk-print .mk-print__total { margin-top: 14pt; padding-top: 8pt; border-top: 1pt solid #12100d; font-size: 14pt; text-align: right; }
 }
