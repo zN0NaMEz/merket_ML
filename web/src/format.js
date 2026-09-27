@@ -2,6 +2,11 @@ export const TH_M = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.
 const TH_MF = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 const parseD = s => { const [y, m, d] = s.slice(0, 10).split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)); };
 export const thDate = s => { if (!s) return '-'; const d = parseD(s); return `${d.getUTCDate()} ${TH_M[d.getUTCMonth()]} ${d.getUTCFullYear() + 543}`; };
+const TH_DAY = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
+/** วันอังคารที่ 1 กันยายน 2569 */
+export const thDateLong = s => { const d = parseD(s); return `วัน${TH_DAY[d.getUTCDay()]}ที่ ${d.getUTCDate()} ${TH_MF[d.getUTCMonth()]} ${d.getUTCFullYear() + 543}`; };
+/** ชื่อวันเต็ม เช่น อังคาร */
+export const dayName = s => TH_DAY[parseD(s).getUTCDay()];
 export const thDateShort = s => { const d = parseD(s); return `${d.getUTCDate()} ${TH_M[d.getUTCMonth()]}`; };
 export const weekday = s => ['อา.','จ.','อ.','พ.','พฤ.','ศ.','ส.'][parseD(s).getUTCDay()];
 export const periodLabel = p => { if (!p) return ''; const [y, m] = p.split('-').map(Number); return `${TH_MF[m - 1]} ${y + 543}`; };

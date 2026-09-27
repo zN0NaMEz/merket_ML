@@ -1,0 +1,290 @@
+/* ==========================================================================
+   หน้าเข้าสู่ระบบ: หมึกไหลในน้ำเต็มจอ + แก้วฝ้า
+   ขนาดทั้งหมดอิงหน่วย --u ที่ขยายตามความกว้างจอ (แทน rem เพื่อไม่กระทบหน้าอื่น)
+   ========================================================================== */
+
+html[data-flow],
+html[data-flow] body { background: #0c0a07; }
+
+.flow {
+  --base: #0c0a07;
+  --heading: #f6f1e7;
+  --muted: #c9bfae;
+  --pill: #faf7f1;
+  --pill-fg: #1d1a15;
+  --glass-fill: rgba(255, 248, 235, 0.08);
+  --glass-border: rgba(255, 244, 225, 0.17);
+  --scrim: rgba(12, 10, 7, 0.46);
+  --scrim-strong: rgba(12, 10, 7, 0.68);
+  --scrim-soft: rgba(12, 10, 7, 0.12);
+  --fast: 150ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --out-cubic: cubic-bezier(0.33, 1, 0.68, 1);
+  --u: clamp(14px, 1.1111vw, 18px);
+
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: 100vh;
+  min-height: 100svh;
+  overflow-x: clip;
+  background: var(--base);
+  color: var(--heading);
+  font-family: var(--f-body);
+  text-align: center;
+}
+@media (max-width: 1024px) { .flow { --u: clamp(14px, 1.5625vw, 16px); } }
+@media (max-width: 640px)  { .flow { --u: clamp(14.5px, 4.2vw, 17px); } }
+
+/* ---------- พื้นหลัง ---------- */
+.flow__canvas {
+  position: fixed; inset: 0; z-index: -2;
+  width: 100%; height: 100%;
+  pointer-events: none;
+}
+.flow__scrim {
+  position: fixed; inset: 0; z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(115% 95% at 50% 46%,
+    var(--scrim-strong) 0%, var(--scrim-strong) 24%, var(--scrim) 52%, var(--scrim-soft) 100%);
+}
+/* ไม่มี WebGL หรือขอลดการเคลื่อนไหว: หมึกนิ่งทำด้วยไล่สี */
+.flow.is-still .flow__canvas { display: none; }
+.flow.is-still {
+  background:
+    radial-gradient(38% 42% at 22% 30%, rgba(214, 128, 58, 0.55), transparent 70%),
+    radial-gradient(34% 40% at 78% 26%, rgba(196, 72, 88, 0.45), transparent 70%),
+    radial-gradient(40% 44% at 70% 78%, rgba(222, 170, 72, 0.45), transparent 70%),
+    radial-gradient(36% 40% at 26% 80%, rgba(170, 70, 48, 0.45), transparent 70%),
+    var(--base);
+  background-attachment: fixed;
+}
+
+/* ---------- เผยเนื้อหา ---------- */
+.flow .rise {
+  opacity: 0;
+  transform: translateY(calc(var(--from, 1.25) * var(--u)));
+  transition: opacity 700ms var(--ease), transform 700ms var(--ease);
+  transition-delay: var(--d, 0ms);
+}
+.flow.is-in .rise { opacity: 1; transform: none; }
+
+.flow__w {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(var(--wy));
+  transition: opacity var(--wdur) var(--out-cubic), transform var(--wdur) var(--out-cubic);
+  transition-delay: var(--wdl);
+}
+.flow.is-in .flow__w { opacity: 1; transform: none; }
+
+/* ---------- แถบบน ---------- */
+.flow__nav {
+  position: relative; z-index: 2;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: calc(1.75 * var(--u)) calc(2.5 * var(--u));
+}
+.flow__brand {
+  display: flex; align-items: center; gap: calc(0.6 * var(--u));
+  color: #fff; text-decoration: none;
+  font-family: var(--f-display); font-weight: 500;
+  font-size: calc(1.3 * var(--u)); line-height: 1.2;
+}
+.flow__mark {
+  display: grid; place-items: center;
+  width: calc(1.9 * var(--u)); height: calc(1.9 * var(--u));
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  font-family: var(--f-mark); font-weight: 400; font-size: calc(1.05 * var(--u)); line-height: 1;
+}
+.flow__links {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: calc(2.25 * var(--u));
+  height: calc(3 * var(--u)); padding: 0 calc(1.75 * var(--u));
+  border: 1px solid var(--glass-border); border-radius: 9999px;
+  background: var(--glass-fill);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+}
+.flow__links a {
+  color: var(--muted); text-decoration: none; white-space: nowrap;
+  font-size: calc(0.95 * var(--u));
+  transition: color var(--fast) var(--ease);
+}
+.flow__links a:hover { color: var(--heading); }
+
+/* ปุ่มเม็ดยาสีขาว (จองพื้นที่ / เข้าสู่ระบบ) */
+.flow__pill {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  height: calc(2.75 * var(--u)); padding: 0 calc(1.375 * var(--u));
+  border: 0; border-radius: 9999px;
+  background: var(--pill); color: var(--pill-fg);
+  font-family: var(--f-body); font-weight: 500; font-size: calc(0.95 * var(--u)); line-height: 1;
+  text-decoration: none; white-space: nowrap; cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: background var(--fast) var(--ease);
+}
+.flow__pill:hover { background: rgba(250, 247, 241, 0.85); }
+.flow__pill:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--base), 0 0 0 4px rgba(255, 255, 255, 0.75); }
+.flow__pill:disabled { opacity: 0.7; cursor: progress; }
+
+/* ---------- คอลัมน์กลาง ---------- */
+.flow__center {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  width: 100%; max-width: calc(52 * var(--u));
+  margin-inline: auto;
+  padding: calc(1.5 * var(--u)) calc(2.5 * var(--u)) calc(2 * var(--u));
+}
+.flow__badge {
+  display: inline-flex; align-items: center;
+  margin: 0; padding: calc(0.4 * var(--u)) calc(0.95 * var(--u));
+  border: 1px solid var(--glass-border); border-radius: 9999px;
+  background: var(--glass-fill);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  color: var(--muted); font-size: calc(0.82 * var(--u)); line-height: 1.4;
+}
+.flow .flow__h {
+  --wy: 26px; --wdur: 720ms;
+  margin-top: calc(1.5 * var(--u));
+  max-width: calc(46 * var(--u));
+  font-family: var(--f-display); font-weight: 500;
+  font-size: calc(5 * var(--u)); line-height: 1.2; letter-spacing: 0;
+  color: var(--heading);
+}
+.flow__sub {
+  --wy: 14px; --wdur: 600ms;
+  margin: calc(1.1 * var(--u)) 0 0;
+  max-width: calc(38 * var(--u));
+  font-size: calc(1.15 * var(--u)); line-height: 1.7;
+  color: var(--muted);
+}
+
+/* ---------- ฟอร์ม ---------- */
+.flow__notice:empty { display: none; }
+.flow__notice { width: 100%; max-width: calc(37 * var(--u)); margin-top: calc(1.75 * var(--u)); }
+.flow .demo-notice {
+  align-items: center; text-align: center;
+  border: 1px solid var(--glass-border); border-radius: calc(1.25 * var(--u));
+  background: var(--glass-fill);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  color: var(--heading);
+}
+.flow .demo-notice p { color: var(--muted); }
+.flow .demo-notice code { background: rgba(0, 0, 0, 0.3); border-color: var(--glass-border); color: var(--heading); }
+.flow .demo-notice .btn { border-radius: 9999px; background: var(--pill); color: var(--pill-fg); border-color: var(--pill); }
+
+.flow__form { width: 100%; max-width: calc(37 * var(--u)); margin-top: calc(2.5 * var(--u)); }
+.flow__bar {
+  display: flex; align-items: center;
+  height: calc(4 * var(--u));
+  padding: 0 calc(0.4 * var(--u)) 0 calc(0.5 * var(--u));
+  border: 1px solid var(--glass-border); border-radius: 9999px;
+  background: var(--glass-fill);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: border-color var(--fast) var(--ease), box-shadow var(--fast) var(--ease);
+}
+.flow__bar:focus-within { border-color: rgba(255, 244, 225, 0.42); box-shadow: 0 0 0 3px rgba(194, 163, 109, 0.22); }
+.flow__field {
+  position: relative;
+  display: flex; align-items: center;
+  flex: 1; min-width: 0; height: calc(100% - 0.7 * var(--u));
+  border-radius: 9999px;
+  transition: background var(--fast) var(--ease);
+}
+.flow__field:focus-within { background: rgba(255, 248, 235, 0.07); }
+.flow__field input {
+  flex: 1; min-width: 0; height: 100%;
+  padding: 0 calc(1 * var(--u));
+  border: 0; outline: none; background: transparent;
+  color: var(--heading);
+  font: 400 max(16px, calc(1.05 * var(--u))) / 1.3 var(--f-body);
+}
+.flow__field input::placeholder { color: var(--muted); opacity: 0.85; }
+/* ไม่ให้สีเติมอัตโนมัติของเบราว์เซอร์ทับแก้ว */
+.flow__field input:-webkit-autofill,
+.flow__field input:-webkit-autofill:hover,
+.flow__field input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--heading);
+  caret-color: var(--heading);
+  transition: background-color 600000s 0s, color 600000s 0s;
+}
+.flow__sep { flex: none; width: 1px; height: 45%; background: var(--glass-border); }
+.flow__eye {
+  flex: none; margin-right: calc(0.5 * var(--u)); padding: calc(0.3 * var(--u)) calc(0.55 * var(--u));
+  border: 0; border-radius: 9999px; background: transparent; cursor: pointer;
+  color: var(--muted); font-size: calc(0.8 * var(--u));
+  transition: color var(--fast) var(--ease), background var(--fast) var(--ease);
+}
+.flow__eye:hover { color: var(--heading); background: rgba(255, 248, 235, 0.08); }
+.flow__eye:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.7); outline-offset: 1px; }
+.flow__submit { margin-left: calc(0.35 * var(--u)); }
+.flow__err {
+  margin: calc(0.9 * var(--u)) auto 0;
+  max-width: 44ch;
+  color: #ffb9a6; font-size: calc(0.92 * var(--u)); line-height: 1.6;
+}
+
+/* ---------- บัญชีทดลอง / ผู้ค้าขาจร ---------- */
+.flow__more { display: flex; flex-direction: column; align-items: center; gap: calc(1.1 * var(--u)); margin-top: calc(1.75 * var(--u)); }
+.flow .flow__demo h2 {
+  font-family: var(--f-body); font-weight: 500; letter-spacing: 0;
+  font-size: calc(0.82 * var(--u)); line-height: 1.5; color: var(--heading);
+}
+.flow__demo h2 small { font-weight: 400; color: var(--muted); margin-left: 0.5em; }
+.flow__chips { display: flex; flex-wrap: wrap; justify-content: center; gap: calc(0.5 * var(--u)); margin-top: calc(0.6 * var(--u)); }
+.flow__chip {
+  height: calc(2.2 * var(--u)); padding: 0 calc(0.95 * var(--u));
+  border: 1px solid var(--glass-border); border-radius: 9999px;
+  background: var(--glass-fill); color: var(--muted); cursor: pointer;
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  font-size: calc(0.85 * var(--u));
+  transition: color var(--fast) var(--ease), border-color var(--fast) var(--ease), background var(--fast) var(--ease);
+}
+.flow__chip:hover { color: var(--heading); border-color: rgba(255, 244, 225, 0.4); }
+.flow__chip.is-on { background: var(--pill); border-color: var(--pill); color: var(--pill-fg); }
+.flow__chip:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.75); outline-offset: 2px; }
+.flow__walkin { margin: 0; color: var(--muted); font-size: calc(0.85 * var(--u)); line-height: 1.7; }
+.flow__walkin a { color: var(--heading); text-decoration: none; border-bottom: 1px solid rgba(255, 244, 225, 0.35); transition: border-color var(--fast) var(--ease); }
+.flow__walkin a:hover { border-bottom-color: var(--heading); }
+
+/* ---------- ท้ายหน้า ---------- */
+.flow__foot {
+  position: relative; z-index: 1;
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 0.35em 1.2em;
+  padding: calc(1.5 * var(--u)) calc(2.5 * var(--u));
+  color: var(--muted); font-size: calc(0.78 * var(--u)); line-height: 1.5;
+}
+
+/* ---------- จอเล็ก ---------- */
+@media (max-width: 640px) {
+  .flow__nav { padding: calc(1.1 * var(--u)) calc(1.1 * var(--u)); }
+  .flow__links { display: none; }
+  .flow__pill { height: calc(2.5 * var(--u)); padding: 0 calc(1.1 * var(--u)); font-size: calc(0.88 * var(--u)); }
+  .flow__center { padding: calc(1 * var(--u)) calc(1.1 * var(--u)) calc(1.5 * var(--u)); }
+  .flow .flow__h { font-size: calc(2.5 * var(--u)); margin-top: calc(1.1 * var(--u)); }
+  .flow__sub { font-size: calc(0.95 * var(--u)); max-width: 22em; }
+  .flow__form { margin-top: calc(1.6 * var(--u)); }
+  /* แถบเดียวแตกเป็นสามเม็ดซ้อนกัน */
+  .flow__bar {
+    flex-direction: column; align-items: stretch; gap: calc(0.55 * var(--u));
+    height: auto; padding: 0; border: 0; background: none; box-shadow: none;
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
+  .flow__bar:focus-within { box-shadow: none; }
+  .flow__sep { display: none; }
+  .flow__field {
+    height: calc(3.2 * var(--u));
+    border: 1px solid var(--glass-border);
+    background: var(--glass-fill);
+    -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  }
+  .flow__field:focus-within { background: rgba(255, 248, 235, 0.12); border-color: rgba(255, 244, 225, 0.45); }
+  .flow__field input { padding: 0 calc(1.1 * var(--u)); }
+  .flow__submit { margin: calc(0.2 * var(--u)) 0 0; height: calc(3.2 * var(--u)); font-size: calc(1 * var(--u)); }
+  .flow__demo h2 small { display: block; margin: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flow .rise, .flow__w { opacity: 1; transform: none; transition: none; }
+}

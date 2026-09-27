@@ -20,13 +20,7 @@ const NAV = {
     ['/staff/ai', 'AI วิเคราะห์', 'ML'],
     ['/staff/notifications', 'การแจ้งเตือน', 'D7'],
   ],
-  owner: [
-    ['/owner', 'ภาพรวมรายได้', '6.0'],
-    ['/owner/outstanding', 'ยอดค้างชำระ', '5.0'],
-    ['/owner/rates', 'อัตราค่าบริการ', '1.0'],
-    ['/owner/ai', 'AI วิเคราะห์', 'ML'],
-    ['/owner/notifications', 'การแจ้งเตือน', 'D7'],
-  ],
+  // เจ้าของตลาดใช้ OwnerLayout (เมนูล่างแบบแอปมือถือ) แยกต่างหาก
 };
 const ROLE_NAME = { vendor: 'ผู้ค้าประจำ', staff: 'เจ้าหน้าที่สำนักงาน', owner: 'เจ้าของตลาด' };
 

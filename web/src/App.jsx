@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { useApp } from './ui';
 import Layout, { PublicLayout } from './components/Layout';
+import OwnerLayout from './components/OwnerLayout';
 import Login from './pages/Login';
 import Home from './pages/market/Home';
 import Bills from './pages/vendor/Bills';
@@ -13,8 +14,11 @@ import FollowUp from './pages/staff/FollowUp';
 import Meters from './pages/staff/Meters';
 import Vendors from './pages/staff/Vendors';
 import WalkinAdmin from './pages/staff/WalkinAdmin';
-import Dashboard from './pages/owner/Dashboard';
-import Outstanding from './pages/owner/Outstanding';
+import Today from './pages/owner/Today';
+import Unpaid from './pages/owner/Unpaid';
+import Stalls from './pages/owner/Stalls';
+import More from './pages/owner/More';
+import Messages from './pages/owner/Messages';
 import Rates from './pages/owner/Rates';
 import AI from './pages/shared/AI';
 import Notifications from './pages/shared/Notifications';
@@ -56,12 +60,16 @@ export default function App() {
         <Route path="ai" element={<AI />} />
         <Route path="notifications" element={<Notifications />} />
       </Route>
-      <Route path="/owner" element={<RequireRole role="owner"><Layout /></RequireRole>}>
-        <Route index element={<Dashboard />} />
-        <Route path="outstanding" element={<Outstanding />} />
+      {/* เจ้าของตลาด: หน้าแบบแอปมือถือ เมนูล่าง 4 อัน · หน้าวิเคราะห์ AI เชิงเทคนิคอยู่ฝั่งเจ้าหน้าที่ */}
+      <Route path="/owner" element={<RequireRole role="owner"><OwnerLayout /></RequireRole>}>
+        <Route index element={<Today />} />
+        <Route path="unpaid" element={<Unpaid />} />
+        <Route path="stalls" element={<Stalls />} />
+        <Route path="more" element={<More />} />
         <Route path="rates" element={<Rates />} />
-        <Route path="ai" element={<AI />} />
-        <Route path="notifications" element={<Notifications />} />
+        <Route path="notifications" element={<Messages />} />
+        <Route path="outstanding" element={<Navigate to="/owner/unpaid" replace />} />
+        <Route path="*" element={<Navigate to="/owner" replace />} />
       </Route>
       <Route path="/guide" element={<GuideRedirect />} />
       <Route path="*" element={<Navigate to="/" replace />} />

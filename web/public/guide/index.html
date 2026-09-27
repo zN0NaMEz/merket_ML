@@ -547,6 +547,34 @@ html.lenis, html.lenis body { height: auto; }
   .cal__card[data-i="0"], .cal__card[data-i="1"] { display: flex; }
   .cal__month, .cal__label, .cal__result { white-space: normal; }
 }
+
+/* ---- ตัวเลขขั้นไม่ทับข้อมูลในแผ่น ---- */
+@media (min-width: 640px) {
+  .pl-plate { z-index: 15; }                  /* เส้นกลางวิ่งหลังแผ่น ไม่ขีดทับตัวเลขในบิล */
+  /* พื้นแผ่นทึบสีเดียวกับครีม 10% บนหมึก (#12100d) เส้นกลางจึงไม่โผล่ทะลุ */
+  .pl-plate__fill { background: #282622; }
+}
+@media (min-width: 1024px) {
+  /* แผ่นกลาง: เลขขั้นกับคำอธิบายอยู่ขวาของแผ่นด้วยกัน */
+  .pl-row--centre .pl-copy { left: calc(50% + var(--u) * 395); transform: none; }
+  .pl-row--centre .pl-step { left: calc(50% + var(--u) * 395); transform: translateY(calc(-100% - 0.3em)); }
+}
+@media (min-width: 640px) and (max-width: 1023px) {
+  .pl-row--centre .pl-step { left: calc(50% - var(--u) * 383); transform: translate(-100%, -50%); }
+  .pl-row--centre .pl-copy { left: calc(50% + var(--u) * 375); right: auto; width: calc(50% - var(--u) * 375 - 16px); }
+}
+@media (max-width: 639px) {
+  .pl-step, .pl-row:nth-child(even) .pl-step { position: static; transform: none; margin-top: 1.25rem; font-size: 2.25rem; }
+  .pl-row .pl-copy { margin-top: 0.4rem; }
+}
+/* ---- อัตราค่าบริการ: ป้ายตัดบรรทัดได้ ไม่ชนกัน ตัวเลขอยู่แนวเดียวกัน ---- */
+.tri { gap: 0.75rem; }
+.tri > div { display: flex; flex-direction: column; justify-content: space-between; }
+.tri dt { white-space: normal; }
+/* ---- ผังตลาด: เงาใต้หัวข้อเข้มขึ้น จุดแผงไม่ตีกับตัวหนังสือ ---- */
+@media (min-width: 640px) {
+  .risk__copy::before { width: min(56rem, 80%); height: 72%; background: radial-gradient(115% 95% at 0 0, var(--surface-black) 50%, rgb(18 16 13 / 0.78) 66%, transparent 92%); }
+}
 </style>
 </head>
 <body>
@@ -559,7 +587,6 @@ html.lenis, html.lenis body { height: auto; }
       <section id="overview" class="hero" data-hero aria-labelledby="hero-title">
         <div class="hero__scene" data-scene aria-hidden="true"></div>
         <div class="hero__ramp" aria-hidden="true"></div>
-        <div class="stall-tag" aria-hidden="true"><div class="stall-tag__box"></div><i class="stall-tag__lead"></i></div>
 
         <div class="veil" role="status" aria-label="กำลังโหลด">
           <div class="veil__content">
@@ -1399,544 +1426,13 @@ function contourCanvas(cv, { color, alpha = CONTOUR.LINE_OPACITY }) {
 }
 
 /* =====================================================================
-   hero — ฉาก (รอบนี้เป็นผังตลาด 2D ตามแบบ fallback, รอบที่ 2 จะเป็น WebGL)
+   hero — พื้นหลังเส้น contour บนกระดาษ (ไม่มีผังตลาด 3 มิติแล้ว)
    ===================================================================== */
-function createPlanScene(host) {
+function createContourScene(host) {
   const contour = document.createElement("canvas");
-  const plan = document.createElement("canvas");
-  host.append(contour, plan);
+  host.append(contour);
   contourCanvas(contour, { color: COLORS.contourLight });
-
-  const ctx = plan.getContext("2d");
-  const draw = () => {
-    const ratio = fitCanvas(plan);
-    const w = plan.clientWidth, h = plan.clientHeight;
-    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-    ctx.clearRect(0, 0, w, h);
-    // เต็มจอ: วางตลาดไว้กลางระหว่างชื่อกับแผงข้อมูล · ต่ำกว่า xl: ตลาดอยู่ 65% ล่างของบล็อก
-    const box = MQ.xl.matches ? { x: w * 0.34, y: h * 0.16, w: w * 0.44, h: h * 0.68 }
-      : MQ.lg.matches ? { x: w * 0.46, y: h * 0.14, w: w * 0.52, h: h * 0.52 }
-      : { x: w * 0.04, y: h * 0.62, w: w * 0.92, h: h * 0.28 };
-    const pad = 40;
-    const s = Math.min(box.w / (PLAN.w + pad * 2), box.h / (PLAN.h + pad * 2));
-    const ox = box.x + (box.w - PLAN.w * s) / 2 - PLAN.x * s;
-    const oy = box.y + (box.h - PLAN.h * s) / 2 - PLAN.y * s;
-    // เส้นขอบโซนแบบประ + ชื่อโซน
-    ctx.save();
-    ctx.setLineDash([4, 4]);
-    ctx.strokeStyle = COLORS.foreground;
-    ctx.globalAlpha = 0.25;
-    ctx.lineWidth = 1;
-    ctx.font = `500 ${Math.max(10, 12 * s * 1.6)}px Anuphan, sans-serif`;
-    ctx.fillStyle = COLORS.foreground;
-    for (const zone of ZONES) {
-      const r = zone.rect, m = 10;
-      ctx.strokeRect(ox + (r.x - m) * s, oy + (r.y - m) * s, (r.w + m * 2) * s, (r.h + m * 2) * s);
-      ctx.globalAlpha = 0.55;
-      ctx.fillText(`${zone.id} · ${zone.name}`, ox + (r.x - m) * s, oy + (r.y - m) * s - 6);
-      ctx.globalAlpha = 0.25;
-    }
-    ctx.restore();
-    // ล็อกขาจรเป็นสีตามสถานะวันนี้ แผงประจำเป็นบรอนซ์จาง
-    for (const st of stalls) {
-      ctx.globalAlpha = st.walkin || st.mine ? 0.9 : 0.3;
-      ctx.fillStyle = toneOf(st, false);
-      ctx.fillRect(ox + st.x * s, oy + st.y * s, st.w * s, st.h * s);
-    }
-    ctx.globalAlpha = 1;
-  };
-  new ResizeObserver(draw).observe(plan);
-  addEventListener("guide:data", draw);
-  const ready = document.fonts.ready.then(() => { draw(); });
-  return { ready, beginScan() {} };
-}
-
-/* =====================================================================
-   §2 hero scene — WebGL: ตลาดทั้ง 47 แผงแบบ instanced บนพื้นมุมสูง
-   ===================================================================== */
-function webglAvailable() {
-  try {
-    const c = document.createElement("canvas");
-    return !!(c.getContext("webgl2") || c.getContext("webgl"));
-  } catch { return false; }
-}
-/* สี sRGB ตรง ๆ สำหรับ ShaderMaterial ที่เขียนค่าออกไปโดยไม่แปลง ให้พื้นตรงกับกระดาษของหน้าเป๊ะ */
-const srgb = (hex) => {
-  const n = parseInt(hex.replace("#", ""), 16);
-  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
-};
-const GLSL_FIELD = /* glsl */ `
-float field(vec2 p, float t) {
-  float f = sin(p.x * 1.0 + t * 0.6) * 0.5;
-  f += sin(p.y * 0.85 - t * 0.45) * 0.45;
-  f += sin((p.x + p.y) * 0.65 + t * 0.35) * 0.35;
-  f += sin((p.x - p.y) * 0.95 - t * 0.55) * 0.25;
-  return f * 0.5 + 0.5;
-}`;
-
-async function createHeroScene(host) {
-  const THREE = await import("three");
-  const hero = host.closest("[data-hero]");
-  const coarse = matchMedia("(pointer: coarse)");
-  const canHover = matchMedia("(hover: hover)");
-  const tierOf = () => {
-    const w = innerWidth;
-    if (w < 768 || (coarse.matches && w < 1024)) return "mobile";
-    if (coarse.matches || w < 1280) return "tablet";
-    return "desktop";
-  };
-  const DPR_CAP = { mobile: 1, tablet: 1.25, desktop: 1.5 };
-  let tier = tierOf();
-
-  const canvas = document.createElement("canvas");
-  host.append(canvas);
-  const renderer = new THREE.WebGLRenderer({ canvas, alpha: false, antialias: tier === "desktop", stencil: false });
-  renderer.setClearColor(new THREE.Color(COLORS.background), 1);
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
-  const CAM_POS = new THREE.Vector3(0, 11, 13), CAM_AIM = new THREE.Vector3(0.6, 0, 0.4);
-  scene.add(new THREE.HemisphereLight(0xffffff, 0xd9dfdc, 1.4));
-  const sun = new THREE.DirectionalLight(0xffffff, 1.1);
-  sun.position.set(-6, 12, 4);
-  scene.add(sun);
-
-  const market = new THREE.Group();
-  scene.add(market);
-  const wx = (x) => (x - 720) / 90, wz = (y) => (y - 400) / 90;
-
-  /* ---- backdrop: contour field เต็ม frustum ด้านหลังทุกอย่าง + เงาของเลนส์บนกระดาษ ---- */
-  const TRAIL_MAX = 48;
-  const backdropUniforms = {
-    uTime: { value: 0 }, uRes: { value: new THREE.Vector2(1, 1) }, uDpr: { value: 1 },
-    uPaper: { value: new THREE.Vector3(...srgb(COLORS.background)) },
-    uLine: { value: new THREE.Vector3(...srgb(COLORS.contourLight)) },
-    uInvViewProj: { value: new THREE.Matrix4() }, uGroupInv: { value: new THREE.Matrix4() },
-    uTrail: { value: Array.from({ length: TRAIL_MAX }, () => new THREE.Vector2()) },
-    uCount: { value: 0 }, uRadius: { value: 1 }, uLens: { value: 0 }, uTrailBox: { value: new THREE.Vector4() },
-  };
-  const backdrop = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
-    uniforms: backdropUniforms,
-    depthTest: false, depthWrite: false,
-    vertexShader: /* glsl */ `void main() { gl_Position = vec4(position.xy, 0.9999, 1.0); }`,
-    fragmentShader: /* glsl */ `
-      precision highp float;
-      uniform float uTime, uDpr, uRadius, uLens;
-      uniform vec2 uRes;
-      uniform vec3 uPaper, uLine;
-      uniform mat4 uInvViewProj, uGroupInv;
-      uniform vec2 uTrail[${TRAIL_MAX}];
-      uniform int uCount;
-      uniform vec4 uTrailBox;
-      ${GLSL_FIELD}
-      float toSrgb(float c) { return c <= 0.0031308 ? 12.92 * c : 1.055 * pow(c, 1.0 / 2.4) - 0.055; }
-      float segDist(vec2 p, vec2 a, vec2 b) {
-        vec2 pa = p - a, ba = b - a;
-        float h = clamp(dot(pa, ba) / max(dot(ba, ba), 1e-6), 0.0, 1.0);
-        return length(pa - ba * h);
-      }
-      void main() {
-        vec2 frag = gl_FragCoord.xy;
-        vec2 p = vec2(frag.x, uRes.y - frag.y) / min(uRes.x, uRes.y) * ${CONTOUR.LINE_SCALE.toFixed(2)};
-        vec2 q = p + vec2(sin(p.y * 0.8 + uTime * 0.7), cos(p.x * 0.7 - uTime * 0.6)) * ${CONTOUR.WAVE_AMOUNT.toFixed(2)};
-        float v = field(q, uTime) * ${CONTOUR.LINE_COUNT.toFixed(2)};
-        // fwidth บนค่าที่ยังไม่ถูก fract ให้เส้นคม 1.4px
-        float pxDist = abs(fract(v) - 0.5) / max(fwidth(v), 1e-5);
-        float line = 1.0 - smoothstep(0.7 * uDpr - 0.5, 0.7 * uDpr + 0.5, pxDist);
-        vec3 col = mix(uPaper, uLine, line * ${CONTOUR.LINE_OPACITY.toFixed(2)});
-        if (uLens > 0.0 && uCount > 0) {
-          vec2 ndc = frag / uRes * 2.0 - 1.0;
-          vec4 n = uInvViewProj * vec4(ndc, -1.0, 1.0); n /= n.w;
-          vec4 f = uInvViewProj * vec4(ndc, 1.0, 1.0); f /= f.w;
-          vec3 o = (uGroupInv * vec4(n.xyz, 1.0)).xyz;
-          vec3 d = (uGroupInv * vec4(f.xyz, 1.0)).xyz - o;
-          if (d.y < -1e-5) {
-            vec2 hit = (o + d * (-o.y / d.y)).xz;
-            if (hit.x > uTrailBox.x && hit.x < uTrailBox.z && hit.y > uTrailBox.y && hit.y < uTrailBox.w) {
-              float m = 1.0 - smoothstep(uRadius * 0.35, uRadius, length(hit - uTrail[0]));
-              for (int i = 0; i < ${TRAIL_MAX - 1}; i++) {
-                if (i >= uCount - 1) break;
-                float w = pow(1.0 - float(i) / ${(TRAIL_MAX - 1).toFixed(1)}, 1.9);
-                m = max(m, w * (1.0 - smoothstep(uRadius * 0.35, uRadius, segDist(hit, uTrail[i], uTrail[i + 1]))));
-              }
-              // แถบระหว่างเส้น contour ใต้เลนส์สลับเทาสองระดับ
-              float band = mod(floor(v - 0.5), 2.0);
-              col = mix(col, vec3(toSrgb(band < 0.5 ? 0.62 : 0.44)), m * uLens);
-            }
-          }
-        }
-        gl_FragColor = vec4(col, 1.0);
-      }`,
-  }));
-  backdrop.frustumCulled = false;
-  backdrop.renderOrder = -1;
-  scene.add(backdrop);
-
-  /* ---- พื้น: เส้นกริดทางเดินทุก 22px เฉพาะในทางเดิน + เส้นประรอบโซน ---- */
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(18, 11), new THREE.ShaderMaterial({
-    transparent: true, depthWrite: false,
-    uniforms: {
-      uGrid: { value: new THREE.Vector3(...srgb(COLORS.soft)) },
-      uInk: { value: new THREE.Vector3(...srgb(COLORS.foreground)) },
-      uZones: { value: ZONES.map((z) => new THREE.Vector4(z.rect.x, z.rect.y, z.rect.w, z.rect.h)) },
-    },
-    vertexShader: /* glsl */ `
-      varying vec2 vArt;
-      void main() {
-        vArt = vec2(720.0 + (uv.x - 0.5) * 1620.0, 400.0 + (0.5 - uv.y) * 990.0);
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }`,
-    fragmentShader: /* glsl */ `
-      precision highp float;
-      uniform vec3 uGrid, uInk;
-      uniform vec4 uZones[${ZONES.length}];
-      varying vec2 vArt;
-      // แผงในโซนเรียงเป็นคู่: คาบแนวนอน = 2 แผง + ช่อง + ทางเดินระหว่างคู่ แนวตั้ง = แผง + ช่อง
-      float inStall(vec2 p, vec4 z) {
-        vec2 l = p - z.xy;
-        if (l.x < 0.0 || l.y < 0.0 || l.x > z.z || l.y > z.w) return 0.0;
-        float mx = mod(l.x, ${(2 * (STALL.w + STALL.gap) + STALL.aisle).toFixed(1)}), my = mod(l.y, ${(STALL.h + STALL.gap).toFixed(1)});
-        float ix = (mx < ${STALL.w.toFixed(1)} || (mx >= ${(STALL.w + STALL.gap).toFixed(1)} && mx < ${(2 * STALL.w + STALL.gap).toFixed(1)})) ? 1.0 : 0.0;
-        float iy = my < ${STALL.h.toFixed(1)} ? 1.0 : 0.0;
-        return ix * iy;
-      }
-      void main() {
-        vec2 p = vArt;
-        vec2 aa = fwidth(p);
-        vec2 k = abs(mod(p + 11.0, 22.0) - 11.0);
-        vec2 gl = 1.0 - smoothstep(aa * 0.5, aa * 1.5, k);
-        float grid = max(gl.x, gl.y);
-        // เส้นกริดอยู่เฉพาะทางเดินในโซน (ในกรอบโซนแต่ไม่ทับแผง)
-        float zone = 0.0;
-        for (int i = 0; i < ${ZONES.length}; i++) {
-          vec2 l = p - (uZones[i].xy - 10.0);
-          zone = max(zone, step(0.0, l.x) * step(0.0, l.y) * step(l.x, uZones[i].z + 20.0) * step(l.y, uZones[i].w + 20.0));
-        }
-        float stall = 0.0;
-        for (int i = 0; i < ${ZONES.length}; i++) stall = max(stall, inStall(p, uZones[i]));
-        float gridA = grid * zone * (1.0 - stall);
-        float outline = 0.0;
-        for (int i = 0; i < ${ZONES.length}; i++) {
-          vec4 z = uZones[i];
-          vec2 half_ = z.zw * 0.5 + 10.0;
-          vec2 q = abs(p - (z.xy + z.zw * 0.5)) - half_;
-          float sd = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0);
-          float along = q.y > q.x ? p.x : p.y;
-          float dash = step(mod(along, 10.0), 6.0);
-          outline = max(outline, (1.0 - smoothstep(max(aa.x, aa.y) * 0.5, max(aa.x, aa.y) * 1.5, abs(sd))) * dash);
-        }
-        float oA = outline * 0.25;
-        float a = oA + gridA * (1.0 - oA);
-        vec3 c = mix(uGrid, uInk, oA / max(a, 1e-4));
-        gl_FragColor = vec4(c, a);
-      }`,
-  }));
-  floor.rotation.x = -Math.PI / 2;
-  market.add(floor);
-
-  /* ---- ชื่อโซน: วาดลง CanvasTexture ครั้งเดียว วางข้างแต่ละโซน ---- */
-  await document.fonts.load('500 44px Anuphan', "โซนอาหารสด");
-  for (const zone of ZONES) {
-    const text = `${zone.id} · ${zone.name}`;
-    const c = document.createElement("canvas");
-    const cx = c.getContext("2d");
-    const font = '500 44px Anuphan, sans-serif';
-    cx.font = font;
-    c.width = Math.ceil(cx.measureText(text).width) + 8;
-    c.height = 64;
-    cx.font = font;
-    cx.textBaseline = "middle";
-    cx.fillStyle = COLORS.foreground;
-    cx.globalAlpha = 0.55;
-    cx.fillText(text, 4, 34);
-    const tex = new THREE.CanvasTexture(c);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    tex.anisotropy = 4;
-    const hgt = 0.2, wid = hgt * (c.width / c.height);
-    const label = new THREE.Mesh(new THREE.PlaneGeometry(wid, hgt),
-      new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, toneMapped: false }));
-    label.rotation.x = -Math.PI / 2;
-    label.position.set(wx(zone.rect.x - 10) + wid / 2, 0.002, wz(zone.rect.y - 10) - hgt / 2 - 0.03);
-    market.add(label);
-  }
-
-  /* ---- แผงทั้ง 140: InstancedMesh ตัวเดียว ฐานอยู่ที่ y 0 ---- */
-  const geo = new THREE.BoxGeometry(1, 1, 1);
-  geo.translate(0, 0.5, 0);
-  const mesh = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0 }), stalls.length);
-  mesh.frustumCulled = false;
-  market.add(mesh);
-  const WHITE = new THREE.Color("#ffffff");
-  // แผงที่ยังนิ่งเป็นหมึกผสมกระดาษ 78% ไม่เป็นก้อนเข้มทับข้อความ
-  const INK = new THREE.Color(COLORS.ink).lerp(new THREE.Color(COLORS.background), 0.78);
-  const BASE_H = 0.12;
-  const S = stalls.map((st) => {
-    const band = new THREE.Color(toneOf(st, false));
-    return {
-      st, x: wx(st.x + st.w / 2), z: wz(st.y + st.h / 2), xn: (st.x - PLAN.x) / PLAN.w,
-      band, glow: band.clone().lerp(WHITE, 0.6), glowing: false,
-      lift: { value: BASE_H, velocity: 0, precision: 0.001, resting: true }, liftTarget: BASE_H,
-      tint: { value: 0, velocity: 0, precision: 0.001, resting: true }, tintTarget: 0,
-    };
-  });
-  const m4 = new THREE.Matrix4(), col = new THREE.Color();
-  const writeStall = (i) => {
-    const s = S[i];
-    m4.makeScale(s.st.w / 90, Math.max(0.001, s.lift.value), s.st.h / 90);
-    m4.setPosition(s.x, 0, s.z);
-    mesh.setMatrixAt(i, m4);
-    col.copy(INK).lerp(s.glowing ? s.glow : s.band, clamp(s.tint.value));
-    mesh.setColorAt(i, col);
-  };
-  S.forEach((_, i) => writeStall(i));
-  // ข้อมูลสด (ล็อกว่างวันนี้ แผงของฉัน) มาทีหลัง: คำนวณสีใหม่ทุกแผง
-  addEventListener("guide:data", () => {
-    S.forEach((s, i) => { s.band.set(toneOf(s.st, false)); s.glow.copy(s.band).lerp(WHITE, 0.6); s.liftTarget = -1; writeStall(i); });
-    mesh.instanceMatrix.needsUpdate = true;
-    mesh.instanceColor.needsUpdate = true;
-  });
-
-  /* ---- กล้อง: ≥ xl ตามค่าในสเปก · ต่ำกว่า xl ถอย 15% แล้วเลื่อนภาพให้ตลาดอยู่ 65% ล่าง (lg ดันไปขวา) ---- */
-  const placeCamera = () => {
-    const w = host.clientWidth || innerWidth, h = host.clientHeight || innerHeight;
-    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, DPR_CAP[tier]));
-    renderer.setSize(w, h, false);
-    camera.aspect = w / h;
-    const dir = CAM_POS.clone().sub(CAM_AIM);
-    let dist = dir.length();
-    dir.normalize();
-    if (!MQ.xl.matches) dist *= 1.15;
-    // ตำแหน่งตลาดบนจอ (สัดส่วนของจอ) และครึ่งความกว้างของตลาดที่ต้องเห็น
-    // lg: ครึ่งขวา ไม่ทับชื่อและแผงข้อมูล · sm–lg: 65% ล่าง · มือถือ: แถบว่างใต้ข้อความ ยอมตัดขอบซ้ายขวาเล็กน้อย
-    const place = MQ.xl.matches ? { cx: 0.5, cy: 0.5, half: 7 }
-      : MQ.lg.matches ? { cx: 0.74, cy: 0.58, half: 14 }
-      : MQ.sm.matches ? { cx: 0.5, cy: 0.675, half: 7 }
-      : { cx: 0.5, cy: 0.77, half: 5.4 };
-    const halfW = Math.tan(THREE.MathUtils.degToRad(15)) * camera.aspect;
-    dist = Math.max(dist, place.half / halfW);
-    camera.position.copy(CAM_AIM).addScaledVector(dir, dist);
-    camera.lookAt(CAM_AIM);
-    if (MQ.xl.matches) camera.clearViewOffset();
-    else camera.setViewOffset(w, h, -(place.cx - 0.5) * w, -(place.cy - 0.5) * h, w, h);
-    camera.updateProjectionMatrix();
-    const size = renderer.getDrawingBufferSize(new THREE.Vector2());
-    backdropUniforms.uRes.value.copy(size);
-    backdropUniforms.uDpr.value = renderer.getPixelRatio();
-    dirty = true;
-  };
-
-  /* ---- ตัวชี้: lerp 0.17 ต่อเฟรม, ฉายลงพื้นด้วย raycast ในพิกัดของกลุ่มตลาด ---- */
-  const ptr = new THREE.Vector2(), smooth = new THREE.Vector2(), prevNdc = new THREE.Vector2();
-  const tiltA = new THREE.Vector2(), tiltB = new THREE.Vector2();
-  let hasMouse = false;
-  const raycaster = new THREE.Raycaster(), floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-  const inv = new THREE.Matrix4(), localRay = new THREE.Ray(), hit = new THREE.Vector3(), tmp = new THREE.Vector3();
-  const floorPoint = (ndc) => {
-    raycaster.setFromCamera(ndc, camera);
-    inv.copy(market.matrixWorld).invert();
-    localRay.copy(raycaster.ray).applyMatrix4(inv);
-    return localRay.intersectPlane(floorPlane, hit) ? { x: hit.x, z: hit.z } : null;
-  };
-  const toNdc = (x, y, z, out) => {
-    tmp.set(x, y, z);
-    market.localToWorld(tmp);
-    tmp.project(camera);
-    return out.set(tmp.x, tmp.y);
-  };
-  const parkAtHub = () => {
-    market.updateMatrixWorld();
-    toNdc(wx(HUB.x), 0, wz(HUB.y), ptr);
-    smooth.copy(ptr);
-    prevNdc.copy(ptr);
-  };
-  addEventListener("pointermove", (e) => {
-    if (e.pointerType !== "mouse") return;
-    const r = canvas.getBoundingClientRect();
-    ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
-    hasMouse = true;
-  }, { passive: true });
-  document.documentElement.addEventListener("mouseleave", () => { hasMouse = false; });
-
-  /* ---- เลนส์: เส้นทาง 48 จุดล่าสุด แต่ละช่วงถ่วง (1 - i/47)^1.9 รัศมีตาม pace ---- */
-  const trail = [];
-  let pace = 0;
-  const smoothstep = (a, b, x) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
-  const segDist = (px, pz, a, b) => {
-    const bx = b.x - a.x, bz = b.z - a.z, ax = px - a.x, az = pz - a.z;
-    const hh = clamp((ax * bx + az * bz) / Math.max(bx * bx + bz * bz, 1e-6));
-    return Math.hypot(ax - bx * hh, az - bz * hh);
-  };
-  const lensAt = (x, z, r) => {
-    const n = trail.length;
-    if (!n) return 0;
-    const inner = r * 0.35;
-    if (1 - smoothstep(inner, r, Math.hypot(x - trail[0].x, z - trail[0].z)) > 0.08) return 1;
-    for (let i = 0; i < n - 1; i++) {
-      const w = Math.pow(1 - i / (TRAIL_MAX - 1), 1.9);
-      if (w <= 0.08) break;
-      if (w * (1 - smoothstep(inner, r, segDist(x, z, trail[i], trail[i + 1]))) > 0.08) return 1;
-    }
-    return 0;
-  };
-  /* จอสัมผัส: เลนส์เดินวนทีละโซน A → F โซนละ 2 วินาที */
-  const SWEEP = ZONES.map((z) => ({ x: wx(z.rect.x + z.rect.w / 2), z: wz(z.rect.y + z.rect.h / 2) }));
-  const sweepAt = (ms) => {
-    const n = SWEEP.length, period = 2000 * n;
-    const u = ((ms % period) / period) * n, i = Math.floor(u), k = EASE.inOutSine(u - i);
-    const a = SWEEP[i], b = SWEEP[(i + 1) % n];
-    return { x: lerp(a.x, b.x, k), z: lerp(a.z, b.z, k) };
-  };
-
-  /* ---- ป้ายแผง ---- */
-  const tag = hero.querySelector(".stall-tag");
-  const tagBox = tag.querySelector(".stall-tag__box");
-  let tagIndex = -1, tagShow = 0;
-  const tagSpring = new Spring(0, C.ITEM, (v) => { tagShow = v; tag.style.opacity = clamp(v); }, 0.001);
-  const tagNdc = new THREE.Vector2();
-  const setTag = (i) => {
-    const st = S[i].st;
-    tagBox.innerHTML = tagOf(st);
-  };
-
-  /* ---- การสแกนตอนเปิดหน้า ---- */
-  let scanF = null, lensOn = false, lensFade = 0;
-  const beginScan = () => {
-    if (REDUCED) return;
-    tween({
-      from: -0.2, to: 1.2, duration: 2800, easing: EASE.inOutSine,
-      onUpdate: (f) => { scanF = f; },
-      onDone: () => { scanF = null; lensOn = true; },
-    });
-  };
-
-  /* ---- เฟรม ---- */
-  const YAW = THREE.MathUtils.degToRad(3), PITCH = THREE.MathUtils.degToRad(2);
-  const started = performance.now();
-  let dirty = true;
-  const frame = (time, rawDt) => {
-    const dt = Math.min(rawDt, 64);
-    const idle = !canHover.matches;
-    // เมาส์: เลนส์เริ่มหลังขยับเมาส์ครั้งแรก · จอสัมผัส: เลนส์เดินวนเอง
-    const lensLive = lensOn && !REDUCED && tier !== "mobile" && (idle || hasMouse);
-
-    if (!REDUCED) {
-      if (!hasMouse && idle) parkAtHubTarget();
-      smooth.lerp(ptr, 0.17);
-      tiltA.lerp(smooth, 0.17);
-      tiltB.lerp(tiltA, 0.17);
-      market.rotation.set(-tiltB.y * PITCH, tiltB.x * YAW, 0);
-      market.position.set(0.02 * tiltB.x, 0, -0.02 * tiltB.y);
-    }
-    market.updateMatrixWorld();
-
-    if (lensLive) {
-      let p = null;
-      const ndc = new THREE.Vector2();
-      if (idle) { p = sweepAt(time - started); toNdc(p.x, 0, p.z, ndc); }
-      else { p = floorPoint(smooth); ndc.copy(smooth); }
-      const speed = ndc.distanceTo(prevNdc);
-      prevNdc.copy(ndc);
-      const target = Math.min(1, speed / 0.029);
-      pace += (target - pace) * (target > pace ? 0.09 : 0.205);
-      if (p) { trail.unshift(p); if (trail.length > TRAIL_MAX) trail.length = TRAIL_MAX; }
-      lensFade = Math.min(1, lensFade + dt / 600);
-    } else {
-      trail.length = 0;
-      lensFade = 0;
-    }
-    const radius = 1.1 * lerp(0.35, 1, pace) * (innerWidth >= 640 && innerWidth < 1024 ? 1.2 : 1);
-
-    let moving = false;
-    for (let i = 0; i < S.length; i++) {
-      const s = S[i];
-      let reveal = 0, glowing = false;
-      if (scanF !== null && s.xn < scanF && s.xn >= scanF - 0.55) {
-        reveal = 1;
-        glowing = s.xn >= scanF - 0.06;
-      }
-      if (lensLive && !reveal) reveal = lensAt(s.x, s.z, radius);
-      if (lensLive && i === tagIndex && tagSpring.target === 1) reveal = 1;
-      const liftT = BASE_H + liftOf(s.st) * reveal;
-      let changed = false;
-      if (liftT !== s.liftTarget) { s.liftTarget = liftT; s.lift.resting = false; }
-      if (reveal !== s.tintTarget) { s.tintTarget = reveal; s.tint.resting = false; }
-      if (!s.lift.resting) { stepSpring(s.lift, s.liftTarget, C.LIFT, dt); changed = true; }
-      if (!s.tint.resting) { stepSpring(s.tint, s.tintTarget, C.ROW, dt); changed = true; }
-      if (glowing !== s.glowing) { s.glowing = glowing; changed = true; }
-      if (changed) { writeStall(i); moving = true; }
-    }
-    if (moving) {
-      mesh.instanceMatrix.needsUpdate = true;
-      mesh.instanceColor.needsUpdate = true;
-    }
-
-    // uniforms ของ backdrop
-    const u = backdropUniforms;
-    if (!REDUCED) u.uTime.value = ((time - started) / 1000) * CONTOUR.WAVE_SPEED * TIME_SCALE;
-    u.uInvViewProj.value.multiplyMatrices(camera.matrixWorld, camera.projectionMatrixInverse);
-    u.uGroupInv.value.copy(market.matrixWorld).invert();
-    u.uLens.value = lensLive && innerWidth >= 1024 ? lensFade : 0;
-    u.uCount.value = trail.length;
-    u.uRadius.value = radius;
-    if (trail.length) {
-      let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
-      trail.forEach((t, i) => {
-        u.uTrail.value[i].set(t.x, t.z);
-        x0 = Math.min(x0, t.x); z0 = Math.min(z0, t.z); x1 = Math.max(x1, t.x); z1 = Math.max(z1, t.z);
-      });
-      u.uTrailBox.value.set(x0 - radius, z0 - radius, x1 + radius, z1 + radius);
-    }
-
-    // ป้ายแผงที่ใกล้เคอร์เซอร์ที่สุด (ภายใน 0.5 หน่วย)
-    let near = -1;
-    if (lensLive && !idle && hasMouse && trail.length) {
-      let best = 0.5;
-      for (let i = 0; i < S.length; i++) {
-        const d = Math.hypot(S[i].x - trail[0].x, S[i].z - trail[0].z);
-        if (d < best) { best = d; near = i; }
-      }
-    }
-    if (near >= 0 && near !== tagIndex) { tagIndex = near; setTag(near); }
-    tagSpring.to(near >= 0 ? 1 : 0);
-    if (tagIndex >= 0 && tagShow > 0.001) {
-      const s = S[tagIndex];
-      toNdc(s.x, s.lift.value, s.z, tagNdc);
-      const w = host.clientWidth, h = host.clientHeight;
-      const px = (tagNdc.x + 1) / 2 * w, py = (1 - tagNdc.y) / 2 * h + (1 - tagShow) * 8;
-      tag.style.transform = `translate(${px.toFixed(1)}px, ${py.toFixed(1)}px) translate(-0.5px, -100%)`;
-    }
-
-    if (dirty || moving || !REDUCED) renderer.render(scene, camera);
-    dirty = false;
-  };
-  // จอสัมผัสที่ไม่มีเมาส์: จุดชี้จอดไว้ที่สำนักงานตลาด
-  const hubNdc = new THREE.Vector2();
-  function parkAtHubTarget() { toNdc(wx(HUB.x), 0, wz(HUB.y), hubNdc); ptr.copy(hubNdc); }
-
-  /* ---- วนเรนเดอร์เฉพาะตอน hero อยู่ในจอ แท็บมองเห็น และยังเลื่อนไม่เกิน 1.15 จอ ---- */
-  let inView = true, running = null;
-  const rate = () => (tier === "desktop" ? 0 : 1000 / 60 - 2);
-  const gate = () => {
-    const want = inView && document.visibilityState === "visible" && scrollY <= innerHeight * 1.15;
-    if (want && !running) { dirty = true; running = subscribe(frame, rate); }
-    else if (!want && running) { running(); running = null; }
-  };
-  new IntersectionObserver(([e]) => { inView = e.isIntersecting; gate(); }).observe(hero);
-  document.addEventListener("visibilitychange", gate);
-  addEventListener("scroll", gate, { passive: true });
-
-  const onResize = () => { tier = tierOf(); placeCamera(); if (!hasMouse) parkAtHub(); };
-  new ResizeObserver(onResize).observe(host);
-  coarse.addEventListener("change", onResize);
-  placeCamera();
-  parkAtHub();
-
-  // พร้อมเมื่อ shader คอมไพล์เสร็จ และเรนเดอร์ทิ้งหนึ่งเฟรมแล้ว
-  await renderer.compileAsync(scene, camera);
-  renderer.render(scene, camera);
-  gate();
-  return { ready: Promise.resolve(), beginScan };
+  return { ready: document.fonts.ready, beginScan() {} };
 }
 
 /* minimap ในแผงรอบบิลถัดไป */
@@ -2039,19 +1535,12 @@ function runVeil(scene) {
   Promise.race([scene.ready, timeout]).then(onReady, (e) => { fail("Hero scene", e); onReady(); });
 }
 
-/* ฉาก hero: WebGL ถ้าใช้ได้ ไม่เช่นนั้นผังตลาด 2D (ม่านยกทันที) */
+/* ฉาก hero: พื้นเส้น contour */
 const sceneHost = $("[data-scene]");
 let heroScene = null, scanWanted = false;
 const sceneReady = (async () => {
-  try {
-    if (!webglAvailable()) throw null;
-    heroScene = await createHeroScene(sceneHost);
-  } catch (e) {
-    if (e) fail("Hero scene (WebGL)", e);
-    sceneHost.replaceChildren();
-    heroScene = guard("Hero scene (2D)", () => createPlanScene(sceneHost));
-    await heroScene?.ready;
-  }
+  heroScene = guard("Hero backdrop", () => createContourScene(sceneHost));
+  await heroScene?.ready;
   if (scanWanted) heroScene?.beginScan();
 })();
 runVeil({
@@ -3319,7 +2808,6 @@ guard("Steps", () => {
     const copyIn = rise(r.copy.firstElementChild, { y: 0.75, config: C.COPY });
     inViewOnce(r.li, () => {
       stepIn.play();
-      if (r.st.frame === "centre") settle.to(0.4, 2200 + 26 * r.st.n.length);
       copyIn.to(1, 220);
       guard(`Step visual ${r.st.n}`, () => startVisual(r));
     }, "0% 0% -25% 0%");
@@ -3330,7 +2818,7 @@ guard("Steps", () => {
         if (REDUCED || !MQ.sm.matches) { r.plate.style.top = ""; r.step.style.top = ""; r.copy.style.top = ""; return; }
         const k = 1 - 2 * raw;
         r.plate.style.top = `calc(var(--u) * ${(plateTravel * k).toFixed(2)})`;
-        r.step.style.top = `calc(50% + var(--u) * ${(plateTravel * k).toFixed(2)})`;
+        r.step.style.top = `calc(50% + var(--u) * ${((r.st.frame === "centre" && MQ.lg.matches ? 110 : plateTravel) * k).toFixed(2)})`;
         r.copy.style.top = `calc(50% + var(--u) * ${(110 * k).toFixed(2)})`;
       },
     });
