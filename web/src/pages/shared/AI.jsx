@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { api } from '../../api';
 import { baht, periodLabel, thDate } from '../../format';
 import { Chip, Empty, Loader, PageHead, RISK_NAME, RISK_TONE, SecHead, useApp, useData } from '../../ui';
-import { FactorBars, Meter, MeterScatter, ScoreHistogram, isFlagged } from '../../components/AiCharts';
+import { FactorBars, Meter, MeterStrips, PayForecastChart, ScoreHistogram, UsageBandChart, isFlagged } from '../../components/AiCharts';
 import '../../styles/ai.css';
 
 /*
@@ -58,6 +58,8 @@ function evaluate(rows, model, t) {
 export default function AI() {
   const { toast, bump } = useApp();
   const st = useData(() => api('/ai/overview'));
+  // ตัวอย่างกราฟปกติคู่กับกราฟการทำนาย (โหลดแยก ไม่ให้หน้าหลักต้องรอ)
+  const sc = useData(() => api('/ai/showcase'));
   const [tab, setTab] = useState('risk');
   const [draft, setDraft] = useState(null);
   const [busy, setBusy] = useState('');
@@ -95,12 +97,12 @@ export default function AI() {
           {tab === 'risk' && (
             d.risk.error ? <MlDown message={d.risk.error} />
               : !d.examples.length ? <NeedsRetrain onRetrain={retrain} busy={busy} />
-                : <RiskTab d={d} draft={draft} setDraft={setDraft} />
+                : <RiskTab d={d} draft={draft} setDraft={setDraft} showcase={sc.data?.risk} />
           )}
           {tab === 'meter' && (
             d.anomaly.error ? <MlDown message={d.anomaly.error} />
               : !(d.anomaly.points?.[0]?.length >= 4) ? <NeedsRetrain onRetrain={retrain} busy={busy} />
-                : <MeterTab d={d} draft={draft} setDraft={setDraft} />
+                : <MeterTab d={d} draft={draft} setDraft={setDraft} showcase={sc.data?.meter} />
           )}
         </div>
 
@@ -220,7 +222,7 @@ function SaveBar({ saved, draft, busy, onSave, onReset }) {
 
 /* ---------------- งานที่ 1: ทำนายการจ่ายช้า ---------------- */
 
-function RiskTab({ d, draft, setDraft }) {
+function RiskTab({ d, draft, setDraft, showcase }) {
   const rows = d.examples;
   const m = draft.risk_model;
   const ev = useMemo(() => evaluate(rows, m, draft.risk_high), [rows, m, draft.risk_high]);
@@ -238,6 +240,8 @@ function RiskTab({ d, draft, setDraft }) {
         <Kpi label="ตอนนี้จะเตือนล่วงหน้า" value={`${warnNow.length} ราย`}
           note={warnNow.length ? warnNow.map(o => o.stall_id).join(' · ') : 'ยังไม่มีบิลค้างที่ถึงเกณฑ์'} />
       </div>
+
+      {showcase && <RiskShowcase sc={showcase} draft={draft} />}
 
       <section className="panel">
         <SecHead title="ปรับเกณฑ์การเตือน" sub="ลองกดหรือเลื่อนแล้วดูผลได้ทันที ระบบยังไม่เปลี่ยนจนกว่าจะกดบันทึก" />
@@ -263,6 +267,11 @@ function RiskTab({ d, draft, setDraft }) {
             hint="แสดงเป็นสีเหลืองในหน้าติดตามค้างชำระ ให้เจ้าหน้าที่จับตา ไม่มีการส่งแจ้งเตือน" />
         </div>
 
+        <p className="ai-read">
+          <b>วิธีอ่านกราฟ:</b> บิลทดสอบแต่ละใบถูกจัดลงช่องตามคะแนนที่ AI ให้ (ช่องละ 10%) ตัวเลขบนแท่งคือจำนวนบิล
+          แท่ง<span className="ai-ink-late">สีส้มด้านบน</span>คือบิลที่จ่ายช้าจริง แท่ง<span className="ai-ink-ontime">สีฟ้าด้านล่าง</span>คือจ่ายตรงเวลา
+          · AI ที่ดีจะมีแท่งส้มกองอยู่ทางขวาและแท่งฟ้ากองอยู่ทางซ้าย · ทุกอย่างทางขวาของเส้นเกณฑ์จะได้รับการเตือน
+        </p>
         <ScoreHistogram rows={rows} model={m} high={draft.risk_high} mid={draft.risk_mid} />
 
         <p className="ai-say" aria-live="polite">
@@ -433,9 +442,88 @@ function RiskTech({ d, ev, draft }) {
   );
 }
 
+/* ---------------- ตัวอย่างให้เข้าใจง่าย: กราฟปกติ + กราฟการทำนาย ---------------- */
+
+function RiskShowcase({ sc, draft }) {
+  const card = (c, kind) => {
+    const score = c.target.scores?.[draft.risk_model] ?? c.target.score;
+    const warn = score >= draft.risk_high;
+    const lv = level(score, draft.risk_high, draft.risk_mid);
+    const o = c.target.outcome;
+    const right = warn === o.late;
+    const lateN = c.history.filter(h => h.days_late > 0).length;
+    return (
+      <article className="ai-case" key={kind}>
+        <p className="ai-case__kind">{kind === 'normal' ? 'ตัวอย่างที่ 1 · ผู้ค้าที่จ่ายปกติ' : 'ตัวอย่างที่ 2 · ผู้ค้าที่ AI ทำนายว่าจะจ่ายช้า'}</p>
+        <p className="ai-case__who"><span className="plate">{c.stall_id}</span><strong>{c.vendor}</strong><small>บิล{periodLabel(c.target.period)} · {baht(c.target.total)} บาท</small></p>
+        <PayForecastChart c={c} model={draft.risk_model} high={draft.risk_high} mid={draft.risk_mid} />
+        <p className="ai-case__say">
+          {c.history.length} เดือนก่อนหน้า{lateN ? `จ่ายช้า ${lateN} เดือน` : 'จ่ายตรงเวลาทุกเดือน'} → AI ให้โอกาสจ่ายช้า <b>{pct(score)}</b> ({RISK_NAME[lv]})
+          {' '}จึง<b>{warn ? 'เตือนล่วงหน้า' : 'ไม่ต้องเตือน'}</b>
+        </p>
+        <p className="ai-case__result">
+          <Chip tone={o.late ? 'bad' : 'good'}>ผลจริง: {o.late ? `จ่ายช้า ${o.days_late} วัน` : 'จ่ายตรงเวลา'}</Chip>
+          <Chip tone={right ? 'good' : 'bad'}>{right ? '✓ AI ทายถูก' : '✗ AI ทายพลาด'}</Chip>
+        </p>
+      </article>
+    );
+  };
+  return (
+    <section className="panel">
+      <SecHead title="ดูตัวอย่าง: กราฟปกติกับกราฟการทำนาย"
+        sub="ในแต่ละกราฟ ส่วนซ้ายคือกราฟปกติจากข้อมูลที่เกิดขึ้นจริง ช่องแรเงาขวาคือกราฟการทำนายที่ AI ทำไว้ก่อนถึงวันครบกำหนด แล้วเทียบกับผลที่เกิดขึ้นจริง" />
+      <div className="ai-cases">{card(sc.normal, 'normal')}{card(sc.late, 'late')}</div>
+      <p className="ai-legend ai-legend--cases">
+        <span><i className="ai-swatch v-late-bg" aria-hidden="true" />จ่ายช้า (ความสูง = จำนวนวัน)</span>
+        <span><i className="ai-swatch v-ontime-bg" aria-hidden="true" />จ่ายตรงเวลา</span>
+        <span><i className="ai-swatch ai-swatch--fc" aria-hidden="true" />ช่องการทำนาย: แท่งตั้งคือโอกาสจ่ายช้า 0–100% เส้นขวางคือเกณฑ์เตือน</span>
+      </p>
+    </section>
+  );
+}
+
+function MeterShowcase({ sc, draft }) {
+  const z = draft.z_threshold;
+  const unit = u => (u === 'water' ? 'น้ำ' : 'ไฟ');
+  const n = sc.normal, o = sc.odd;
+  const oFocus = o.series[o.series.length - 1];
+  const band = p => [Math.max(0, Math.round(p.mean - z * p.spread)), Math.round(p.mean + z * p.spread)];
+  const [flo, fhi] = band(oFocus);
+  const zOff = draft.anomaly_method === 'if';
+  return (
+    <section className="panel">
+      <SecHead title="ดูตัวอย่าง: กราฟปกติกับกราฟการทำนาย"
+        sub={`แถบสีอ่อนคือช่วงที่ระบบคาดไว้ว่าค่าควรอยู่ (ค่าเฉลี่ย 12 เดือนก่อนหน้า ± ${z} เท่าของความแกว่งปกติ) ค่าที่จดได้หลุดช่วงนี้ = ระบบทักให้ตรวจซ้ำ`} />
+      {zOff && <p className="banner info">วิธีตรวจที่เลือกอยู่ตอนนี้ใช้แค่คะแนนความแปลกของ AI ไม่ได้ใช้ช่วงนี้ กราฟด้านล่างแสดงไว้ให้เห็นภาพ</p>}
+      <div className="ai-cases">
+        {n && (
+          <article className="ai-case">
+            <p className="ai-case__kind">ตัวอย่างที่ 1 · แผงที่ใช้{unit(n.util)}ปกติ</p>
+            <p className="ai-case__who"><span className="plate">{n.stall_id}</span><strong>ใช้{unit(n.util)}สม่ำเสมอ</strong></p>
+            <UsageBandChart c={n} z={z} />
+            <p className="ai-case__say">
+              ทุกเดือนอยู่ในช่วงปกติ ระบบไม่ทัก · <b>การทำนาย</b>: เดือนหน้าค่าควรอยู่ราว <b>{band(n.next).join('–')} หน่วย</b>
+              {' '}ถ้าจดได้นอกช่วงนี้ระบบจะทักให้ตรวจซ้ำ
+            </p>
+          </article>
+        )}
+        <article className="ai-case">
+          <p className="ai-case__kind">ตัวอย่างที่ 2 · แผงที่ระบบทักว่าผิดปกติ</p>
+          <p className="ai-case__who"><span className="plate">{o.stall_id}</span><strong>รอบ{periodLabel(oFocus.period)}</strong></p>
+          <UsageBandChart c={o} z={z} />
+          <p className="ai-case__say">
+            ระบบคาดไว้ว่าจะใช้{unit(o.util)} <b>{flo}–{fhi} หน่วย</b> แต่จดได้ <b>{oFocus.value} หน่วย</b> จึงทัก · เหตุผล: {o.reason}
+          </p>
+          {o.resolution && <p className="ai-case__result"><Chip tone="good">ผลตรวจ: {o.resolution}</Chip></p>}
+        </article>
+      </div>
+    </section>
+  );
+}
+
 /* ---------------- งานที่ 2: ตรวจค่ามิเตอร์ ---------------- */
 
-function MeterTab({ d, draft, setDraft }) {
+function MeterTab({ d, draft, setDraft, showcase }) {
   const pts = d.anomaly.points;
   const count = useMemo(
     () => pts.filter(p => isFlagged(p, draft.anomaly_method, draft.z_threshold, draft.if_threshold)).length,
@@ -453,6 +541,8 @@ function MeterTab({ d, draft, setDraft }) {
         <Kpi label="สัดส่วนที่ถูกทัก" value={pct(rate)} note={`ถ้าย้อนดูค่าในอดีต ${pts.length} ค่า จะทัก ${count} ค่า`} />
         <Kpi label="ตรวจพบย้อนหลัง" value={`${d.logs.length} ครั้ง`} note="ดูเหตุผลและผลตรวจด้านล่าง" />
       </div>
+
+      {showcase && <MeterShowcase sc={showcase} draft={draft} />}
 
       <section className="panel">
         <SecHead title="ปรับความเข้มงวดในการทัก" sub="ลองกดหรือเลื่อนแล้วจุดบนกราฟจะเปลี่ยนสีทันที ระบบยังไม่เปลี่ยนจนกว่าจะกดบันทึก" />
@@ -492,7 +582,12 @@ function MeterTab({ d, draft, setDraft }) {
             hint={usesIf ? 'ยิ่งตั้งต่ำ ยิ่งทักง่าย · คะแนนปกติส่วนใหญ่อยู่ราว ' + (d.anomaly.score_p50?.toFixed(2) ?? '–') : 'วิธีที่เลือกไม่ได้ใช้เกณฑ์นี้'} />
         </div>
 
-        <MeterScatter points={pts} method={draft.anomaly_method} z={draft.z_threshold} ifThr={draft.if_threshold} current={current} />
+        <p className="ai-read">
+          <b>วิธีอ่านกราฟ:</b> ค่ามิเตอร์ในอดีตทุกค่าถูกวัดสองแบบ ตัวเลขบนแท่งคือจำนวนค่า
+          ค่าที่เลย<b>เส้นเกณฑ์</b>ไปทางขวาของแถบใดแถบหนึ่งจะถูกทัก (<span className="ai-ink-late">สีส้ม</span>)
+          · ลองเลื่อนเกณฑ์แล้วดูว่าแท่งส้มเพิ่มขึ้นหรือลดลง
+        </p>
+        <MeterStrips points={pts} method={draft.anomaly_method} z={draft.z_threshold} ifThr={draft.if_threshold} current={current} />
 
         <p className="ai-say" aria-live="polite">
           ด้วยการตั้งค่านี้ ถ้าย้อนกลับไปดูค่ามิเตอร์ในอดีต {pts.length} ค่า ระบบจะทัก <b>{count} ค่า ({pct(rate)})</b>

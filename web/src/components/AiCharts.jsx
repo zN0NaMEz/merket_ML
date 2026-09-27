@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { TH_M, periodShort } from '../format';
 
 /*
  * กราฟของหน้า AI วาดด้วย SVG/HTML ล้วน
@@ -67,10 +68,10 @@ function Tip({ tip }) {
 export function ScoreHistogram({ rows, model, high, mid }) {
   const [box, W] = useWidth(720);
   const compact = W < 560;
-  const H = compact ? 270 : 300, L = compact ? 34 : 52, R = 14, T = 40, B = 44;
+  const H = compact ? 290 : 320, L = compact ? 34 : 52, R = 14, T = 48, B = 50;
   const pw = W - L - R, ph = H - T - B, y0 = T + ph / 2, half = ph / 2 - 8;
-  const N = 20;
-  const band = pw / N, bw = Math.min(24, band - 6);
+  const N = 10;   // ช่วงละ 10% อ่านง่ายกว่า 20 ช่วง
+  const band = pw / N, bw = Math.min(40, band - 10);
   const svg = useRef(null);
   const [act, setAct] = useState(null);
 
@@ -131,6 +132,9 @@ export function ScoreHistogram({ rows, model, high, mid }) {
               <g key={bn.i} className={dim ? 'is-dim' : ''}>
                 <path d={barPath(bx, y0 - 1, bw, h(bn.late), true)} className="v-late" />
                 <path d={barPath(bx, y0 + 1, bw, h(bn.ok), false)} className="v-ontime" />
+                {/* จำนวนเขียนไว้ที่ปลายแท่ง ไม่ต้องชี้ก็อ่านได้ */}
+                {bn.late > 0 && <text x={bx + bw / 2} y={y0 - h(bn.late) - 5} textAnchor="middle" className="ai-count">{bn.late}</text>}
+                {bn.ok > 0 && <text x={bx + bw / 2} y={y0 + h(bn.ok) + 13} textAnchor="middle" className="ai-count">{bn.ok}</text>}
               </g>
             );
           })}
@@ -228,113 +232,258 @@ export function Meter({ value, label }) {
   );
 }
 
-/* ---------------------------------------------------------------------------
- * ค่ามิเตอร์ในอดีตเทียบค่าปกติของแผงเอง
- * จุดที่จะถูกทักภายใต้การตั้งค่าปัจจุบันเป็นสีดินเผา นอกนั้นเป็นเทา เลื่อนเกณฑ์แล้วจุดเปลี่ยนสีทันที
- * ------------------------------------------------------------------------- */
-const LIM = 1.8;
-const TICKS = [[-1.386, '¼×'], [-0.693, '½×'], [0, 'ปกติ'], [0.693, '2×'], [1.386, '4×']];
-const times = v => {
-  const r = Math.exp(v);
-  return r >= 10 ? `${Math.round(r)} เท่า` : `${r.toFixed(1)} เท่า`;
-};
-
+/* ค่ามิเตอร์หนึ่งค่า p = [น้ำเทียบปกติ, ไฟเทียบปกติ, คะแนนความแปลก, z สูงสุด] จะถูกทักไหมภายใต้การตั้งค่านี้ */
 export function isFlagged(p, method, z, ifThr) {
   if (method === 'z') return p[3] > z;
   if (method === 'if') return p[2] > ifThr;
   return p[3] > z || p[2] > ifThr;
 }
 
-export function MeterScatter({ points, method, z, ifThr, current = [] }) {
-  const [box, W] = useWidth(560);
-  const H = Math.round(Math.min(420, Math.max(300, W * 0.7))), P = W < 480 ? 40 : 50;
-  const clamp = v => Math.max(-LIM, Math.min(LIM, v));
-  const sx = v => P + ((clamp(v) + LIM) / (2 * LIM)) * (W - 2 * P);
-  const sy = v => H - P - ((clamp(v) + LIM) / (2 * LIM)) * (H - 2 * P);
-  const svg = useRef(null);
-  const [act, setAct] = useState(null);
+/* ===========================================================================
+ * ตัวอย่างให้เข้าใจง่าย: "กราฟปกติ" (ข้อมูลที่เกิดขึ้นจริง) ต่อด้วย "กราฟการทำนาย" (ช่องแรเงาด้านขวา)
+ * ใช้แกนเดียวเสมอ ส่วนคาดการณ์แยกเป็นช่องของตัวเอง ไม่ซ้อนแกนที่สอง
+ * ========================================================================= */
 
-  const marked = useMemo(() => points.map(p => ({ p, on: isFlagged(p, method, z, ifThr) })), [points, method, z, ifThr]);
-  const flagged = marked.filter(m => m.on);
+/** ป้ายเดือนบนแกน: ใส่ปีเฉพาะเดือนแรกของกราฟและเดือนมกราคม ถ้าช่องแคบให้เว้นเดือนเว้นเดือน */
+function monthTick(period, i, slot) {
+  if (slot < 40 && i % 2 === 1) return '';
+  const [y, m] = period.split('-').map(Number);
+  return i === 0 || m === 1 ? `${TH_M[m - 1]} ${String(y + 543).slice(2)}` : TH_M[m - 1];
+}
 
-  /* หาจุดที่ใกล้ตัวชี้ที่สุด ไม่ต้องเล็งให้ตรงจุดเล็ก ๆ */
-  const onMove = e => {
-    const c = toView(e, svg.current, W, H);
-    if (!c) return;
-    let best = null, bd = 24 * 24;
-    marked.forEach((m, i) => {
-      const dx = sx(m.p[0]) - c.x, dy = sy(m.p[1]) - c.y, d = dx * dx + dy * dy;
-      if (d < bd) { bd = d; best = i; }
-    });
-    setAct(best);
-  };
+/** ค่าสูงสุดของแกนแบบตัวเลขกลม ๆ */
+function niceMax(v) {
+  const steps = [5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000];
+  const step = steps.find(s => v / s <= 4) || 10000;
+  return Math.max(step, Math.ceil(v / step) * step);
+}
 
-  const a = act == null ? null : marked[act];
-  const tip = a && {
-    left: (sx(a.p[0]) / W) * 100,
-    top: Math.max(2, (sy(a.p[1]) / H) * 100 - 30),
-    lines: [
-      { text: a.on ? 'จะถูกทักให้ตรวจซ้ำ' : 'ผ่าน ไม่ถูกทัก' },
-      { text: `น้ำ ${times(a.p[0])} · ไฟ ${times(a.p[1])} ของค่าปกติ` },
-      { text: `ห่างจากปกติ ${a.p[3].toFixed(1)} เท่าของความแกว่งปกติ` },
-      { text: `ความแปลกของรูปแบบ ${a.p[2].toFixed(2)}` },
-    ],
-  };
-
+/**
+ * ประวัติการจ่ายเงิน 6 เดือน (จ่ายช้ากี่วัน) + ช่องคาดการณ์ของบิลถัดไป
+ * c = { history:[{period, days_late}], target:{period, score, scores} }
+ */
+export function PayForecastChart({ c, model, high, mid }) {
+  const [box, W] = useWidth(520);
+  const H = 260, L = 34, R = 6, T = 40, B = 40;
+  const pw = W - L - R, ph = H - T - B;
+  const fcw = Math.max(112, pw * 0.27), gap = 14;
+  const hw = pw - fcw - gap;
+  const n = c.history.length;
+  const slot = hw / n, bw = Math.min(34, slot - 12);
+  const maxD = niceMax(Math.max(8, ...c.history.map(h => h.days_late || 0)));
+  const y0 = T + ph;
+  const y = d => y0 - (d / maxD) * ph;
+  const score = c.target.scores?.[model] ?? c.target.score;
+  const tone = score >= high ? 'late' : score >= mid ? 'context' : 'ontime';
+  const fx = L + hw + gap;
+  const gx = fx + 18, gy = T + 6, gh = ph - 6;   // แถบวัดโอกาสจ่ายช้า 0–100%
+  const lateMonths = c.history.filter(h => h.days_late > 0).length;
   return (
-    <figure className="ai-chart">
+    <figure className="ai-chart ai-chart--ex">
       <div className="ai-chart__plot" ref={box}>
-        <svg ref={svg} viewBox={`0 0 ${W} ${H}`} className="ai-svg" role="img"
-          aria-label={`ค่ามิเตอร์ในอดีต ${points.length} ค่า ด้วยการตั้งค่านี้จะถูกทัก ${flagged.length} ค่า`}
-          onPointerMove={onMove} onPointerLeave={() => setAct(null)}>
-          <rect x={P} y={P} width={W - 2 * P} height={H - 2 * P} className="ai-frame" />
-          {TICKS.map(([v, t]) => (
+        <svg viewBox={`0 0 ${W} ${H}`} className="ai-svg" role="img"
+          aria-label={`ข้อมูลจริง ${n} เดือน จ่ายช้า ${lateMonths} เดือน · AI คาดว่าบิลถัดไปมีโอกาสจ่ายช้า ${pct(score)}`}>
+          <text x={L} y={16} className="ai-side">ข้อมูลจริง · จ่ายช้ากี่วัน</text>
+          {[0, maxD / 2, maxD].map(t => (
             <g key={t}>
-              <line x1={sx(v)} x2={sx(v)} y1={P} y2={H - P} className={v === 0 ? 'ai-axis' : 'ai-grid'} />
-              <line x1={P} x2={W - P} y1={sy(v)} y2={sy(v)} className={v === 0 ? 'ai-axis' : 'ai-grid'} />
-              <text x={sx(v)} y={H - P + 18} textAnchor="middle" className="ai-tick">{t}</text>
-              <text x={P - 8} y={sy(v) + 4} textAnchor="end" className="ai-tick">{t}</text>
+              <line x1={L} x2={L + hw} y1={y(t)} y2={y(t)} className={t === 0 ? 'ai-axis' : 'ai-grid'} />
+              <text x={L - 6} y={y(t) + 4} textAnchor="end" className="ai-tick">{t}</text>
             </g>
           ))}
-          <text x={W / 2} y={H - 10} textAnchor="middle" className="ai-axis-title">การใช้น้ำ เทียบค่าปกติของแผง →</text>
-          <text x={14} y={H / 2} textAnchor="middle" transform={`rotate(-90 14 ${H / 2})`} className="ai-axis-title">การใช้ไฟ เทียบค่าปกติของแผง →</text>
-          <text x={W - P - 8} y={P + 18} textAnchor="end" className="ai-side">ใช้มากกว่าปกติ</text>
-          <text x={P + 8} y={H - P - 10} className="ai-side">ใช้น้อยกว่าปกติ</text>
+          {c.history.map((h, i) => {
+            const cx = L + slot * i + slot / 2, d = h.days_late || 0;
+            return (
+              <g key={h.period}>
+                {d > 0
+                  ? <path d={barPath(cx - bw / 2, y0, bw, y0 - y(d), true)} className="v-late" />
+                  : <rect x={cx - bw / 2} y={y0 - 5} width={bw} height={5} rx="2" className="v-ontime" />}
+                <text x={cx} y={(d > 0 ? y(d) : y0 - 5) - 6} textAnchor="middle" className="ai-count">{d > 0 ? (slot < 48 ? d : `${d} วัน`) : (slot < 48 ? '✓' : 'ตรง')}</text>
+                <text x={cx} y={y0 + 17} textAnchor="middle" className="ai-tick">{monthTick(h.period, i, slot)}</text>
+              </g>
+            );
+          })}
 
-          {marked.filter(m => !m.on).map((m, i) => (
-            <circle key={`n${i}`} cx={sx(m.p[0])} cy={sy(m.p[1])} r="3" className="v-context ai-dot" />
-          ))}
-          {flagged.map((m, i) => (
-            <circle key={`f${i}`} cx={sx(m.p[0])} cy={sy(m.p[1])} r="5" className="v-late ai-dot" />
-          ))}
-          {current.map(c => (
-            <g key={c.stall_id}>
-              <circle cx={sx(c.x[0])} cy={sy(c.x[1])} r="7" className={`ai-now ${c.anomaly ? 'is-on' : ''}`} />
-              <text x={sx(c.x[0]) + 10} y={sy(c.x[1]) + 4} className="ai-now-label">{c.stall_id}</text>
+          {/* ช่องคาดการณ์: ตอนที่ AI ทำนาย บิลนี้ยังไม่ถึงกำหนด */}
+          <rect x={fx} y={T - 34} width={fcw} height={ph + 34} rx="6" className="ai-fc" />
+          <text x={fx + fcw / 2} y={16} textAnchor="middle" className="ai-fc-title">การทำนาย</text>
+          <rect x={gx} y={gy} width={10} height={gh} rx="5" className="ai-gauge" />
+          <rect x={gx} y={gy + gh * (1 - score)} width={10} height={gh * score} rx="5" className={`v-${tone}`} />
+          <line x1={gx - 5} x2={gx + 15} y1={gy + gh * (1 - high)} y2={gy + gh * (1 - high)} className="ai-thr" />
+          <text x={gx + 20} y={gy + gh * (1 - high) + 4} className="ai-gauge-label">เตือน</text>
+          <text x={fx + fcw - 10} y={T + ph * 0.5} textAnchor="end" className="ai-fc-big">{pct(score)}</text>
+          <text x={fx + fcw - 10} y={T + ph * 0.5 + 18} textAnchor="end" className="ai-fc-small">โอกาสจ่ายช้า</text>
+          <text x={fx + fcw / 2} y={y0 + 17} textAnchor="middle" className="ai-tick">บิล{periodShort(c.target.period)}</text>
+        </svg>
+      </div>
+    </figure>
+  );
+}
+
+/**
+ * การใช้น้ำ/ไฟรายเดือน กับ "ช่วงปกติที่คาดไว้" (ค่าเฉลี่ย 12 เดือนก่อนหน้า ± z × ความแกว่ง)
+ * จุดที่หลุดช่วง = ระบบจะทัก · ช่องขวา (ถ้ามี) = ช่วงที่คาดไว้ของเดือนหน้า
+ */
+export function UsageBandChart({ c, z }) {
+  const [box, W] = useWidth(520);
+  const H = 260, L = 34, R = 6, T = 40, B = 40;
+  const band = p => ({ lo: Math.max(0, p.mean - z * p.spread), hi: p.mean + z * p.spread });
+  const pts = c.series.map(p => { const b = band(p); return { ...p, ...b, out: p.value < b.lo || p.value > b.hi }; });
+  const nx = c.next ? { ...c.next, ...band(c.next) } : null;
+  const pw = W - L - R, ph = H - T - B;
+  const fcw = nx ? Math.max(112, pw * 0.26) : 0, gap = nx ? 14 : 0;
+  const hw = pw - fcw - gap;
+  const slot = hw / pts.length;
+  const vmax = niceMax(Math.max(...pts.map(p => Math.max(p.value, p.hi)), nx ? nx.hi : 0) * 1.1);
+  const y0 = T + ph;
+  const y = v => y0 - (v / vmax) * ph;
+  const xc = i => L + slot * i + slot / 2;
+  const area = `M${pts.map((p, i) => `${xc(i)},${y(p.hi)}`).join('L')}L${pts.map((p, i) => `${xc(i)},${y(p.lo)}`).reverse().join('L')}Z`;
+  const line = pts.map((p, i) => `${xc(i)},${y(p.value)}`).join(' ');
+  const mean = pts.map((p, i) => `${xc(i)},${y(p.mean)}`).join(' ');
+  const unit = c.util === 'water' ? 'น้ำ' : 'ไฟ';
+  const fx = L + hw + gap;
+  const flagged = pts.filter(p => p.out);
+  return (
+    <figure className="ai-chart ai-chart--ex">
+      <div className="ai-chart__plot" ref={box}>
+        <svg viewBox={`0 0 ${W} ${H}`} className="ai-svg" role="img"
+          aria-label={`การใช้${unit}ของแผง ${c.stall_id} ${pts.length} เดือน หลุดช่วงปกติ ${flagged.length} เดือน`}>
+          <text x={L} y={16} className="ai-side">ข้อมูลจริง · ใช้{unit}กี่หน่วย</text>
+          {[0, vmax / 2, vmax].map(t => (
+            <g key={t}>
+              <line x1={L} x2={L + hw} y1={y(t)} y2={y(t)} className={t === 0 ? 'ai-axis' : 'ai-grid'} />
+              <text x={L - 6} y={y(t) + 4} textAnchor="end" className="ai-tick">{Math.round(t)}</text>
             </g>
           ))}
-          {a && <circle cx={sx(a.p[0])} cy={sy(a.p[1])} r="9" className="ai-hover-ring" />}
+          <path d={area} className="ai-band" />
+          <polyline points={mean} className="ai-mean" />
+          <polyline points={line} className="ai-line" />
+          {pts.map((p, i) => (
+            <g key={p.period}>
+              <circle cx={xc(i)} cy={y(p.value)} r={p.out ? 6.5 : 4} className={`ai-dot ${p.out ? 'v-late' : 'v-ink'}`} />
+              <text x={xc(i)} y={y(p.value) - (p.out ? 12 : 9)} textAnchor="middle" className={p.out ? 'ai-count ai-count--strong' : 'ai-count'}>{p.value}</text>
+              <text x={xc(i)} y={y0 + 17} textAnchor="middle" className="ai-tick">{monthTick(p.period, i, slot)}</text>
+            </g>
+          ))}
+          {flagged.map(p => {
+            const i = pts.indexOf(p);
+            const left = xc(i) > L + hw * 0.6;
+            return (
+              <text key={`n${p.period}`} x={xc(i) + (left ? -12 : 12)} y={y(p.value) + 4} textAnchor={left ? 'end' : 'start'} className="ai-note">
+                คาดไว้ {Math.round(p.lo)}–{Math.round(p.hi)} → ทัก
+              </text>
+            );
+          })}
+
+          {nx && (
+            <g>
+              <rect x={fx} y={T - 34} width={fcw} height={ph + 34} rx="6" className="ai-fc" />
+              <text x={fx + fcw / 2} y={16} textAnchor="middle" className="ai-fc-title">การทำนายเดือนหน้า</text>
+              <rect x={fx + 16} y={y(nx.hi)} width={fcw - 32} height={Math.max(4, y(nx.lo) - y(nx.hi))} rx="4" className="ai-band ai-band--fc" />
+              <line x1={fx + 16} x2={fx + fcw - 16} y1={y(nx.mean)} y2={y(nx.mean)} className="ai-mean" />
+              <text x={fx + fcw / 2} y={y(nx.hi) - 22} textAnchor="middle" className="ai-fc-big ai-fc-big--sm">{Math.round(nx.lo)}–{Math.round(nx.hi)}</text>
+              <text x={fx + fcw / 2} y={y(nx.hi) - 6} textAnchor="middle" className="ai-fc-small">หน่วย</text>
+              <text x={fx + fcw / 2} y={y0 + 17} textAnchor="middle" className="ai-tick">{periodShort(nx.period)}</text>
+            </g>
+          )}
         </svg>
-        <Tip tip={tip} />
       </div>
       <figcaption className="ai-legend">
-        <span><i className="ai-dotkey v-late-bg" aria-hidden="true" />จะถูกทัก ({flagged.length})</span>
-        <span><i className="ai-dotkey v-context-bg" aria-hidden="true" />ผ่าน ({points.length - flagged.length})</span>
-        {current.length > 0 && <span><i className="ai-dotkey ai-dotkey--now" aria-hidden="true" />ค่าที่กำลังจดรอบนี้</span>}
+        <span><i className="ai-swatch ai-swatch--band" aria-hidden="true" />ช่วงปกติที่คาดไว้</span>
+        <span><i className="ai-dotkey v-ink-bg" aria-hidden="true" />ค่าที่จดจริง</span>
+        <span><i className="ai-dotkey v-late-bg" aria-hidden="true" />หลุดช่วง = ระบบทัก</span>
+        {nx && <span><i className="ai-swatch ai-swatch--fc" aria-hidden="true" />ช่องการทำนาย</span>}
       </figcaption>
-      <details className="ai-table">
-        <summary>ดูค่าที่จะถูกทักเป็นตาราง ({flagged.length} ค่า)</summary>
-        <div className="tbl-wrap">
-          <table className="tbl">
-            <thead><tr><th>น้ำ เทียบปกติ</th><th>ไฟ เทียบปกติ</th><th className="num">ห่างจากปกติ (z)</th><th className="num">ความแปลก (IF)</th></tr></thead>
-            <tbody>
-              {flagged.map((m, i) => (
-                <tr key={i}><td>{times(m.p[0])}</td><td>{times(m.p[1])}</td><td className="num">{m.p[3].toFixed(1)}</td><td className="num">{m.p[2].toFixed(2)}</td></tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </details>
+    </figure>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+ * ค่ามิเตอร์ในอดีตแบบแถบเดียวต่อเกณฑ์ (แทนกราฟจุดสองแกน)
+ * แถบบน: ห่างจากค่าปกติของแผงกี่เท่าของความแกว่ง (เกณฑ์ z) · แถบล่าง: ความแปลกของรูปแบบ (เกณฑ์ Isolation Forest)
+ * เลยเส้นเกณฑ์ไปทางขวาของแถบใดแถบหนึ่ง = ถูกทัก ตรงกับที่ระบบใช้ตัดสินจริง
+ * ------------------------------------------------------------------------- */
+function Strip({ title, items, lo, hi, step, ticks, thr, thrText, off, offText, markers, fmt }) {
+  const [box, W] = useWidth(640);
+  const H = 176, L = 36, R = 14, T = 44, B = 36;
+  const pw = W - L - R, ph = H - T - B;
+  const nb = Math.round((hi - lo) / step);
+  const x = v => L + ((Math.min(hi, Math.max(lo, v)) - lo) / (hi - lo)) * pw;
+  const bins = useMemo(() => {
+    const b = Array.from({ length: nb }, () => ({ on: 0, off: 0 }));
+    for (const it of items) {
+      const k = Math.min(nb - 1, Math.max(0, Math.floor((it.v - lo) / step)));
+      if (it.on) b[k].on += 1; else b[k].off += 1;
+    }
+    return b;
+  }, [items, lo, step, nb]);
+  const max = Math.max(1, ...bins.map(b => b.on + b.off));
+  const y0 = T + ph, bw = Math.max(4, pw / nb - 4);
+  const hh = c => (c / max) * (ph - 14);
+  // ป้ายเกณฑ์: ถ้าเส้นอยู่ชิดขวา ให้ป้ายอยู่ซ้ายเส้น
+  const flip = x(thr) > W - R - 150;
+  return (
+    <div className={`ai-strip ${off ? 'is-off' : ''}`}>
+      <div className="ai-chart__plot" ref={box}>
+        <svg viewBox={`0 0 ${W} ${H}`} className="ai-svg" role="img" aria-label={`${title} เกณฑ์ ${fmt(thr)}${off ? ' (ไม่ได้ใช้)' : ''}`}>
+          <text x={L} y={16} className="ai-side ai-side--strong">{title}</text>
+          {off && <text x={W - R} y={16} textAnchor="end" className="ai-side">{offText}</text>}
+          <rect x={x(thr)} y={T - 16} width={W - R - x(thr)} height={ph + 16} className="ai-zone" />
+          {bins.map((b, i) => {
+            const bx = L + (i * pw) / nb + 2;
+            const tot = b.on + b.off;
+            return (
+              <g key={i}>
+                <path d={barPath(bx, y0, bw, hh(b.off), true)} className="v-context" />
+                <path d={barPath(bx, y0 - hh(b.off), bw, hh(b.on), true)} className="v-late" />
+                {tot > 0 && <text x={bx + bw / 2} y={y0 - hh(tot) - 4} textAnchor="middle" className="ai-count">{tot}</text>}
+              </g>
+            );
+          })}
+          <line x1={L} x2={W - R} y1={y0} y2={y0} className="ai-axis" />
+          {ticks.map(t => <text key={t} x={x(t)} y={y0 + 16} textAnchor="middle" className="ai-tick">{fmt(t)}</text>)}
+          <line x1={x(thr)} x2={x(thr)} y1={T - 20} y2={y0 + 4} className="ai-thr" />
+          <text x={x(thr) + (flip ? -6 : 6)} y={T - 8} textAnchor={flip ? 'end' : 'start'} className="ai-thr-label">{thrText}</text>
+          {markers.map(m => (
+            <g key={m.id}>
+              <path d={`M${x(m.v)},${y0 - 2}l-6,-10h12z`} className={m.on ? 'v-late' : 'v-ink'} />
+              <text x={x(m.v)} y={y0 - 16} textAnchor="middle" className="ai-now-label">{m.id}</text>
+            </g>
+          ))}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+export function MeterStrips({ points, method, z, ifThr, current = [] }) {
+  const items = useMemo(() => points.map(p => ({ z: p[3], s: p[2], on: isFlagged(p, method, z, ifThr) })), [points, method, z, ifThr]);
+  const flagged = items.filter(i => i.on).length;
+  const zHi = Math.max(6, Math.ceil(z) + 1);
+  const sVals = items.map(i => i.s);
+  const sLo = Math.min(0.35, Math.floor(Math.min(...sVals) * 20) / 20);
+  const sHi = Math.max(0.8, Math.ceil(Math.max(...sVals, ifThr) * 20) / 20);
+  const cur = current.filter(c => c.if_score != null).map(c => ({
+    id: c.stall_id, on: c.anomaly, s: c.if_score,
+    z: Math.max(Math.abs(c.z_water ?? 0), Math.abs(c.z_elec ?? 0), Math.abs(c.peer_z_water ?? 0) - 1, Math.abs(c.peer_z_elec ?? 0) - 1),
+  }));
+  const zTicks = Array.from({ length: zHi + 1 }, (_, i) => i);
+  const sTicks = [];
+  for (let t = Math.ceil(sLo * 10) / 10; t <= sHi + 1e-9; t += 0.1) sTicks.push(Math.round(t * 10) / 10);
+  return (
+    <figure className="ai-chart">
+      <Strip title="1. ห่างจากค่าปกติของแผงเองกี่เท่า" items={items.map(i => ({ v: i.z, on: i.on }))}
+        lo={0} hi={zHi} step={0.5} ticks={zTicks} thr={z} thrText={`เกณฑ์ ${z} เท่า → ทัก`} fmt={v => `${v}`}
+        off={method === 'if'} offText="วิธีที่เลือกไม่ได้ใช้แถบนี้" markers={cur.map(c => ({ id: c.id, v: c.z, on: c.on }))} />
+      <Strip title="2. รูปแบบน้ำ–ไฟแปลกแค่ไหน (AI ให้คะแนน)" items={items.map(i => ({ v: i.s, on: i.on }))}
+        lo={sLo} hi={sHi} step={0.05} ticks={sTicks} thr={ifThr} thrText={`เกณฑ์ ${ifThr.toFixed(2)} → ทัก`} fmt={v => v.toFixed(1)}
+        off={method === 'z'} offText="วิธีที่เลือกไม่ได้ใช้แถบนี้" markers={cur.map(c => ({ id: c.id, v: c.s, on: c.on }))} />
+      <figcaption className="ai-legend">
+        <span><i className="ai-swatch v-late-bg" aria-hidden="true" />จะถูกทัก ({flagged})</span>
+        <span><i className="ai-swatch v-context-bg" aria-hidden="true" />ผ่าน ({items.length - flagged})</span>
+        <span><i className="ai-swatch ai-swatch--zone" aria-hidden="true" />เลยเส้นเกณฑ์</span>
+        {cur.length > 0 && <span><i className="ai-dotkey v-ink-bg" aria-hidden="true" />ค่าที่กำลังจดรอบนี้</span>}
+      </figcaption>
     </figure>
   );
 }
