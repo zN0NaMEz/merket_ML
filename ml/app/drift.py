@@ -13,7 +13,9 @@
   และทดสอบด้วยการสลับ (permutation test): รวมสองกลุ่มแล้วสุ่มแบ่งใหม่หลายร้อยครั้ง ดูว่า PSI ที่สูงเท่านี้
   เกิดจากความบังเอิญบ่อยแค่ไหน (p_value) ระดับรวมของรายงานนับเฉพาะตัวแปรที่ p < 0.05
 - ฤดูกาล: เดือนเดียวอยู่ฤดูเดียวเสมอ เทียบกับ 12 เดือนจะต่างทุกครั้ง จึงไม่นับ season
-  และการใช้น้ำไฟเทียบกับเดือนเดียวกันของปีก่อนเมื่อมีข้อมูลพอ
+  และทั้งฟีเจอร์ของบิลและการใช้น้ำไฟ เทียบกับเดือนเดียวกันของปีก่อน ๆ เมื่อมีข้อมูลพอ (reference_rows)
+  เช่น bill_ratio เดือน มิ.ย. ต่ำกว่าปกติทุกร้านเพราะเพิ่งพ้นหน้าร้อน เทียบ 12 เดือนได้ PSI 3.8 (p 0.003)
+  แต่เทียบ มิ.ย. ปีก่อนได้ 0.30 (p 0.14) คือไม่ได้เปลี่ยนจริง
 """
 import json
 from statistics import mean
@@ -114,6 +116,19 @@ def shift_period(p: str, months: int) -> str:
     return f"{t // 12:04d}-{t % 12 + 1:02d}"
 
 
+def reference_rows(rows: list[dict], cur_p: str) -> tuple[list[dict], str, str | None, str | None]:
+    """ข้อมูลอ้างอิงของเดือน cur_p: เดือนเดียวกันของปีก่อน ๆ ถ้ามีอย่างน้อย MIN_SAME_MONTH แถว ไม่งั้น 12 เดือนก่อนหน้า
+    คืน (แถว, ชนิด same_month | rolling_12, รอบแรก, รอบสุดท้าย)
+    """
+    same = [r for r in rows if r["period"] < cur_p and r["period"][5:] == cur_p[5:]]
+    if len(same) >= MIN_SAME_MONTH:
+        ps = sorted({r["period"] for r in same})
+        return same, "same_month", ps[0], ps[-1]
+    lo = shift_period(cur_p, -REF_MONTHS)
+    roll = [r for r in rows if lo <= r["period"] < cur_p]
+    return roll, "rolling_12", lo, shift_period(cur_p, -1)
+
+
 def _bill_rows() -> list[dict]:
     """ฟีเจอร์ของบิลรายเดือนทุกใบ (รวมใบที่ยังไม่รู้ผล) คิด ณ วันออกบิลเหมือนตอนให้คะแนน"""
     from .risk import _load_bills     # import ช้าเพื่อให้ทดสอบฟังก์ชัน PSI ได้โดยไม่ต้องโหลดโมเดล
@@ -187,8 +202,7 @@ def build_report() -> dict:
     if not bills:
         return {"status": "empty", "message": "ยังไม่มีบิลรายเดือนพอจะเทียบ"}
     cur_p = max(b["period"] for b in bills)
-    ref_from = shift_period(cur_p, -REF_MONTHS)
-    ref = [b for b in bills if ref_from <= b["period"] < cur_p]
+    ref, ref_kind, ref_from, ref_to = reference_rows(bills, cur_p)
     cur = [b for b in bills if b["period"] == cur_p]
     rl = [b["label"] for b in ref if b["label"] is not None]
     cl = [b["label"] for b in cur if b["label"] is not None]
@@ -200,11 +214,7 @@ def build_report() -> dict:
         mp = max(m["period"] for m in meters)
         mcur = [m for m in meters if m["period"] == mp]
         # เดือนเดียวกันของปีก่อน ๆ ตัดผลของฤดูกาลออก · ถ้ายังมีไม่พอ ใช้ 12 เดือนก่อนหน้าแล้วบอกผู้อ่าน
-        same = [m for m in meters if m["period"] < mp and m["period"][5:] == mp[5:]]
-        if len(same) >= MIN_SAME_MONTH:
-            mref, kind = same, "same_month"
-        else:
-            mref, kind = [m for m in meters if shift_period(mp, -REF_MONTHS) <= m["period"] < mp], "rolling_12"
+        mref, kind, _, _ = reference_rows(meters, mp)
         k = bins_for(len(mcur))
         meter_block = {"period": mp, "reference_kind": kind, "ref_n": len(mref), "cur_n": len(mcur), "excludes_flagged": True,
                        "utilities": {}}
@@ -229,7 +239,7 @@ def build_report() -> dict:
         "method": "psi", "bins": PSI_BINS, "thresholds": {"stable": STABLE, "moderate": MODERATE},
         "permutation": {"n": N_PERM, "alpha": ALPHA},
         "current": {"period": cur_p, "n": len(cur)},
-        "reference": {"from": ref_from, "to": shift_period(cur_p, -1), "n": len(ref)},
+        "reference": {"from": ref_from, "to": ref_to, "n": len(ref), "kind": ref_kind},
         "small_sample": len(cur) < SMALL_N,
         "features": feats,
         "excluded": EXCLUDED,

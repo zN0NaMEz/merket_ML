@@ -82,6 +82,19 @@ class PsiTest(unittest.TestCase):
         self.assertEqual(drift.psi_pvalue(ref, moved, stat, n_perm=100), drift.psi_pvalue(ref, moved, stat, n_perm=100))
         self.assertIsNone(drift.psi_pvalue([1], [2], stat))
 
+    def test_reference_prefers_same_month_last_year(self):
+        rows = [{"period": p} for p in ["2025-06"] * 25 + ["2025-07"] * 25 + ["2026-05"] * 25 + ["2026-06"] * 30]
+        ref, kind, lo, hi = drift.reference_rows(rows, "2026-06")
+        self.assertEqual(kind, "same_month")
+        self.assertEqual((lo, hi, len(ref)), ("2025-06", "2025-06", 25))
+
+    def test_reference_falls_back_to_rolling_12(self):
+        rows = [{"period": p} for p in ["2025-06"] * 5 + ["2026-01"] * 25 + ["2026-05"] * 25 + ["2026-06"] * 30]
+        ref, kind, lo, hi = drift.reference_rows(rows, "2026-06")
+        self.assertEqual(kind, "rolling_12")
+        self.assertEqual((lo, hi), ("2025-06", "2026-05"))
+        self.assertEqual(len(ref), 55)                      # มิ.ย. 68 (5) + ม.ค. 69 (25) + พ.ค. 69 (25) ไม่นับเดือนปัจจุบัน
+
     def test_shift_period(self):
         self.assertEqual(drift.shift_period("2026-09", -12), "2025-09")
         self.assertEqual(drift.shift_period("2026-01", -1), "2025-12")

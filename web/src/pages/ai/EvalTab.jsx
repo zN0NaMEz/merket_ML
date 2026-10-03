@@ -174,7 +174,7 @@ export default function EvalTab() {
     setStarting(true);
     try {
       const r = await api('/ai/evaluations/run', { method: 'POST' });
-      toast(r.already_running ? 'มีการทดสอบที่กำลังรันอยู่แล้ว แสดงความคืบหน้าของชุดนั้น' : 'เริ่มทดสอบแล้ว ใช้เวลาไม่กี่นาที หน้านี้จะอัปเดตเอง');
+      toast(r.already_running ? 'มีการทดสอบที่กำลังรันอยู่แล้ว แสดงความคืบหน้าของชุดนั้น' : 'เริ่มทดสอบแล้ว ใช้เวลาราว 6–8 นาที หน้านี้จะอัปเดตเอง');
       setBatchId(null);
       st.reload();
     } catch (e) {
@@ -220,7 +220,7 @@ export default function EvalTab() {
       {!d && !st.error && <><Skeleton kind="card" /><Skeleton kind="list" /></>}
       {d && !d.batch && !running && (
         <StateBox kind="empty" title="ยังไม่เคยทดสอบ" action={<button type="button" className="btn primary bh-btn" onClick={run} disabled={starting}>รันการทดสอบ</button>}>
-          กด "รันการทดสอบ" ระบบจะสร้างข้อมูลจำลอง 12 ชุดแล้ววัดผลทุกโมเดล ใช้เวลาราว 1–5 นาที (นานขึ้นถ้าระบบ AI เพิ่งตื่น)
+          กด "รันการทดสอบ" ระบบจะสร้างข้อมูลจำลอง 18 ชุดแล้ววัดผลทุกโมเดล บนเซิร์ฟเวอร์แพลนฟรีใช้ราว 6–8 นาที (นานขึ้นถ้าระบบ AI เพิ่งตื่น) ปิดหน้านี้ได้ ระบบรันต่อเอง
         </StateBox>
       )}
 

@@ -41,7 +41,13 @@ function Report({ r }) {
   return (
     <div className="bh-drift">
       <div className="bh-drift__head">
-        <p>เทียบบิลเดือน <b>{r.current.period}</b> ({r.current.n} ใบ) กับ 12 เดือนก่อนหน้า <b>{r.reference.from} ถึง {r.reference.to}</b> ({r.reference.n} ใบ)</p>
+        <p>
+          เทียบบิลเดือน <b>{r.current.period}</b> ({r.current.n} ใบ) กับ
+          {r.reference.kind === 'same_month'
+            ? <> เดือนเดียวกันของปีก่อน <b>{r.reference.from === r.reference.to ? r.reference.from : `${r.reference.from} ถึง ${r.reference.to}`}</b></>
+            : <> 12 เดือนก่อนหน้า <b>{r.reference.from} ถึง {r.reference.to}</b></>}
+          {' '}({r.reference.n} ใบ){r.reference.kind === 'same_month' && ' · ตัดผลของฤดูกาลออก'}
+        </p>
         <LevelTag level={r.overall} />
       </div>
       {r.small_sample && (
