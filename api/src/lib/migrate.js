@@ -12,6 +12,8 @@
  *     - บทบาท admin (ทีมพัฒนา/กรรมการ)
  * v3  เก็บผลตรวจของ AI ณ ตอนที่คนยืนยัน/แก้ค่าไว้กับรายการตรวจ (ใช้สรุปเพื่อปรับเกณฑ์ รอบ 5)
  *     เพราะหลังออกบิล ผลตรวจบนเลขมิเตอร์เป็นของค่าที่แก้แล้ว ไม่ใช่ค่าที่ถูกทัก
+ *     และแก้ is_synthetic ของรอบเทรนก่อน v2: คอลัมน์ใหม่ได้ค่าตั้งต้น false ทำให้รอบเทรนจากข้อมูลจำลองขึ้นป้าย "ข้อมูลจริง"
+ *     แถวรุ่นก่อนดูได้จาก sklearn_version ที่ว่าง (ตัวเขียนรุ่นใหม่ใส่เสมอ) จึงตั้งตามข้อมูลในระบบตอนนี้
  */
 const bcrypt = require('bcryptjs');
 const config = require('../config');
@@ -80,6 +82,8 @@ ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('staff','owner
 
 const SQL_V3 = `
 ALTER TABLE anomaly_reviews ADD COLUMN IF NOT EXISTS ai_snapshot jsonb;
+UPDATE model_runs SET is_synthetic = EXISTS (SELECT 1 FROM vendors WHERE sim_discipline IS NOT NULL)
+  WHERE sklearn_version IS NULL;
 CREATE OR REPLACE VIEW anomaly_reviews_effective AS
   SELECT * FROM anomaly_reviews WHERE undone_at IS NULL;
 `;

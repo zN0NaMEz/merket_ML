@@ -37,6 +37,15 @@ test('ค่าที่ถูกแก้หลัง AI ตรวจ = ผล�
   assert.equal(R.isStale(CHECK, { water: 1100, elec: 5300 }), true);
 });
 
+test('snapshot เก็บเหตุผลและน้ำ/ไฟที่ถูกทัก ณ ตอนตัดสิน', () => {
+  const s = R.snapshotOf({ ...CHECK, reasons: ['ใช้น้ำ 4.3 เท่าของปกติ'], if_level: 'abnormal', method: 'both', extra: 1 });
+  assert.deepEqual(s.reasons, ['ใช้น้ำ 4.3 เท่าของปกติ']);
+  assert.deepEqual(s.flagged_utilities, ['water']);
+  assert.equal(s.z_water, 6.1);
+  assert.equal(s.extra, undefined);
+  assert.equal(R.snapshotOf(null), null);
+});
+
 test('ยืนยันค่าที่เลขน้อยกว่ารอบก่อนไม่ได้', () => {
   assert.match(R.validateReview({ decision: 'confirmed', utility: 'elec' }, { kind: 'misread', prev: 5000, cur: 4963 }), /ยืนยันไม่ได้/);
   assert.equal(R.validateReview({ decision: 'confirmed', utility: 'water' }, { kind: 'high', prev: 1000, cur: 1412 }), null);

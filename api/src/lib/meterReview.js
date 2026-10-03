@@ -62,6 +62,7 @@ function recomputeBand(values, k) {
 const snapshotOf = c => (c ? {
   kind: c.kind ?? null, z_water: c.z_water ?? null, z_elec: c.z_elec ?? null, if_score: c.if_score ?? null,
   if_level: c.if_level ?? null, z_threshold: c.z_threshold ?? null, if_threshold: c.if_threshold ?? null, method: c.method ?? null,
+  reasons: Array.isArray(c.reasons) ? c.reasons.slice(0, 5) : [], flagged_utilities: flaggedUtilities(c),
 } : null);
 
 /**

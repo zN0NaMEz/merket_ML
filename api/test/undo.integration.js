@@ -52,10 +52,15 @@ test('ยืนยัน แก้ค่า และเลิกทำ', { skip
     assert.equal(mid.reviews[0].reviewer, 'เจ้าหน้าที่สำนักงาน');
     assert.ok(mid.reviews[0].undo_left_s > 20);
 
-    // ระหว่างยังเลิกทำได้ ห้ามออกบิล
+    // ระหว่างยังเลิกทำได้ ห้ามออกบิล (ถ้ายังไม่ถึงวันออกบิลของรอบนี้ ระบบปฏิเสธด้วยเหตุผลเรื่องวันก่อน ซึ่งก็ไม่ออกบิลเช่นกัน)
+    const canRecord = (await call('/staff/meters', { token: staff })).data.can_record;
     const issue = await call('/staff/meters/issue', { method: 'POST', token: staff });
-    assert.equal(issue.status, 409, JSON.stringify(issue.data));
-    assert.match(issue.data.error, /ยังเลิกทำได้/);
+    if (canRecord) {
+      assert.equal(issue.status, 409, JSON.stringify(issue.data));
+      assert.match(issue.data.error, /ยังเลิกทำได้/);
+    } else {
+      assert.equal(issue.status, 400, JSON.stringify(issue.data));
+    }
 
     const u1 = await undo(r.data.review_id);
     assert.equal(u1.status, 200, JSON.stringify(u1.data));

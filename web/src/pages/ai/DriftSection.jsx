@@ -18,7 +18,11 @@ const f3 = v => (v == null ? '–' : Number(v).toFixed(3));
 const pct = v => (v == null ? '–' : `${Math.round(v * 100)}%`);
 const CAT_NAME = { stall_type: STALL_TYPES, season: SEASONS };
 
-function LevelTag({ level }) {
+/** chance = permutation test แยกจากความบังเอิญไม่ได้ (p ≥ 0.05) ไม่นับเป็นการเปลี่ยนจริง */
+function LevelTag({ level, chance }) {
+  if (chance && level && level !== 'stable') {
+    return <span className="bh-level bh-level--none" title="PSI สูง แต่ทดสอบแล้วยังแยกจากความบังเอิญไม่ได้">อาจเป็นความบังเอิญ</span>;
+  }
   const l = LEVEL[level];
   if (!l) return <span className="bh-level bh-level--none">ข้อมูลไม่พอ</span>;
   return <span className={`bh-level bh-level--${l.tone}`}><BIcon name={l.icon} size={15} />{l.word}</span>;
@@ -45,19 +49,20 @@ function Report({ r }) {
           <span>เดือนนี้มีข้อมูล {r.current.n} ใบ ซึ่งน้อย ระบบจึงแบ่งช่องให้น้อยลงเพื่อลดความแกว่ง แต่ยังควรดูแนวโน้มหลายเดือนประกอบ</span></p>
       )}
       <table className="bh-table">
-        <thead><tr><th scope="col">ปัจจัย</th><th scope="col">PSI</th><th scope="col">แกว่งปกติราว</th><th scope="col">ระดับ</th><th scope="col">อ้างอิง → เดือนนี้</th></tr></thead>
+        <thead><tr><th scope="col">ปัจจัย</th><th scope="col">PSI</th><th scope="col">แกว่งปกติราว</th><th scope="col">p</th><th scope="col">ระดับ</th><th scope="col">อ้างอิง → เดือนนี้</th></tr></thead>
         <tbody>
           {r.features.map(f => (
             <tr key={f.feature}>
               <td>{featureLabel(f.feature)}</td>
               <td>{f3(f.psi)}</td>
               <td>{f3(f.noise_floor)}</td>
-              <td><LevelTag level={f.level} /></td>
+              <td>{f.p_value ?? '–'}</td>
+              <td><LevelTag level={f.level} chance={f.chance} /></td>
               <td>{f.kind === 'numeric' ? `${f3(f.ref_mean)} → ${f3(f.cur_mean)} (ค่าเฉลี่ย)` : biggestShift(f)}</td>
             </tr>
           ))}
           {(r.excluded || []).map(e => (
-            <tr key={e.feature}><td>{featureLabel(e.feature)}</td><td colSpan={4} className="bh-fine">ไม่นับ: {e.reason}</td></tr>
+            <tr key={e.feature}><td>{featureLabel(e.feature)}</td><td colSpan={5} className="bh-fine">ไม่นับ: {e.reason}</td></tr>
           ))}
           {r.meters && ['water', 'elec'].map(u => (
             <tr key={u}>
@@ -68,7 +73,8 @@ function Report({ r }) {
               </td>
               <td>{f3(r.meters.utilities[u].psi)}</td>
               <td>{f3(r.meters.utilities[u].noise_floor)}</td>
-              <td><LevelTag level={r.meters.utilities[u].level} /></td>
+              <td>{r.meters.utilities[u].p_value ?? '–'}</td>
+              <td><LevelTag level={r.meters.utilities[u].level} chance={r.meters.utilities[u].chance} /></td>
               <td>{f3(r.meters.utilities[u].ref_mean)} → {f3(r.meters.utilities[u].cur_mean)} เท่า</td>
             </tr>
           ))}
@@ -78,6 +84,7 @@ function Report({ r }) {
         สัดส่วนบิลที่จ่ายช้า: อ้างอิง {pct(r.label.ref_rate)} ({r.label.ref_n} ใบ) · เดือนนี้ {r.label.cur_rate == null ? 'ยังไม่รู้ผล (ยังไม่ถึงกำหนด)' : `${pct(r.label.cur_rate)} (${r.label.cur_n} ใบที่รู้ผลแล้ว)`}
         {' · '}PSI &lt; {r.thresholds.stable} คงที่ · {r.thresholds.stable}–{r.thresholds.moderate} เปลี่ยนพอสมควร · &gt; {r.thresholds.moderate} เปลี่ยนมาก
         {' · '}"แกว่งปกติราว" = PSI ที่ได้จากการสุ่มอย่างเดียวเมื่อข้อมูลมีเท่านี้ ถ้า PSI ใกล้ค่านี้ แปลว่ายังแยกไม่ออกจากความบังเอิญ
+        {r.permutation && <>{' · '}p = สัดส่วนที่สุ่มสลับข้อมูล {r.permutation.n} รอบแล้วได้ PSI สูงเท่านี้ ถ้า p ≥ {r.permutation.alpha} ถือว่าอาจเป็นความบังเอิญ และไม่นับในระดับรวม</>}
       </p>
     </div>
   );

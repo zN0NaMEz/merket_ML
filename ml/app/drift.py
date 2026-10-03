@@ -9,7 +9,9 @@
 ข้อระวังที่ทำให้ PSI หลอกตา และวิธีที่ใช้แก้
 - ข้อมูลน้อย: แค่สุ่มเฉย ๆ PSI ก็มีค่าคาดหวังราว (k−1)(1/n_ref + 1/n_cur) เมื่อ k = จำนวนช่อง
   เดือนที่มี 32 บิลกับ 10 ช่อง ได้ราว 0.3 ซึ่งเกินเกณฑ์ "เปลี่ยนมาก" ทั้งที่ไม่มีอะไรเปลี่ยน
-  จึงลดจำนวนช่องตามขนาดข้อมูล (bins_for) และบันทึกระดับความแกว่งปกติ (noise_floor) ไว้ทุกตัวแปร
+  จึงลดจำนวนช่องตามขนาดข้อมูล (bins_for) บันทึกระดับความแกว่งปกติ (noise_floor) ไว้ทุกตัวแปร
+  และทดสอบด้วยการสลับ (permutation test): รวมสองกลุ่มแล้วสุ่มแบ่งใหม่หลายร้อยครั้ง ดูว่า PSI ที่สูงเท่านี้
+  เกิดจากความบังเอิญบ่อยแค่ไหน (p_value) ระดับรวมของรายงานนับเฉพาะตัวแปรที่ p < 0.05
 - ฤดูกาล: เดือนเดียวอยู่ฤดูเดียวเสมอ เทียบกับ 12 เดือนจะต่างทุกครั้ง จึงไม่นับ season
   และการใช้น้ำไฟเทียบกับเดือนเดียวกันของปีก่อนเมื่อมีข้อมูลพอ
 """
@@ -26,6 +28,8 @@ EPS = 1e-4
 STABLE, MODERATE = 0.1, 0.25
 REF_MONTHS = 12
 SMALL_N = 50          # ข้อมูลเดือนเดียวน้อยกว่านี้ PSI แกว่งได้มาก ต้องบอกผู้อ่าน
+N_PERM = 500          # จำนวนรอบของ permutation test (seed คงที่ รายงานซ้ำได้ผลเดิม)
+ALPHA = 0.05
 MIN_SAME_MONTH = 20   # ข้อมูลเดือนเดียวกันของปีก่อนต้องมีอย่างน้อยเท่านี้จึงใช้เป็นตัวอ้างอิงของมิเตอร์
 EXCLUDED = [{"feature": "season", "reason": "เปลี่ยนตามเดือนในปฏิทินอยู่แล้ว เดือนเดียวเทียบกับ 12 เดือนจะต่างเสมอ จึงไม่นับ"}]
 
@@ -75,6 +79,27 @@ def psi_categorical(ref, cur, cats) -> float | None:
     r = np.array([sum(1 for x in ref if x == k) for k in cats], dtype=float) / len(ref)
     c = np.array([sum(1 for x in cur if x == k) for k in cats], dtype=float) / len(cur)
     return _psi(r, c)
+
+
+def psi_pvalue(ref, cur, stat, n_perm: int = N_PERM, seed: int = 0) -> float | None:
+    """p-value ของ PSI ด้วย permutation test · stat(ref, cur) คืน PSI
+    สลับสมาชิกระหว่างสองกลุ่มแบบสุ่ม (คงขนาดเดิม) แล้วนับว่า PSI ที่ได้ ≥ ค่าจริงกี่ครั้ง
+    """
+    ref, cur = [x for x in ref if x is not None], [x for x in cur if x is not None]
+    observed = stat(ref, cur)
+    if observed is None:
+        return None
+    pool = ref + cur
+    rng = np.random.default_rng(seed)
+    hits = 0
+    for _ in range(n_perm):
+        idx = rng.permutation(len(pool))
+        a = [pool[i] for i in idx[:len(ref)]]
+        b = [pool[i] for i in idx[len(ref):]]
+        v = stat(a, b)
+        if v is not None and v >= observed - 1e-12:
+            hits += 1
+    return round((hits + 1) / (n_perm + 1), 4)       # +1 กันค่า 0 (มาตรฐานของ permutation test)
 
 
 def level(p: float | None) -> str | None:
@@ -135,18 +160,22 @@ def _feature_block(ref: list[dict], cur: list[dict]) -> list[dict]:
     for name in NUMERIC:
         rv, cv = [r[name] for r in ref], [r[name] for r in cur]
         p, used = psi_numeric_k(rv, cv, k)
+        pv = psi_pvalue(rv, cv, lambda a, b: psi_numeric(a, b, k))
         feats.append({"feature": name, "kind": "numeric", "psi": None if p is None else round(p, 4), "level": level(p),
+                      "p_value": pv, "chance": pv is not None and pv >= ALPHA,
                       "bins": used, "noise_floor": noise_floor(used, len(rv), len(cv)),
                       "ref_mean": round(float(np.mean(rv)), 3) if rv else None,
                       "cur_mean": round(float(np.mean(cv)), 3) if cv else None})
     rv, cv = [r["stall_type"] for r in ref], [r["stall_type"] for r in cur]
     p = psi_categorical(rv, cv, TYPE_CODES)
+    pv = psi_pvalue(rv, cv, lambda a, b: psi_categorical(a, b, TYPE_CODES))
     present = len(set(rv))
 
     def share(xs):
         return {c: round(sum(1 for x in xs if x == c) / len(xs), 3) for c in TYPE_CODES} if xs else {}
 
     feats.append({"feature": "stall_type", "kind": "categorical", "psi": None if p is None else round(p, 4), "level": level(p),
+                  "p_value": pv, "chance": pv is not None and pv >= ALPHA,
                   "bins": present, "noise_floor": noise_floor(present, len(rv), len(cv)),
                   "ref_share": share(rv), "cur_share": share(cv)})
     assert {f["feature"] for f in feats} | {e["feature"] for e in EXCLUDED} == set(NUMERIC + CATEGORICAL)
@@ -180,21 +209,25 @@ def build_report() -> dict:
         meter_block = {"period": mp, "reference_kind": kind, "ref_n": len(mref), "cur_n": len(mcur), "excludes_flagged": True,
                        "utilities": {}}
         for u in ("water", "elec"):
-            p, used = psi_numeric_k([m[u] for m in mref], [m[u] for m in mcur], k)
+            rv, cv = [m[u] for m in mref], [m[u] for m in mcur]
+            p, used = psi_numeric_k(rv, cv, k)
+            pv = psi_pvalue(rv, cv, lambda a, b: psi_numeric(a, b, k))
             meter_block["utilities"][u] = {
                 "psi": None if p is None else round(p, 4), "level": level(p),
+                "p_value": pv, "chance": pv is not None and pv >= ALPHA,
                 "bins": used, "noise_floor": noise_floor(used, len(mref), len(mcur)),
                 "ref_mean": round(float(np.mean([m[u] for m in mref])), 3) if mref else None,
                 "cur_mean": round(float(np.mean([m[u] for m in mcur])), 3) if mcur else None,
             }
 
-    levels = [f["level"] for f in feats if f["level"]]
-    if meter_block:
-        levels += [v["level"] for v in meter_block["utilities"].values() if v["level"]]
+    # ระดับรวม: นับเฉพาะตัวแปรที่เปลี่ยนเกินความบังเอิญ (p < 0.05) ตัวที่แยกจากความบังเอิญไม่ได้ถือว่าคงที่
+    items = feats + (list(meter_block["utilities"].values()) if meter_block else [])
+    levels = [("stable" if i.get("chance") else i["level"]) for i in items if i["level"]]
     order = {"stable": 0, "moderate": 1, "significant": 2}
     return {
         "status": "ok",
         "method": "psi", "bins": PSI_BINS, "thresholds": {"stable": STABLE, "moderate": MODERATE},
+        "permutation": {"n": N_PERM, "alpha": ALPHA},
         "current": {"period": cur_p, "n": len(cur)},
         "reference": {"from": ref_from, "to": shift_period(cur_p, -1), "n": len(ref)},
         "small_sample": len(cur) < SMALL_N,

@@ -17,8 +17,15 @@
 - Roles: staff, owner, admin (ทีม/กรรมการ). Vendors must never see risk wording ("เสี่ยงสูง") or these pages.
 - The status endpoint is public and must stay free of per-user data; the web fetches it without an Authorization header so the CDN can cache it.
 
+- Meter reviews: a confirm/correct is saved immediately; undo is allowed for the same user within 30 s (DB clock) and only
+  for the latest effective review; rows are never deleted (undone_at). Bills cannot be issued while an undo is still possible.
+- Drift (round 5): ml/app/drift.py computes PSI with adaptive bins, a noise floor and a permutation p-value; the overall level
+  counts only p < 0.05. `season` is excluded (calendar-driven); meter ratios compare the same month last year and skip flagged readings.
+
 ## Tests
 - api: `cd api && npm test` · web: `cd web && npm test` · ml: `cd ml && python -m unittest discover -s tests -v`
+- api integration (test DB only, needs flagged meter drafts in the current period):
+  `cd api && AI_IT_URL=http://localhost:4000/api npm run test:integration`
 
 ## Working agreements
 - Never print secrets (DB URLs, ML_API_KEY, reseed key, tokens). They live in gitignored *.local.txt / .env.local files.

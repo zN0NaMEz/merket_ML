@@ -52,6 +52,19 @@ test('สรุปของเจ้าของ: ภาษาง่าย ไ�
   assert.doesNotMatch(s, /risk_lr|Logistic|folds|cv_scores/);
 });
 
+test('แถวรวมของรุ่นก่อน (risk) ถูกแปลงเป็นของโมเดลที่ขอ', () => {
+  const legacy = { id: 2, model_type: 'risk', trained_at: '2026-09-01T00:00:00Z', n_train: null, is_synthetic: true,
+    metrics: { n_train: 300, n_test: 100, late_rate: 0.4, models: { lr: { auc: 0.78, precision: 0.6 }, rf: { auc: 0.74 } } } };
+  const lr = Q.normalizeRun(legacy, 'risk_lr');
+  assert.equal(lr.legacy, true);
+  assert.equal(lr.metrics.auc, 0.78);
+  assert.equal(lr.n_train, 300);
+  assert.equal(Q.normalizeRun(legacy, 'risk_rf').metrics.auc, 0.74);
+  assert.equal(Q.fullView(lr).test.auc, 0.78);
+  assert.equal(Q.normalizeRun(RUN, 'risk_lr'), RUN);                // แถวใหม่ไม่ถูกแตะ
+  assert.equal(Q.normalizeRun(null, 'risk_lr'), null);
+});
+
 test('แนวโน้มและคำบรรยาย AUC', () => {
   assert.equal(Q.trend(0.80, 0.795).word, 'same');
   assert.equal(Q.trend(0.70, 0.80).word, 'worse');

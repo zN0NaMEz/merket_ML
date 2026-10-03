@@ -16,17 +16,22 @@ const { explainView, listRow } = require('../lib/aiExplain');
 const { UNDO_WINDOW_S, UTILITIES, band, canUndo, checkedValue, flaggedUtilities, isStale, recomputeBand, snapshotOf, validateReview } = require('../lib/meterReview');
 const { periodLabel } = require('../lib/dates');
 const meters = require('../services/meters');
-const { fullView, meanSd, ownerView } = require('../lib/aiQuality');
+const { fullView, meanSd, normalizeRun, ownerView } = require('../lib/aiQuality');
 const { reviewStats } = require('../lib/reviewStats');
 const ml = require('../services/ml');
 
 const RISK_TYPES = ['risk_lr', 'risk_rf'];
 
-/** แถวล่าสุดของ model_runs ตามชนิด (รองรับแถว risk รวมของรุ่นก่อนด้วย) */
+/**
+ * แถวล่าสุดของ model_runs ตามชนิด · โมเดลความเสี่ยงรับแถว 'risk' รวมของรุ่นก่อนด้วย
+ * (ระบบที่อัปเกรดแล้วแต่ยังไม่ได้เทรนใหม่ ยังเห็นผลรอบล่าสุด ไม่ขึ้นว่า "ยังไม่มีโมเดล")
+ */
 async function latestRun(modelType) {
-  return db.one(`SELECT id, model_type, trained_at, metrics, sklearn_version, n_train, n_test, data_from::text AS data_from,
+  const types = RISK_TYPES.includes(modelType) ? [modelType, 'risk'] : [modelType];
+  const row = await db.one(`SELECT id, model_type, trained_at, metrics, sklearn_version, n_train, n_test, data_from::text AS data_from,
       data_to::text AS data_to, is_synthetic, cv_scores, confusion, calibration, global_importance, triggered_by
-    FROM model_runs WHERE model_type = $1 ORDER BY trained_at DESC, id DESC LIMIT 1`, [modelType]);
+    FROM model_runs WHERE model_type = ANY($1) ORDER BY trained_at DESC, id DESC LIMIT 1`, [types]);
+  return normalizeRun(row, modelType);
 }
 
 /** ส่วนสรุปของรอบเทรนที่ใช้ได้ทุกที่ (ไม่มีรายละเอียดหนัก) */
@@ -310,7 +315,7 @@ router.get('/readings/:stall/:period/explain', auth, role('staff', 'owner', 'adm
     };
   }
   const reviews = await db.q(`SELECT r.id, r.utility, r.decision, r.old_value::float, r.new_value::float, r.source, r.reviewed_at, r.undone_at,
-      r.reviewed_by, u.display_name AS reviewer, extract(epoch FROM now() - r.reviewed_at)::float AS age_s
+      r.reviewed_by, r.ai_snapshot, u.display_name AS reviewer, extract(epoch FROM now() - r.reviewed_at)::float AS age_s
     FROM anomaly_reviews r LEFT JOIN users u ON u.id = r.reviewed_by
     WHERE r.stall_id = $1 AND r.period = $2 ORDER BY r.reviewed_at DESC, r.id DESC`, [stall, period]);
   res.json({
@@ -320,6 +325,8 @@ router.get('/readings/:stall/:period/explain', auth, role('staff', 'owner', 'adm
     has_check: Boolean(check), checked_at: check?.checked_at ?? null, method: check?.method ?? ai.anomaly_method,
     ...summarizeCheck(check, cur),
     flagged_utilities: flaggedUtilities(check),
+    // ผลตรวจครั้งที่ทักจริง (เก็บไว้กับรายการตรวจ) ใช้อธิบายค่าที่แก้แล้วออกบิล ซึ่งผลตรวจบนเลขมิเตอร์เป็นของค่าหลังแก้
+    first_flag: reviews.filter(r => r.ai_snapshot?.reasons?.length).at(-1)?.ai_snapshot ?? null,
     flagged: isFlagged(check) || Boolean(reading?.flagged) || Boolean(draft?.ever_flagged),
     if_score: check?.if_score ?? null, if_threshold: check?.if_threshold ?? ai.if_threshold, z_threshold: k,
     window: check?.window ?? (hist.length ? { from: hist[0].period, to: hist.at(-1).period, n: hist.length } : null),

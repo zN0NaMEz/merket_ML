@@ -47,6 +47,23 @@ function trend(cur, prev) {
   return { delta: round(d), word: Math.abs(d) < 0.01 ? 'same' : d > 0 ? 'better' : 'worse' };
 }
 
+/**
+ * แถว model_runs รุ่นก่อน (model_type = 'risk' เก็บผลทั้ง LR และ RF ไว้ใน metrics.models)
+ * แปลงให้หน้าตาเหมือนแถวใหม่ของโมเดลที่ขอ เพื่อให้ระบบที่อัปเกรดแล้วแต่ยังไม่ได้เทรนใหม่ยังแสดงผลได้
+ */
+function normalizeRun(row, modelType) {
+  if (!row || row.model_type !== 'risk') return row;
+  const key = String(modelType || '').replace(/^risk_/, '') || 'lr';
+  const m = row.metrics?.models?.[key] || row.metrics?.models?.lr || {};
+  return {
+    ...row, legacy: true,
+    metrics: { ...row.metrics, ...m },
+    n_train: row.n_train ?? m.n_train ?? row.metrics?.n_train ?? null,
+    n_test: row.n_test ?? m.n_test ?? row.metrics?.n_test ?? null,
+    confusion: row.confusion ?? m.confusion ?? null,
+  };
+}
+
 /** รายละเอียดเต็มสำหรับทีม/กรรมการ */
 function fullView(run) {
   if (!run) return null;
@@ -86,4 +103,4 @@ function ownerView(run, prev) {
   };
 }
 
-module.exports = { meanSd, cvSummary, calibrationGap, aucWord, trend, fullView, ownerView };
+module.exports = { meanSd, cvSummary, calibrationGap, aucWord, trend, fullView, ownerView, normalizeRun };

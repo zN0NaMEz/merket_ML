@@ -70,6 +70,18 @@ class PsiTest(unittest.TestCase):
         self.assertLess(hits_adapt, hits10)
         self.assertLess(hits_adapt / 200, 0.05)
 
+    def test_permutation_pvalue_separates_chance_from_real_shift(self):
+        rng = random.Random(4)
+        ref = [rng.gauss(0, 1) for _ in range(60)]
+        same = [rng.gauss(0, 1) for _ in range(30)]
+        moved = [rng.gauss(1.2, 1) for _ in range(30)]
+        stat = lambda a, b: drift.psi_numeric(a, b, 3)
+        self.assertGreaterEqual(drift.psi_pvalue(ref, same, stat, n_perm=300), drift.ALPHA)
+        self.assertLess(drift.psi_pvalue(ref, moved, stat, n_perm=300), drift.ALPHA)
+        # seed คงที่ = รายงานซ้ำได้ผลเดิม
+        self.assertEqual(drift.psi_pvalue(ref, moved, stat, n_perm=100), drift.psi_pvalue(ref, moved, stat, n_perm=100))
+        self.assertIsNone(drift.psi_pvalue([1], [2], stat))
+
     def test_shift_period(self):
         self.assertEqual(drift.shift_period("2026-09", -12), "2025-09")
         self.assertEqual(drift.shift_period("2026-01", -1), "2025-12")

@@ -34,16 +34,19 @@ function StateTag({ state }) {
  */
 function UndoToast({ toast, onUndo, onClose, owner }) {
   const [left, setLeft] = useState(UNDO_TOAST_MS);
+  const close = useRef(onClose);
+  close.current = onClose;
   useEffect(() => {
     if (!toast) return undefined;
     const end = toast.shownAt + UNDO_TOAST_MS;
+    setLeft(Math.max(0, end - Date.now()));
     const t = setInterval(() => {
       const ms = end - Date.now();
       setLeft(Math.max(0, ms));
-      if (ms <= 0) onClose();
+      if (ms <= 0) close.current();
     }, 200);
     return () => clearInterval(t);
-  }, [toast, onClose]);
+  }, [toast]);
   return createPortal(
     <div className={`bh-undo ${owner ? 'bh-undo--owner' : ''}`} aria-live="polite" role="status">
       {toast && (
@@ -163,6 +166,16 @@ function MeterExplain({ k, onChanged }) {
           <div>
             <p className="bh-verdict__text">AI ทักค่านี้เพราะ</p>
             <ul className="bh-list">{d.reasons.map(r => <li key={r}>{r}</li>)}</ul>
+          </div>
+        </div>
+      )}
+      {d.source === 'reading' && !d.reasons.length && d.first_flag && (
+        <div className="bh-verdict bh-verdict--mid">
+          <BIcon name="warn" size={26} />
+          <div>
+            <p className="bh-verdict__text">ตอนจด AI ทักค่าเดิมเพราะ</p>
+            <ul className="bh-list">{d.first_flag.reasons.map(r => <li key={r}>{r}</li>)}</ul>
+            <p className="bh-fine">ค่าในกราฟเป็นค่าที่ออกบิลจริง (หลังเจ้าหน้าที่ตรวจแล้ว) ดูประวัติการตรวจด้านล่าง</p>
           </div>
         </div>
       )}
