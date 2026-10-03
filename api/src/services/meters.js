@@ -8,6 +8,7 @@ const R = require('../lib/random');
 const { TYPES } = require('../lib/constants');
 const ml = require('./ml');
 const billing = require('./billing');
+const { UNDO_WINDOW_S, flaggedUtilities, snapshotOf } = require('../lib/meterReview');
 
 /** รอบมิเตอร์ที่ต้องจด = เดือนถัดจากบิลรายเดือนล่าสุด */
 async function currentPeriod() {
@@ -38,10 +39,32 @@ async function draftView(includeSim = false) {
   return { period, period_label: D.periodLabel(period), record_from: D.periodEnd(period), can_record: today >= D.periodEnd(period), rows };
 }
 
-async function saveDraft(period, readings) {
+/**
+ * บันทึกค่าที่กรอก · ถ้าแผงนั้นเคยถูก AI ทัก และเจ้าหน้าที่ติ๊ก "ตรวจแล้ว" หรือแก้เลข
+ * ให้ลงประวัติใน anomaly_reviews (source = meters) เหมือนกดจากหน้าเบื้องหลัง AI เพื่อให้ audit log ครบ
+ */
+async function saveDraft(period, readings, userId = null) {
+  const existing = Object.fromEntries((await db.q('SELECT * FROM meter_drafts WHERE period = $1 AND stall_id = ANY($2)',
+    [period, readings.map(r => r.stall_id)])).map(d => [d.stall_id, d]));
   for (const r of readings) {
     const w = Number.isInteger(r.cur_water) ? r.cur_water : null;
     const e = Number.isInteger(r.cur_elec) ? r.cur_elec : null;
+    const old = existing[r.stall_id];
+    if (old?.ever_flagged) {
+      const snap = JSON.stringify(snapshotOf(old.ai_check));
+      const log = (utility, decision, oldV, newV) => db.q(`INSERT INTO anomaly_reviews
+          (stall_id, period, utility, decision, old_value, new_value, prev_ack, source, reviewed_by, ai_snapshot)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,'meters',$8,$9)`, [r.stall_id, period, utility, decision, oldV, newV, old.ack, userId, snap]);
+      const cur = { water: w, elec: e };
+      let changed = false;
+      for (const u of ['water', 'elec']) {
+        if (old[`cur_${u}`] != null && cur[u] != null && old[`cur_${u}`] !== cur[u]) { changed = true; await log(u, 'corrected', old[`cur_${u}`], cur[u]); }
+      }
+      if (!changed && !old.ack && r.ack) {
+        const u = flaggedUtilities(old.ai_check)[0] || 'water';
+        await log(u, 'confirmed', cur[u], cur[u]);
+      }
+    }
     await db.q(`INSERT INTO meter_drafts (stall_id, period, cur_water, cur_elec, ack) VALUES ($1,$2,$3,$4,$5)
       ON CONFLICT (stall_id, period) DO UPDATE SET cur_water = EXCLUDED.cur_water, cur_elec = EXCLUDED.cur_elec,
       ack = EXCLUDED.ack, updated_at = now()`, [r.stall_id, period, w, e, !!r.ack]);
@@ -49,19 +72,24 @@ async function saveDraft(period, readings) {
 }
 
 /** บันทึกค่าที่กรอก แล้วให้ ML ตรวจทุกแผงที่กรอกครบ ผลที่ผิดปกติจะถูกจำไว้เพื่อลง anomaly_logs ตอนออกบิล */
-async function check(readings = []) {
+async function check(readings = [], userId = null) {
   const period = await currentPeriod();
-  if (readings.length) await saveDraft(period, readings);
+  if (readings.length) await saveDraft(period, readings, userId);
   const view = await draftView();
   const filled = view.rows.filter(r => r.cur_water != null && r.cur_elec != null);
   const ai = await settings.ai();
   const results = filled.length
     ? (await ml.checkReadings(period, filled.map(r => ({ stall_id: r.stall_id, cur_water: r.cur_water, cur_elec: r.cur_elec })), ai)).results
     : [];
+  // เก็บผลตรวจทุกแผง (ค่าเฉลี่ย SD z ระดับ Isolation Forest ช่วงข้อมูล) หน้าเบื้องหลัง AI วาดช่วงปกติได้โดยไม่เรียก ML ซ้ำ
+  const checkedAt = new Date().toISOString();
   for (const r of results) {
+    const aiCheck = JSON.stringify({ ...r, method: ai.anomaly_method, checked_at: checkedAt });
     if (r.anomaly) {
-      await db.q('UPDATE meter_drafts SET ever_flagged = true, flag_reason = $1 WHERE stall_id = $2 AND period = $3',
-        [r.reasons.join(' '), r.stall_id, period]);
+      await db.q('UPDATE meter_drafts SET ever_flagged = true, flag_reason = $1, ai_check = $2 WHERE stall_id = $3 AND period = $4',
+        [r.reasons.join(' '), aiCheck, r.stall_id, period]);
+    } else {
+      await db.q('UPDATE meter_drafts SET ai_check = $1 WHERE stall_id = $2 AND period = $3', [aiCheck, r.stall_id, period]);
     }
   }
   return { ...(await draftView()), results, ai };
@@ -108,6 +136,14 @@ async function issueBills(userId) {
   const view = await draftView();
   const { period } = view;
   if (!view.can_record) throw new HttpError(400, `รอบ${view.period_label} ออกบิลได้ตั้งแต่ ${D.thDate(view.record_from)}`);
+  // RodeMap 3.3: ระหว่างที่ยังเลิกทำการยืนยัน/แก้ค่าได้ ห้ามออกบิลจากค่านั้น
+  const pending = await db.q(`SELECT stall_id, ceil(${UNDO_WINDOW_S} - extract(epoch FROM now() - reviewed_at))::int AS wait_s
+    FROM anomaly_reviews WHERE period = $1 AND undone_at IS NULL AND reviewed_at > now() - interval '${UNDO_WINDOW_S} seconds'`, [period]);
+  if (pending.length) {
+    const wait = Math.max(...pending.map(p => p.wait_s), 1);
+    throw new HttpError(409, `มีการยืนยัน/แก้ค่ามิเตอร์ที่ยังเลิกทำได้ (${pending.map(p => p.stall_id).join(', ')}) รออีก ${wait} วินาทีแล้วกดออกบิลอีกครั้ง`,
+      { stalls: pending.map(p => p.stall_id), wait_s: wait });
+  }
   const missing = view.rows.filter(r => r.cur_water == null || r.cur_elec == null);
   if (missing.length) throw new HttpError(422, `ยังไม่ได้กรอกเลขมิเตอร์ ${missing.length} แผง`, { missing: missing.map(r => r.stall_id) });
   const ai = await settings.ai();
@@ -127,9 +163,13 @@ async function issueBills(userId) {
     for (const row of view.rows) {
       const r = chk[row.stall_id], dr = drafts[row.stall_id] || {};
       const flagged = !!dr.ever_flagged || r.anomaly;
-      await t.q(`INSERT INTO meter_readings (stall_id, period, prev_water, cur_water, prev_elec, cur_elec, use_water, use_elec, recorded_on, recorded_by, flagged)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
-        [row.stall_id, period, r.prev_water, row.cur_water, r.prev_elec, row.cur_elec, r.use_water, r.use_elec, today, userId, flagged]);
+      const reading = await t.one(`INSERT INTO meter_readings (stall_id, period, prev_water, cur_water, prev_elec, cur_elec, use_water, use_elec,
+          recorded_on, recorded_by, flagged, ai_check)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
+        [row.stall_id, period, r.prev_water, row.cur_water, r.prev_elec, row.cur_elec, r.use_water, r.use_elec, today, userId, flagged,
+          JSON.stringify({ ...r, method: ai.anomaly_method, checked_at: new Date().toISOString(), ever_flagged: !!dr.ever_flagged })]);
+      // การยืนยัน/แก้ค่าตอนยังเป็นร่าง ผูกกับเลขมิเตอร์จริงตอนนี้
+      await t.q('UPDATE anomaly_reviews SET reading_id = $1 WHERE stall_id = $2 AND period = $3', [reading.id, row.stall_id, period]);
       if (flagged) {
         await t.q(`INSERT INTO anomaly_logs (stall_id, period, detected_on, reason, resolution, if_score, method) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
           [row.stall_id, period, today, dr.flag_reason || r.reasons.join(' '), r.anomaly ? 'ยืนยันค่าที่จด (ตรวจหน้างานแล้ว)' : 'แก้ไขค่าแล้ว', r.if_score, ai.anomaly_method]);
@@ -153,7 +193,7 @@ async function issueBills(userId) {
 
   let high = 0, aiError = null;
   try {
-    await billing.rescoreOpenBills();
+    await billing.rescoreOpenBills(`ออกบิล${D.periodLabel(period)}`);
     const ids = created.map(b => b.id);
     const scored = await db.q(`SELECT b.*, v.sim_discipline FROM bills b JOIN vendors v ON v.id = b.vendor_id WHERE b.id = ANY($1)`, [ids]);
     high = scored.filter(b => b.risk_score >= ai.risk_high).length;
@@ -166,6 +206,10 @@ async function issueBills(userId) {
     }
   } catch (e) {
     aiError = e.message;
+  }
+  // รายงาน drift ของเดือนที่เพิ่งออกบิล (รอบ 5) ถ้า ML ไม่พร้อม ข้ามไปได้ ไม่กระทบการออกบิล
+  if (!aiError) {
+    try { await ml.runDrift(`ออกบิล${D.periodLabel(period)}`); } catch { /* ทีมสร้างรายงานเองได้จากหน้าเบื้องหลัง AI */ }
   }
   const flaggedCount = Object.values(drafts).filter(d => d.ever_flagged).length;
   const summary = `ออกบิล${D.periodLabel(period)} ${created.length} รายการ พบค่ามิเตอร์ผิดปกติ ${flaggedCount} แผง ความเสี่ยงค้างชำระสูง ${high} ราย`;

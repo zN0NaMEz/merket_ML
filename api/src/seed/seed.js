@@ -16,6 +16,7 @@ const { DEFAULT_RATES, DEFAULT_AI } = require('../lib/constants');
 const { generate } = require('./generator');
 const billing = require('../services/billing');
 const ml = require('../services/ml');
+const { migrate, ensureDemoAdmin, VERSION } = require('../lib/migrate');
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const SCHEMA = process.env.SCHEMA_FILE || path.join(__dirname, '../../../db/init/01_schema.sql');
@@ -25,6 +26,7 @@ async function main() {
     try { await db.q('SELECT 1'); break; } catch (e) { if (i > 30) throw e; console.log('รอฐานข้อมูล...'); await sleep(2000); }
   }
   if (fs.existsSync(SCHEMA)) await pool.query(fs.readFileSync(SCHEMA, 'utf8'));
+  await migrate();
   if (process.argv.includes('--if-empty')) {
     const { n } = await db.one('SELECT count(*)::int AS n FROM vendors');
     if (n > 0) { console.log('มีข้อมูลอยู่แล้ว ข้ามการ seed'); return; }
@@ -57,8 +59,10 @@ async function reseed({ dryRun = false, train = true, log = () => {} } = {}) {
     // ล็อกผูกกับ transaction จึงปลดเองเมื่อจบ ใช้ได้แม้ผ่าน connection pooler
     const { ok } = await t.one('SELECT pg_try_advisory_xact_lock($1) AS ok', [RESEED_LOCK]);
     if (!ok) { const e = new Error('กำลังรีเซ็ตข้อมูลอยู่ รอให้รอบก่อนเสร็จก่อน'); e.status = 409; throw e; }
-    await t.q(`TRUNCATE notifications, job_logs, model_runs, anomaly_logs, payment_bills, payments, walkin_bookings, bills,
+    await t.q(`TRUNCATE notifications, job_logs, model_runs, anomaly_reviews, drift_reports, anomaly_logs, payment_bills, payments, walkin_bookings, bills,
       meter_drafts, meter_readings, contracts, users, vendors, stalls, stall_types, settings RESTART IDENTITY CASCADE`);
+    // settings ถูกล้างด้วย ต้องบันทึกเวอร์ชันโครงสร้างกลับ ไม่อย่างนั้น migration จะรันซ้ำโดยไม่จำเป็น
+    await t.q("INSERT INTO settings (key, value) VALUES ('schema_version', $1)", [JSON.stringify({ v: VERSION })]);
     for (const s of g.stall_types) await t.q('INSERT INTO stall_types VALUES ($1,$2,$3,$4)', [s.code, s.name, s.zone, s.monthly_rent]);
     for (const s of g.stalls) {
       await t.q('INSERT INTO stalls (id, type_code, utility_status, cut_date, init_water, init_elec) VALUES ($1,$2,$3,$4,$5,$6)',
@@ -74,6 +78,7 @@ async function reseed({ dryRun = false, train = true, log = () => {} } = {}) {
     }
     await t.q(`INSERT INTO users (username, password_hash, role, display_name) VALUES ('staff',$1,'staff','เจ้าหน้าที่สำนักงาน'), ('owner',$2,'owner','เจ้าของตลาด')`,
       [await bcrypt.hash('staff1234', 10), await bcrypt.hash('owner1234', 10)]);
+    await ensureDemoAdmin({ query: (text, params) => t.q(text, params) });
     for (const c of g.contracts) {
       await t.q('INSERT INTO contracts (vendor_id, stall_id, start_date, end_date, deposit) VALUES ($1,$2,$3,$4,$5)', [vid[c.vendor_idx], c.stall_id, c.start_date, c.end_date, c.deposit]);
     }
@@ -145,9 +150,9 @@ async function reseed({ dryRun = false, train = true, log = () => {} } = {}) {
 
   const mlStarted = Date.now();
   try {
-    const r = await ml.trainRisk();
-    const a = await ml.trainAnomaly();
-    const s = await billing.rescoreOpenBills();
+    const r = await ml.trainRisk('รีเซ็ตข้อมูลสาธิต');
+    const a = await ml.trainAnomaly('รีเซ็ตข้อมูลสาธิต');
+    const s = await billing.rescoreOpenBills('หลังรีเซ็ตข้อมูลสาธิต');
     summary.ml = { auc_lr: r.models.lr.auc, auc_rf: r.models.rf.auc, n_samples: r.n_samples, n_meter: a.n_train, rescored: s.count, ms: Date.now() - mlStarted };
     log(`เทรนโมเดลแล้ว (AUC: LR ${r.models.lr.auc.toFixed(3)}, RF ${r.models.rf.auc.toFixed(3)}) ประเมินความเสี่ยง ${s.count} บิล`);
   } catch (e) {

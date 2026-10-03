@@ -1,0 +1,492 @@
+/* =====================================================================
+   หน้าเบื้องหลัง AI (/ai/behind) · RodeMap.md
+   ใช้ได้ทั้งในโครงหน้าเจ้าหน้าที่/ทีม (Layout, มีธีมมืด) และโครงหน้าเจ้าของ (OwnerLayout, ตัวอักษร ≥ 18px)
+   สีทุกสีผ่าน token --bh-* ด้านล่าง เปลี่ยนที่เดียวทั้งหน้า
+   เป้าหมายการแตะ ≥ 44px · ทดสอบที่ความกว้าง 360px
+   ===================================================================== */
+.bh {
+  --bh-ink: var(--ink);
+  --bh-muted: var(--muted);
+  --bh-line: var(--line);
+  --bh-surface: var(--surface);
+  --bh-surface-2: var(--surface-2);
+  --bh-accent: var(--accent);
+  --bh-good: var(--ok);   --bh-good-bg: var(--ok-soft);
+  --bh-warn: var(--warn); --bh-warn-bg: var(--warn-soft);
+  --bh-bad: var(--danger); --bh-bad-bg: var(--danger-soft);
+  --bh-idle: var(--faint);
+  /* ป้ายข้อมูลจำลอง: อำพันอมส้ม ต่างจากสีสถานะ (เขียว/เหลืองน้ำตาล/แดง) และมีขอบเส้นประ + ไอคอน + ข้อความเสมอ */
+  --bh-synth: #8A4700; --bh-synth-bg: #FDE8C4; --bh-synth-line: #D98A1E;
+  /* แท่งปัจจัยสองทิศ: ดันความเสี่ยงขึ้น / ลง · คู่เดียวกับ --viz-late/--viz-ontime ของ ai.css
+     ตรวจด้วย dataviz validate_palette แล้ว ผ่านทุกข้อทั้งพื้นครีม #FAF7F1 พื้นขาว และพื้นมืด #1A1713 */
+  --bh-up: #b4532a; --bh-down: #2563a6;
+  --bh-radius: 6px;
+  --bh-fs: 15px;
+  --bh-fs-sm: 13.5px;
+  --bh-tap: 44px;
+
+  display: flex; flex-direction: column; gap: 18px;
+  font-size: var(--bh-fs);
+  min-width: 0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .bh:not(.bh--owner) {
+    --bh-synth: #F2B35E; --bh-synth-bg: #3A2709; --bh-synth-line: #B07A2A;
+    --bh-up: #d67447; --bh-down: #5f93d6;
+  }
+}
+:root[data-theme="dark"] .bh:not(.bh--owner) {
+  --bh-synth: #F2B35E; --bh-synth-bg: #3A2709; --bh-synth-line: #B07A2A;
+  --bh-up: #d67447; --bh-down: #5f93d6;
+}
+
+/* มุมมองเจ้าของ: ใช้ token ของ OwnerLayout ตัวอักษรใหญ่ ปุ่มสูง ไม่มีศัพท์เทคนิค */
+.bh--owner {
+  --bh-ink: var(--o-ink);
+  --bh-muted: var(--o-muted);
+  --bh-line: var(--o-line);
+  --bh-surface: var(--o-card);
+  --bh-surface-2: #efe9de;
+  --bh-accent: var(--o-brand);
+  --bh-good: var(--o-good); --bh-good-bg: var(--o-good-bg);
+  --bh-warn: var(--o-warn); --bh-warn-bg: var(--o-warn-bg);
+  --bh-bad: var(--o-bad);   --bh-bad-bg: var(--o-bad-bg);
+  --bh-idle: #8d857a;
+  --bh-radius: var(--o-radius);
+  --bh-fs: 19px;
+  --bh-fs-sm: 18px;
+  --bh-tap: 52px;
+}
+.bh--owner .btn { min-height: var(--bh-tap); font-size: 18px; padding: 10px 20px; border-radius: 12px; }
+/* โครงหน้าเจ้าของเป็นธีมสว่างอย่างเดียว ปุ่มต้องไม่หยิบสีธีมมืดของทั้งแอปมาใช้ */
+.bh--owner .btn { background: var(--bh-surface); color: var(--bh-ink); border-color: var(--bh-line); }
+.bh--owner .btn:hover { border-color: var(--bh-ink); }
+.bh--owner .btn.primary { background: var(--bh-accent); border-color: var(--bh-accent); color: #fff; }
+.bh--owner .sk { height: 18px; background: linear-gradient(90deg, var(--bh-surface-2) 25%, var(--bh-line) 50%, var(--bh-surface-2) 75%); background-size: 300% 100%; }
+
+.bh-icon { flex: none; }
+.bh-btn { min-height: var(--bh-tap); gap: 8px; }
+.bh-link {
+  background: none; border: 0; padding: 0 4px; margin-left: 6px; min-height: var(--bh-tap);
+  color: inherit; font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
+}
+.bh-fine { font-size: var(--bh-fs-sm); color: var(--bh-muted); line-height: 1.6; }
+.bh-sub { color: var(--bh-muted); font-size: var(--bh-fs-sm); line-height: 1.6; margin: 2px 0 12px; max-width: 75ch; }
+
+/* ---------- หัวหน้า ---------- */
+.bh-head h1 { margin: 0; }
+.bh--owner .bh-head h1 { font: 600 28px/1.25 'Prompt', 'Anuphan', sans-serif; }
+.bh-head p { margin: 6px 0 0; color: var(--bh-muted); line-height: 1.6; max-width: 70ch; }
+
+/* ---------- แถบสถานะ (3.1) ---------- */
+.bh-status { display: flex; flex-direction: column; gap: 8px; }
+.bh-bar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px;
+  width: 100%; min-height: var(--bh-tap); padding: 8px 14px;
+  border: 1px solid var(--bh-line); border-radius: var(--bh-radius);
+  background: var(--bh-surface); color: var(--bh-ink);
+  font: inherit; text-align: left; cursor: pointer;
+}
+.bh-bar:hover { border-color: var(--bh-ink); }
+.bh-bar--loading, .bh-bar--error { cursor: default; }
+.bh-bar--loading .sk { flex: 1; max-width: 420px; }
+.bh-bar--error { border-left: 3px solid var(--bh-bad); background: var(--bh-bad-bg); }
+.bh-bar__text { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; flex: 1 1 220px; min-width: 0; line-height: 1.5; }
+.bh-bar__sep { color: var(--bh-muted); }
+.bh-bar__more { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; color: var(--bh-muted); font-size: var(--bh-fs-sm); }
+.bh-bar[aria-expanded="true"] .bh-bar__more .bh-icon { transform: rotate(180deg); }
+.bh-dot { width: 12px; height: 12px; border-radius: 50%; flex: none; background: var(--bh-idle); box-shadow: 0 0 0 3px var(--bh-surface-2); }
+.bh-dot--good { background: var(--bh-good); }
+.bh-dot--warn { background: var(--bh-warn); animation: bh-pulse 1.6s ease-in-out infinite; }
+.bh-dot--bad { background: var(--bh-bad); border-radius: 2px; }   /* ไม่ตอบ: สี่เหลี่ยม ไม่ใช้สีอย่างเดียว */
+@keyframes bh-pulse { 50% { opacity: .35; } }
+
+.bh-bar__detail {
+  border: 1px solid var(--bh-line); border-radius: var(--bh-radius);
+  background: var(--bh-surface); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;
+}
+.bh-kv { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 10px 22px; margin: 0; }
+.bh-kv > div { min-width: 0; }
+.bh-kv dt { font-size: var(--bh-fs-sm); color: var(--bh-muted); }
+.bh-kv dd { margin: 2px 0 0; line-height: 1.55; overflow-wrap: anywhere; }
+.bh-kv--card { grid-template-columns: 1fr; gap: 12px; }
+.bh-kv--card > div { display: grid; grid-template-columns: minmax(130px, 190px) 1fr; gap: 4px 16px; }
+.bh-kv--tech { grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); }
+.bh-kv code, .bh-tech code { font-size: .92em; background: var(--bh-surface-2); padding: 1px 5px; border-radius: 3px; }
+
+.bh-notice {
+  display: flex; align-items: flex-start; gap: 10px; margin: 0;
+  padding: 10px 14px; border-radius: var(--bh-radius); line-height: 1.6;
+  border-left: 3px solid var(--bh-warn); background: var(--bh-warn-bg);
+}
+.bh-notice .bh-icon { margin-top: 2px; }
+.bh-notice > span { flex: 1 1 0; min-width: 0; }
+.bh-notice--bad { border-color: var(--bh-bad); background: var(--bh-bad-bg); }
+.bh-notice--idle { border-color: var(--bh-line); background: var(--bh-surface-2); align-items: center; flex-wrap: wrap; }
+
+/* ---------- ป้าย ---------- */
+.bh-synth, .bh-real {
+  display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+  font-size: var(--bh-fs-sm); font-weight: 600; line-height: 1.5;
+  padding: 1px 9px; border-radius: 999px;
+}
+.bh-synth { color: var(--bh-synth); background: var(--bh-synth-bg); border: 1.5px dashed var(--bh-synth-line); }
+.bh-real { color: var(--bh-good); background: var(--bh-good-bg); border: 1.5px solid transparent; }
+h2 .bh-synth, h3 .bh-synth { margin-left: 10px; vertical-align: middle; }
+
+/* ---------- แท็บ ---------- */
+.bh-tabs {
+  display: flex; gap: 4px; overflow-x: auto; scrollbar-width: thin;
+  border-bottom: 1px solid var(--bh-line);
+  margin: 0 -2px; padding: 0 2px;
+}
+.bh-tab {
+  flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
+  min-height: var(--bh-tap); padding: 8px 14px 9px; margin-bottom: -1px;
+  background: none; border: 0; border-bottom: 3px solid transparent;
+  color: var(--bh-muted); font: inherit; cursor: pointer; text-align: left;
+}
+.bh-tab span { font-weight: 600; }
+.bh-tab small { font-size: 12.5px; }
+.bh-tab:hover { color: var(--bh-ink); }
+.bh-tab.is-on { color: var(--bh-ink); border-bottom-color: var(--bh-accent); }
+.bh-tab:focus-visible { outline: 2px solid var(--bh-accent); outline-offset: -2px; }
+.bh--owner .bh-tab small { display: none; }
+/* เจ้าของ: แท็บไม่เลื่อนข้าง เห็นครบทุกแท็บ ชื่อยาวขึ้นบรรทัดใหม่ได้ */
+.bh--owner .bh-tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); overflow: visible; }
+.bh--owner .bh-tab { align-items: center; text-align: center; line-height: 1.3; }
+.bh--owner .bh-tab { font-size: 18px; padding: 10px 14px; }
+.bh-tabpanel { min-width: 0; }
+.bh-tabpanel:focus { outline: none; }
+
+/* ---------- เนื้อหาแท็บ ---------- */
+.bh-panel { display: flex; flex-direction: column; gap: 18px; }
+.bh-tabhead { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 10px 16px; }
+.bh-tabhead h2 { margin: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.bh-tabhead h2 .bh-synth { margin-left: 4px; }
+.bh-tabhead p { margin: 4px 0 0; color: var(--bh-muted); line-height: 1.6; max-width: 70ch; }
+.bh--owner .bh-tabhead h2 { font: 600 23px/1.3 'Prompt', 'Anuphan', sans-serif; }
+.bh-sec h3 { margin: 0; }
+
+/* ---------- สถานะพิเศษ ---------- */
+.bh-state {
+  display: flex; gap: 14px; align-items: flex-start;
+  padding: 18px 18px; border-radius: var(--bh-radius);
+  border: 1px dashed var(--bh-line); background: var(--bh-surface); line-height: 1.65;
+}
+.bh-state > .bh-icon { color: var(--bh-muted); margin-top: 1px; }
+.bh-state strong { display: block; }
+.bh-state p { margin: 2px 0 0; color: var(--bh-muted); }
+.bh-state__act { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
+.bh-state--asleep { border: 0; border-left: 3px solid var(--bh-warn); background: var(--bh-warn-bg); }
+.bh-state--down, .bh-state--error { border: 0; border-left: 3px solid var(--bh-bad); background: var(--bh-bad-bg); }
+.bh-state--down > .bh-icon, .bh-state--error > .bh-icon { color: var(--bh-bad); }
+.bh-state--down p, .bh-state--error p { color: var(--bh-ink); }
+
+/* ---------- skeleton ---------- */
+.bh-skel { display: flex; flex-direction: column; gap: 12px; padding: 16px; border: 1px solid var(--bh-line); border-radius: var(--bh-radius); background: var(--bh-surface); }
+.bh-skel__plot, .bh-skel__row {
+  display: block; border-radius: 4px;
+  background: linear-gradient(90deg, var(--bh-surface-2) 25%, var(--bh-line) 50%, var(--bh-surface-2) 75%);
+  background-size: 300% 100%; animation: sk-shine 1.8s var(--ease, ease) infinite;
+}
+.bh-skel__plot { height: 180px; }
+.bh-skel__row { height: 54px; }
+.bh-skel--list { border: 0; padding: 0; background: none; }
+
+/* ---------- accordion เทคนิค ---------- */
+.bh-tech { border-top: 1px solid var(--bh-line); }
+.bh-tech summary {
+  display: flex; align-items: center; gap: 6px; min-height: var(--bh-tap); cursor: pointer;
+  color: var(--bh-muted); font-size: var(--bh-fs-sm); list-style: none;
+}
+.bh-tech summary::-webkit-details-marker { display: none; }
+.bh-tech summary .bh-icon { transform: rotate(-90deg); transition: transform .2s; }
+.bh-tech[open] summary .bh-icon { transform: none; }
+.bh-tech__body { padding: 4px 0 12px; display: flex; flex-direction: column; gap: 12px; }
+
+/* ---------- บัตรโมเดล (3.5) ---------- */
+.bh-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 16px; align-items: start; }
+.bh-card {
+  border: 1px solid var(--bh-line); border-radius: var(--bh-radius); background: var(--bh-surface);
+  padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; min-width: 0;
+}
+.bh-card__head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bh-card__head h3 { margin: 0; }
+.bh-list { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: 3px; }
+
+/* ---------- ประวัติการทำงาน ---------- */
+.bh-sec { display: flex; flex-direction: column; gap: 4px; }
+.bh-filter { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.bh-chipbtn {
+  min-height: var(--bh-tap); padding: 6px 14px; border-radius: 999px;
+  border: 1px solid var(--bh-line); background: var(--bh-surface); color: var(--bh-ink);
+  font: inherit; font-size: var(--bh-fs-sm); cursor: pointer;
+}
+.bh-chipbtn.is-on { background: var(--bh-ink); color: var(--bh-surface); border-color: var(--bh-ink); }
+.bh-audit { list-style: none; margin: 0 0 12px; padding: 0; border-top: 1px solid var(--bh-line); }
+.bh-audit__item { display: grid; grid-template-columns: 32px 1fr; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--bh-line); }
+.bh-audit__icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--bh-surface-2); color: var(--bh-muted); }
+.bh-audit__item--review .bh-audit__icon { color: var(--bh-warn); }
+.bh-audit__item--train .bh-audit__icon { color: var(--bh-accent); }
+.bh-audit__body { min-width: 0; }
+.bh-audit__what { margin: 0; line-height: 1.55; overflow-wrap: anywhere; }
+.bh-audit__meta { margin: 2px 0 0; font-size: var(--bh-fs-sm); color: var(--bh-muted); }
+.bh-audit__item.is-undone .bh-audit__what { text-decoration: line-through; text-decoration-color: var(--bh-muted); color: var(--bh-muted); }
+.bh-undone { color: var(--bh-ink); text-decoration: none; }
+
+/* ---------- บิลเสี่ยง (3.2) ---------- */
+.bh-split { display: grid; grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); gap: 18px; align-items: start; }
+.bh-split__detail { min-width: 0; scroll-margin-top: 80px; }
+.bh-billcol { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.bh-bills { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.bh-more { width: 100%; }
+.bh-billrow {
+  width: 100%; min-height: var(--bh-tap); display: flex; flex-direction: column; gap: 2px; text-align: left;
+  padding: 10px 12px; border: 1px solid var(--bh-line); border-radius: var(--bh-radius);
+  background: var(--bh-surface); color: var(--bh-ink); font: inherit; cursor: pointer;
+}
+.bh-billrow:hover { border-color: var(--bh-ink); }
+.bh-billrow.is-on { border-color: var(--bh-accent); box-shadow: inset 3px 0 0 var(--bh-accent); }
+.bh-billrow__top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.bh-billrow__name { color: var(--bh-muted); font-size: var(--bh-fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bh-billrow__why { font-size: var(--bh-fs-sm); line-height: 1.5; display: flex; gap: 8px; align-items: baseline; }
+
+.bh-level {
+  display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
+  font-size: var(--bh-fs-sm); font-weight: 600; padding: 0 8px; border-radius: 999px; line-height: 1.7;
+}
+.bh-level--high { color: var(--bh-bad); background: var(--bh-bad-bg); }
+.bh-level--mid { color: var(--bh-warn); background: var(--bh-warn-bg); }
+.bh-level--low { color: var(--bh-good); background: var(--bh-good-bg); }
+.bh-level--none { color: var(--bh-muted); background: var(--bh-surface-2); font-weight: 400; }
+
+.bh-explain {
+  display: flex; flex-direction: column; gap: 14px; min-width: 0;
+  border: 1px solid var(--bh-line); border-radius: var(--bh-radius); background: var(--bh-surface); padding: 16px 18px;
+}
+.bh-explain__head h3 { margin: 0; }
+.bh-explain__head h3 small { font-weight: 400; color: var(--bh-muted); font-size: .8em; }
+.bh-explain__head p { margin: 2px 0 0; color: var(--bh-muted); font-size: var(--bh-fs-sm); }
+.bh-overdue { color: var(--bh-bad); }
+.bh-h4 { margin: 0 0 8px; font-size: 1em; }
+
+/* กล่องสรุประดับ: สูง = แดงพร้อมไอคอน · กลาง = อำพันอ่อน · ต่ำ = ไม่เน้น */
+.bh-verdict { display: flex; gap: 12px; align-items: flex-start; border-radius: var(--bh-radius); line-height: 1.6; }
+.bh-verdict--high { padding: 14px 16px; background: var(--bh-bad-bg); border: 1.5px solid var(--bh-bad); color: var(--bh-ink); }
+.bh-verdict--high > .bh-icon { color: var(--bh-bad); }
+.bh-verdict--high .bh-verdict__text { font-weight: 600; }
+.bh-verdict--mid { padding: 12px 14px; background: var(--bh-warn-bg); border-left: 3px solid var(--bh-warn); }
+.bh-verdict--mid > .bh-icon { color: var(--bh-warn); }
+.bh-verdict--low { padding: 0; }
+.bh-verdict__text { margin: 0; font-size: 1.06em; }
+.bh-verdict__score { margin: 4px 0 0; font-size: var(--bh-fs-sm); }
+.bh-verdict__score span { color: var(--bh-muted); }
+
+/* แท่งปัจจัยสองทิศ */
+.bh-fx { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.bh-fx__axis { display: grid; grid-template-columns: 38% minmax(0, 1fr) minmax(0, 1fr) 64px; column-gap: 0; font-size: 12.5px; color: var(--bh-muted); }
+.bh-fx__axis span:first-child { grid-column: 2; padding-left: 12px; }
+.bh-fx__axis span:last-child { grid-column: 3; }
+.bh-fx__axis span:last-child { text-align: right; }
+.bh-fx__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.bh-fx__row { display: grid; grid-template-columns: 38% minmax(0, 1fr) 52px; grid-template-areas: "label track dir"; gap: 2px 12px; align-items: center; }
+.bh-fx__label { grid-area: label; line-height: 1.45; overflow-wrap: anywhere; }
+.bh-fx__track { grid-area: track; display: grid; grid-template-columns: 1fr 1fr; height: 16px; position: relative; }
+.bh-fx__track::after { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--bh-muted); }
+.bh-fx__half { display: flex; align-items: stretch; }
+.bh-fx__half--down { justify-content: flex-end; }
+.bh-fx__bar { display: block; height: 100%; }
+.bh-fx__half--down .bh-fx__bar { background: var(--bh-down); border-radius: 4px 0 0 4px; }
+.bh-fx__half--up .bh-fx__bar { background: var(--bh-up); border-radius: 0 4px 4px 0; }
+.bh-fx__dir { grid-area: dir; font-size: var(--bh-fs-sm); color: var(--bh-muted); white-space: nowrap; }
+.bh-fx__track--mag { display: block; background: var(--bh-surface-2); border-radius: 4px; }
+.bh-fx__track--mag::after { display: none; }
+.bh-fx__track--mag .bh-fx__bar { background: var(--bh-muted); border-radius: 4px; }
+.bh-fx__list.is-global .bh-fx__row { grid-template-columns: 38% minmax(0, 1fr); grid-template-areas: "label track"; }
+
+.bh-table { width: 100%; border-collapse: collapse; font-size: var(--bh-fs-sm); }
+.bh-table th, .bh-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--bh-line); }
+.bh-table th { color: var(--bh-muted); font-weight: 500; }
+
+/* ---------- มิเตอร์ที่ถูกทัก (3.3) ---------- */
+.bh-seg { display: inline-flex; border: 1px solid var(--bh-line); border-radius: 999px; padding: 3px; gap: 3px; align-self: flex-start; background: var(--bh-surface); }
+.bh-seg__btn {
+  min-height: var(--bh-tap); min-width: 88px; padding: 4px 16px; border: 0; border-radius: 999px;
+  background: transparent; color: var(--bh-ink); font: inherit; cursor: pointer;
+}
+.bh-seg__btn.is-on { background: var(--bh-ink); color: var(--bh-surface); }
+.bh-seg__flag { font-size: var(--bh-fs-sm); }
+
+.bh-mc { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.bh-mc__wrap { position: relative; }
+.bh-mc__svg { display: block; width: 100%; height: auto; overflow: visible; touch-action: manipulation; }
+.bh-mc__grid { stroke: var(--bh-line); stroke-width: 1; }
+.bh-mc__tick { fill: var(--bh-muted); font-size: 12px; font-family: inherit; }
+.bh-mc__tick.is-now { fill: var(--bh-ink); font-weight: 600; }
+.bh-mc__band { fill: var(--bh-good); opacity: .14; }
+.bh-mc__mean { stroke: var(--bh-good); stroke-width: 1.5; stroke-dasharray: 5 4; opacity: .8; }
+.bh-mc__line { fill: none; stroke: var(--bh-muted); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.bh-mc__pt { fill: var(--bh-muted); stroke: var(--bh-surface); stroke-width: 2; }
+.bh-mc__pt.is-past-flag { fill: var(--bh-surface); stroke: var(--bh-muted); stroke-width: 2; }
+.bh-mc__now { fill: var(--bh-accent); stroke: var(--bh-surface); stroke-width: 2.5; }
+.bh-mc__flag { fill: var(--bh-bad); stroke: var(--bh-surface); stroke-width: 2.5; }
+.bh-mc__hit { fill: transparent; cursor: pointer; outline: none; }
+.bh-mc__hit:focus-visible { fill: var(--bh-ink); fill-opacity: .06; stroke: var(--bh-accent); stroke-width: 2; }
+.bh-mc__cross { stroke: var(--bh-ink); stroke-opacity: .25; stroke-width: 1; pointer-events: none; }
+.bh-mc__read {
+  margin: 0; min-height: 52px; display: flex; flex-direction: column; justify-content: center; gap: 1px;
+  padding: 6px 12px; border-radius: 6px; border-left: 3px solid var(--bh-muted); background: var(--bh-surface-2); line-height: 1.45;
+}
+.bh-mc__read b { font-size: var(--bh-fs-sm); color: var(--bh-muted); font-weight: 500; }
+.bh-mc__read.is-flag { border-left-color: var(--bh-bad); background: var(--bh-bad-bg); }
+.bh-mc__read.is-flag span { font-weight: 600; }
+.bh-mc__legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: var(--bh-fs-sm); color: var(--bh-muted); }
+.bh-mc__legend span { display: inline-flex; align-items: center; gap: 6px; }
+.bh-mc__sw { display: inline-block; width: 14px; height: 14px; flex: none; }
+.bh-mc__sw--band { background: var(--bh-good); opacity: .25; border-top: 2px dashed var(--bh-good); }
+.bh-mc__sw--pt { border-radius: 50%; background: var(--bh-muted); width: 10px; height: 10px; }
+.bh-mc__sw--now { border-radius: 50%; background: var(--bh-accent); }
+.bh-mc__sw--flag { background: var(--bh-bad); transform: rotate(45deg) scale(.8); }
+.bh-mc__table summary, .bh-past summary { min-height: var(--bh-tap); display: flex; align-items: center; cursor: pointer; color: var(--bh-muted); font-size: var(--bh-fs-sm); }
+.bh-past { border-top: 1px solid var(--bh-line); margin-top: 6px; }
+.bh-past .bh-bills { margin-bottom: 8px; }
+
+.bh-facts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; line-height: 1.6; }
+.bh-facts b { font-weight: 600; margin-right: 4px; }
+.bh-if { font-weight: 600; padding: 0 8px; border-radius: 999px; }
+.bh-if--normal { color: var(--bh-good); background: var(--bh-good-bg); }
+.bh-if--suspicious { color: var(--bh-warn); background: var(--bh-warn-bg); }
+.bh-if--abnormal { color: var(--bh-bad); background: var(--bh-bad-bg); }
+
+.bh-act { display: flex; flex-direction: column; gap: 10px; padding-top: 12px; border-top: 1px solid var(--bh-line); }
+.bh-act__row { display: flex; flex-wrap: wrap; gap: 8px; }
+.bh-fix { display: flex; flex-direction: column; gap: 6px; }
+.bh-fix label { font-weight: 500; }
+.bh-fix__row { display: flex; gap: 8px; flex-wrap: wrap; }
+.bh-input {
+  min-height: var(--bh-tap); min-width: 0; flex: 1 1 160px; padding: 8px 12px; font: inherit; font-size: 1.1em;
+  border: 1.5px solid var(--bh-line); border-radius: var(--bh-radius); background: var(--bh-surface); color: var(--bh-ink);
+}
+.bh-input:focus { outline: 2px solid var(--bh-accent); outline-offset: 1px; }
+.bh-input[aria-invalid="true"] { border-color: var(--bh-bad); }
+.bh-err { color: var(--bh-bad); }
+
+/* toast เลิกทำ: ล่างกลางจอ ไม่บังปุ่ม (หน้าเว้นที่ด้วย spacer) · ปุ่ม ≥ 44 × 44 px */
+.bh-undo { --bh-ink: var(--ink); --bh-surface: var(--surface); --bh-bad: var(--danger); --bh-accent: var(--accent); position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 70; width: min(520px, calc(100vw - 32px)); pointer-events: none; }
+.bh-undo__box {
+  pointer-events: auto; position: relative; overflow: hidden;
+  display: flex; align-items: center; gap: 8px; padding: 8px 8px 10px 16px; border-radius: 10px;
+  background: var(--bh-ink); color: var(--bh-surface); box-shadow: 0 14px 40px rgb(0 0 0 / .28);
+}
+.bh-undo__box.is-error { background: var(--bh-bad); color: #fff; }
+.bh-undo__box p { margin: 0; flex: 1; line-height: 1.5; }
+.bh-undo__btn {
+  min-width: 44px; min-height: 44px; padding: 0 16px; border-radius: 8px; border: 1.5px solid currentColor;
+  background: transparent; color: inherit; font: inherit; font-weight: 600; cursor: pointer;
+}
+.bh-undo__btn:focus-visible, .bh-undo__x:focus-visible { outline: 3px solid var(--bh-accent); outline-offset: 2px; }
+.bh-undo__x { min-width: 44px; min-height: 44px; border: 0; background: transparent; color: inherit; font-size: 22px; cursor: pointer; }
+.bh-undo__bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: currentColor; opacity: .6; transform-origin: left; transition: transform .2s linear; }
+.bh-undo__spacer { height: 84px; }
+.bh-undo--owner { bottom: calc(76px + 16px + env(safe-area-inset-bottom)); --bh-ink: #1b1915; --bh-surface: #ffffff; --bh-bad: #a4231b; --bh-accent: #6b5229; }
+
+/* ---------- คุณภาพโมเดล (3.4) ---------- */
+.bh { --bh-s1: #2a78d6; --bh-s2: #eb6834; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .bh:not(.bh--owner) { --bh-s1: #3987e5; --bh-s2: #d95926; } }
+:root[data-theme="dark"] .bh:not(.bh--owner) { --bh-s1: #3987e5; --bh-s2: #d95926; }
+
+.bh-metrics { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 10px; }
+.bh-metric { border: 1px solid var(--bh-line); border-radius: var(--bh-radius); background: var(--bh-surface); padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; }
+.bh-metric__k { color: var(--bh-muted); font-size: var(--bh-fs-sm); }
+.bh-metric__v { font: 600 28px/1.15 'Prompt', 'Anuphan', sans-serif; font-variant-numeric: tabular-nums; }
+.bh-metric__cv { font-variant-numeric: tabular-nums; }
+.bh-qgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 18px; align-items: start; }
+.bh-sec h3 { margin: 0 0 6px; }
+
+.bh-cm { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.bh-cm__table { border-collapse: separate; border-spacing: 4px; width: 100%; max-width: 440px; }
+.bh-cm__table th { font-weight: 500; color: var(--bh-muted); font-size: var(--bh-fs-sm); text-align: left; padding: 4px; }
+.bh-cm__table thead th { text-align: center; }
+.bh-cm__table th small { display: block; font-size: 12px; }
+.bh-cm__table td { text-align: center; padding: 12px 6px; border-radius: 6px; background: var(--bh-surface-2); }
+.bh-cm__table td b { display: block; font: 600 26px/1.1 'Prompt', 'Anuphan', sans-serif; font-variant-numeric: tabular-nums; }
+.bh-cm__table td span { font-size: var(--bh-fs-sm); }
+.bh-cm__table thead td { background: none; }
+.bh-cm__table td.is-ok { background: var(--bh-good-bg); color: var(--bh-good); }
+.bh-cm__table td.is-miss { background: var(--bh-bad-bg); color: var(--bh-bad); }
+
+.bh-qc { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.bh-qc__wrap { width: 100%; }
+.bh-qc__wrap svg { display: block; max-width: 100%; overflow: visible; touch-action: manipulation; }
+.bh-qc__diag { stroke: var(--bh-muted); stroke-dasharray: 5 5; stroke-width: 1.5; }
+.bh-qc__line { fill: none; stroke: var(--bh-s1); stroke-width: 2; }
+.bh-qc__pt { fill: var(--bh-s1); stroke: var(--bh-surface); stroke-width: 2; }
+.bh-qc__pt.is-on { stroke: var(--bh-ink); }
+.bh-qc__series--s1 { --c: var(--bh-s1); }
+.bh-qc__series--s2 { --c: var(--bh-s2); }
+.bh-qc__hline { fill: none; stroke: var(--c); stroke-width: 2; }
+.bh-qc__hpt { fill: var(--c); stroke: var(--bh-surface); stroke-width: 2; }
+.bh-qc__err { stroke: var(--c); stroke-width: 2; opacity: .45; }
+.bh-qc__lbl { fill: var(--bh-ink); font-size: 12.5px; font-weight: 600; font-family: inherit; }
+.bh-qc__sw--s1 { background: var(--bh-s1); border-radius: 50%; }
+.bh-qc__sw--s2 { background: var(--bh-s2); border-radius: 50%; }
+
+.bh-imp { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.bh-imp__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.bh-imp__row { display: grid; grid-template-columns: minmax(120px, 34%) minmax(0, 1fr) 54px; gap: 12px; align-items: center; }
+.bh-imp__track { position: relative; height: 14px; background: var(--bh-surface-2); border-radius: 4px; }
+.bh-imp__bar { position: absolute; left: 0; top: 0; bottom: 0; background: var(--bh-s1); border-radius: 4px; }
+.bh-imp__err { position: absolute; top: 50%; height: 2px; margin-top: -1px; background: var(--bh-ink); opacity: .55; }
+.bh-imp__val { text-align: right; font-variant-numeric: tabular-nums; font-size: var(--bh-fs-sm); }
+
+/* สรุปของเจ้าของ: การ์ดไม่เกิน 4 ใบ ตัวเลขใหญ่ สถานะใช้สี + ไอคอน + คำ */
+.bh-owner-q { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px; }
+.bh-owner-q__card { border: 1px solid var(--bh-line); border-radius: var(--bh-radius); background: var(--bh-surface); padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; }
+.bh-owner-q__card.is-good { border-left: 5px solid var(--bh-good); }
+.bh-owner-q__card.is-warn { border-left: 5px solid var(--bh-warn); }
+.bh-owner-q__card.is-bad { border-left: 5px solid var(--bh-bad); }
+.bh-owner-q__k { color: var(--bh-muted); }
+.bh-owner-q__v { font: 600 30px/1.2 'Prompt', 'Anuphan', sans-serif; display: inline-flex; align-items: center; gap: 8px; }
+.bh-owner-q__card.is-good .bh-owner-q__v .bh-icon { color: var(--bh-good); }
+.bh-owner-q__card.is-bad .bh-owner-q__v .bh-icon { color: var(--bh-bad); }
+@media (max-width: 600px) { .bh-imp__row { grid-template-columns: minmax(0, 1fr) 54px; grid-template-areas: "label label" "track val"; } .bh-imp__label { grid-area: label; } .bh-imp__track { grid-area: track; } .bh-imp__val { grid-area: val; } }
+.bh--owner .bh-mc__tick, .bh--owner .bh-qc__lbl { font-size: 18px; }
+
+/* ---------- drift (รอบ 5) ---------- */
+.bh-drift { display: flex; flex-direction: column; gap: 10px; min-width: 0; overflow-x: auto; }
+.bh-drift__head { display: flex; justify-content: space-between; align-items: center; gap: 8px 16px; flex-wrap: wrap; }
+.bh-drift__head p { margin: 0; line-height: 1.6; }
+.bh-drift .bh-table td { vertical-align: middle; }
+
+@media (max-width: 899px) {
+  .bh-split { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .bh-explain { padding: 14px; }
+  .bh-fx__row { grid-template-columns: minmax(0, 1fr) 52px; grid-template-areas: "label label" "track dir"; }
+  .bh-fx__list.is-global .bh-fx__row { grid-template-columns: 1fr; grid-template-areas: "label" "track"; }
+  .bh-fx__axis { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 64px; }
+  .bh-fx__axis span:first-child { grid-column: 1; padding-left: 0; }
+  .bh-fx__axis span:last-child { grid-column: 2; }
+}
+.bh--owner .bh-fx__axis, .bh--owner .bh-fx__dir { font-size: 18px; }
+.bh--owner .bh-fx__row { grid-template-columns: minmax(0, 1fr) 64px; grid-template-areas: "label label" "track dir"; }
+.bh--owner .bh-fx__axis { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 76px; }
+.bh--owner .bh-fx__axis span:first-child { grid-column: 1; padding-left: 0; }
+.bh--owner .bh-fx__axis span:last-child { grid-column: 2; }
+.bh--owner .bh-fx__track { height: 20px; }
+.bh--owner .bh-explain__head h3 small { font-size: 18px; }
+.bh--owner h3 { font: 600 22px/1.35 'Prompt', 'Anuphan', sans-serif; }
+.bh--owner .bh-h4 { font-size: 20px; }
+
+@media (max-width: 600px) {
+  .bh { gap: 14px; }
+  .bh-tab small { display: none; }
+  .bh-kv--card > div { grid-template-columns: 1fr; }
+  .bh-card { padding: 14px; }
+  .bh-bar__more { margin-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bh-dot--warn, .bh-skel__plot, .bh-skel__row { animation: none; }
+}

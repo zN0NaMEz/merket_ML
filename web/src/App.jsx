@@ -22,12 +22,22 @@ import Messages from './pages/owner/Messages';
 import Rates from './pages/owner/Rates';
 import AI from './pages/shared/AI';
 import Notifications from './pages/shared/Notifications';
+import Behind from './pages/ai/Behind';
+import { BEHIND_ROLES } from './ai/behind';
 
 function RequireRole({ role, children }) {
   const { user } = useApp();
   if (!user) return <Navigate to="/login" replace />;
   if (user.role !== role) return <Navigate to={`/${user.role}`} replace />;
   return children;
+}
+
+/** หน้าที่หลายบทบาทใช้ร่วมกัน: ตรวจว่าบทบาทอยู่ในรายการ แล้วใช้โครงหน้าของบทบาทนั้น (เจ้าของใช้แบบแอปมือถือ) */
+function RoleShell({ roles }) {
+  const { user } = useApp();
+  if (!user) return <Navigate to="/login" replace />;
+  if (!roles.includes(user.role)) return <Navigate to={`/${user.role}`} replace />;
+  return user.role === 'owner' ? <OwnerLayout /> : <Layout />;
 }
 
 /** คู่มือผู้ค้าเป็นหน้า static แยก (public/guide) โหลดเต็มหน้า */
@@ -70,6 +80,17 @@ export default function App() {
         <Route path="notifications" element={<Messages />} />
         <Route path="outstanding" element={<Navigate to="/owner/unpaid" replace />} />
         <Route path="*" element={<Navigate to="/owner" replace />} />
+      </Route>
+      {/* ทีม/กรรมการ: ดูเบื้องหลัง AI อย่างเดียว ไม่แตะงานประจำวันของตลาด */}
+      <Route path="/admin" element={<RequireRole role="admin"><Layout /></RequireRole>}>
+        <Route index element={<Navigate to="/ai/behind" replace />} />
+        <Route path="notifications" element={<Notifications />} />
+        <Route path="*" element={<Navigate to="/ai/behind" replace />} />
+      </Route>
+      {/* เบื้องหลัง AI (RodeMap.md): เจ้าหน้าที่ เจ้าของ และทีม/กรรมการ · ผู้ค้าเข้าไม่ได้ */}
+      <Route path="/ai" element={<RoleShell roles={BEHIND_ROLES} />}>
+        <Route index element={<Navigate to="/ai/behind" replace />} />
+        <Route path="behind" element={<Behind />} />
       </Route>
       <Route path="/guide" element={<GuideRedirect />} />
       <Route path="*" element={<Navigate to="/" replace />} />

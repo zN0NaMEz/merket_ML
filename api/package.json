@@ -9,7 +9,9 @@
     "dev": "node --watch src/index.js",
     "seed": "node src/seed/seed.js",
     "seed:if-empty": "node src/seed/seed.js --if-empty",
-    "daily": "node src/jobs/run-daily.js"
+    "daily": "node src/jobs/run-daily.js",
+    "test": "node --test \"test/*.test.js\"",
+    "test:integration": "node --test test/undo.integration.js"
   },
   "engines": { "node": ">=20" },
   "dependencies": {

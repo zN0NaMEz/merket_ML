@@ -5,6 +5,7 @@ const config = require('./config');
 const { db } = require('./db');
 const { HttpError } = require('./lib/http');
 const { auth, role } = require('./middleware/auth');
+const { migrated } = require('./lib/migrate');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -12,6 +13,8 @@ app.use(cors());
 app.use(express.json({ limit: '200kb' }));
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
+// โครงสร้างฐานข้อมูลเวอร์ชันล่าสุดต้องพร้อมก่อนทุก route (ครั้งแรกของแต่ละ instance เท่านั้นที่ต้องรอ)
+app.use('/api', migrated);
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/payments', require('./routes/payments'));
 app.use('/api/webhooks', require('./routes/webhooks'));
@@ -20,6 +23,8 @@ app.use('/api/vendor', auth, role('vendor'), require('./routes/vendor'));
 app.use('/api/staff', auth, role('staff'), require('./routes/staff'));
 app.use('/api/owner', auth, role('owner'), require('./routes/owner'));
 app.use('/api/admin', require('./routes/admin'));
+// หน้าเบื้องหลัง AI (route ที่ไม่ตรงในไฟล์นี้ เช่น /ai/overview จะไหลต่อไปที่ common)
+app.use('/api/ai', require('./routes/ai'));
 app.use('/api', require('./routes/common'));
 
 app.use((_req, _res, next) => next(new HttpError(404, 'ไม่พบ API ที่เรียก')));

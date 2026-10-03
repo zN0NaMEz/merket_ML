@@ -10,22 +10,29 @@ const { TYPES, SEASON_EFF } = require('../lib/constants');
 const ml = require('./ml');
 const providers = require('./payments');
 
-const riskLevel = (score, ai) => (score == null ? null : score >= ai.risk_high ? 'high' : score >= ai.risk_mid ? 'mid' : 'low');
+const { riskLevel } = require('../lib/risk');
 const refNoFor = (id, date) => `PP${date.replace(/-/g, '').slice(2)}${String(id).padStart(6, '0')}`;
 const receiptNoFor = (id, date) => `RC${String(+date.slice(0, 4) + 543).slice(2)}${date.slice(5, 7)}-${String(id).padStart(6, '0')}`;
 
 /* ---------------- AI: ความเสี่ยงค้างชำระ ---------------- */
 
-/** ส่งบิลที่ยังไม่ชำระทั้งหมดให้ ML ประเมินความเสี่ยงใหม่ แล้วบันทึกผลลง D5 */
-async function rescoreOpenBills() {
+/**
+ * ส่งบิลที่ยังไม่ชำระทั้งหมดให้ ML ประเมินความเสี่ยงใหม่ แล้วบันทึกผลลง D5
+ * เก็บคำอธิบายรายบิล (contributions) ไว้ใน risk_features ด้วย หน้าเบื้องหลัง AI จึงอ่านจากฐานข้อมูลได้เลย
+ * reason = เหตุที่ให้คะแนนใหม่ บันทึกลง job_logs เป็นประวัติการทำงานของ AI
+ */
+async function rescoreOpenBills(reason = 'ให้คะแนนบิลค้างใหม่') {
   const ai = await settings.ai();
   const open = await db.q("SELECT id FROM bills WHERE kind = 'monthly' AND status IN ('unpaid','overdue')");
   if (!open.length) return { count: 0 };
   const res = await ml.scoreBills(open.map(r => r.id), ai.risk_model);
   for (const r of res.results) {
-    await db.q('UPDATE bills SET risk_score = $1, risk_features = $2, risk_model = $3 WHERE id = $4',
-      [r.score, JSON.stringify({ ...r.features, reasons: r.reasons }), res.model, r.bill_id]);
+    await db.q('UPDATE bills SET risk_score = $1, risk_features = $2, risk_model = $3, risk_scored_at = now() WHERE id = $4',
+      [r.score, JSON.stringify({ ...r.features, reasons: r.reasons, contributions: r.contributions || [], explain: r.explain || null }), res.model, r.bill_id]);
   }
+  const today = await settings.today();
+  await db.q('INSERT INTO job_logs (run_date, job, summary) VALUES ($1, $2, $3)',
+    [today, 'rescore', `${reason}: ให้คะแนนความเสี่ยงบิลค้าง ${res.results.length} ใบ ด้วยโมเดล ${res.model}`]);
   return { count: res.results.length, model: res.model };
 }
 

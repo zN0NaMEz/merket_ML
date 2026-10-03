@@ -66,7 +66,7 @@ router.post('/meters/check', ah(async (req, res) => {
     cur_water: r.cur_water === '' || r.cur_water == null ? null : Number(r.cur_water),
     cur_elec: r.cur_elec === '' || r.cur_elec == null ? null : Number(r.cur_elec),
   }));
-  res.json(await meters.check(readings));
+  res.json(await meters.check(readings, req.user.sub));
 }));
 router.post('/meters/sample', ah(async (_req, res) => res.json(await meters.fillSample())));
 router.post('/meters/issue', ah(async (req, res) => res.json(await meters.issueBills(req.user.sub))));

@@ -35,10 +35,50 @@ def today(conn=None):
     return (datetime.now(timezone.utc) + timedelta(hours=7)).date()
 
 
-def save_model_run(model_type: str, metrics: dict):
+# คอลัมน์ของ model_runs ที่เพิ่มในเวอร์ชัน 2 (RodeMap.md 4.1) ฝั่ง API ก็สร้างไว้เหมือนกัน
+# ML สร้างเองด้วยเผื่อเทรนก่อนที่ API จะได้รัน migration (เช่นฐานข้อมูลใหม่ที่ ML ตื่นก่อน)
+_RUN_COLUMNS = {
+    "sklearn_version": "text", "n_train": "int", "n_test": "int", "data_from": "date", "data_to": "date",
+    "is_synthetic": "boolean NOT NULL DEFAULT false", "cv_scores": "jsonb", "confusion": "jsonb",
+    "calibration": "jsonb", "global_importance": "jsonb", "triggered_by": "text",
+}
+_JSON_COLUMNS = {"cv_scores", "confusion", "calibration", "global_importance"}
+_runs_ready = False
+
+
+def _ensure_run_columns(cur):
+    global _runs_ready
+    if _runs_ready:
+        return
+    cur.execute("ALTER TABLE model_runs " + ", ".join(f"ADD COLUMN IF NOT EXISTS {k} {t}" for k, t in _RUN_COLUMNS.items()))
+    _runs_ready = True
+
+
+def is_synthetic() -> bool:
+    """ข้อมูลในระบบเป็นข้อมูลจำลองไหม: ผู้ค้าที่สร้างจากตัวสร้างข้อมูลตัวอย่างมีค่า sim_* ติดมา ข้อมูลจริงไม่มี"""
+    try:
+        return bool(fetch_all("SELECT EXISTS (SELECT 1 FROM vendors WHERE sim_discipline IS NOT NULL) AS s")[0]["s"])
+    except Exception:
+        return False
+
+
+def save_model_run(model_type: str, metrics: dict, **cols) -> int:
+    """บันทึกผลการเทรนหนึ่งรอบ cols = คอลัมน์รายละเอียด (ดู _RUN_COLUMNS) คืน id ของแถว"""
+    import sklearn
+    cols = {k: v for k, v in cols.items() if k in _RUN_COLUMNS and v is not None}
+    cols.setdefault("sklearn_version", sklearn.__version__)
+    names = ["model_type", "metrics", *cols.keys()]
+    values = [model_type, json.dumps(metrics, ensure_ascii=False)]
+    values += [json.dumps(v, ensure_ascii=False) if k in _JSON_COLUMNS else v for k, v in cols.items()]
     with connect() as conn, conn.cursor() as cur:
-        cur.execute("INSERT INTO model_runs (model_type, metrics) VALUES (%s, %s)", (model_type, json.dumps(metrics, ensure_ascii=False)))
+        _ensure_run_columns(cur)
+        cur.execute(
+            f"INSERT INTO model_runs ({', '.join(names)}) VALUES ({', '.join(['%s'] * len(names))}) RETURNING id",
+            values,
+        )
+        run_id = cur.fetchone()["id"]
         conn.commit()
+    return run_id
 
 
 def save_model_blob(model_type: str, payload: bytes, meta: dict):

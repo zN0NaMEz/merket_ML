@@ -18,13 +18,19 @@ import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, precision_score, recall_score, roc_auc_score
-from sklearn.model_selection import StratifiedKFold, cross_val_score, train_test_split
+from sklearn.calibration import calibration_curve
+from sklearn.inspection import permutation_importance
+from sklearn.metrics import (accuracy_score, brier_score_loss, confusion_matrix, f1_score, precision_score,
+                             recall_score, roc_auc_score)
+from sklearn.model_selection import StratifiedKFold, cross_validate, train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 from . import db
+from . import explain as xp
 from .features import CATEGORICAL, FEATURE_LABELS, NUMERIC, SEASONS, TYPE_CODES, risk_features, risk_reasons
+
+CALIBRATION_BINS = 10   # ช่องละ 10% ของความน่าจะเป็น (reliability diagram)
 
 MODEL_PATH = os.path.join(db.MODEL_DIR, "risk.joblib")
 METRICS_PATH = os.path.join(db.MODEL_DIR, "risk_metrics.json")
@@ -64,10 +70,25 @@ def build_dataset() -> pd.DataFrame:
                 label = 1
             else:
                 continue  # ยังไม่ครบกำหนด ไม่รู้ผลจริง จึงไม่นำมาเทรน
+            # ฟีเจอร์คิด ณ วันออกบิลเท่านั้น (days_late_as_of ใช้ issue_date) จึงไม่มีข้อมูลหลังวันครบกำหนดรั่วเข้ามา
             f = risk_features(b["since"], b["type_code"], bills[:i], b)
-            f.update(bill_id=b["id"], label=label)
+            f.update(bill_id=b["id"], label=label, due=b["due_date"])
             records.append(f)
     return pd.DataFrame.from_records(records)
+
+
+def _calibration(y_true, prob) -> dict:
+    """reliability diagram: แบ่งความน่าจะเป็นเป็นช่องเท่ากัน แล้วเทียบค่าเฉลี่ยที่ทาย กับสัดส่วนที่จ่ายช้าจริง"""
+    prob_true, prob_pred = calibration_curve(y_true, prob, n_bins=CALIBRATION_BINS, strategy="uniform")
+    edges = np.linspace(0.0, 1.0, CALIBRATION_BINS + 1)
+    counts = np.bincount(np.searchsorted(edges[1:-1], prob), minlength=CALIBRATION_BINS)
+    return {
+        "strategy": "uniform", "n_bins": CALIBRATION_BINS,
+        "prob_pred": [round(float(v), 4) for v in prob_pred],
+        "prob_true": [round(float(v), 4) for v in prob_true],
+        "counts": [int(c) for c in counts if c > 0],          # ช่องว่างถูกตัดออกเหมือน calibration_curve
+        "brier": round(float(brier_score_loss(y_true, prob)), 4),
+    }
 
 
 def _preprocessor() -> ColumnTransformer:
@@ -90,7 +111,7 @@ def _feature_names(pipe: Pipeline) -> list[str]:
     return [n.split("__", 1)[1] for n in raw]
 
 
-def train() -> dict:
+def train(triggered_by: str | None = None) -> dict:
     df = build_dataset()
     if len(df) < 40 or df["label"].nunique() < 2:
         raise RuntimeError(f"ข้อมูลไม่พอสำหรับเทรน (มี {len(df)} แถว)")
@@ -99,19 +120,30 @@ def train() -> dict:
     X_tr, X_te, y_tr, y_te, _, idx_te = train_test_split(
         X, y, df.index.to_numpy(), test_size=0.25, stratify=y, random_state=42)
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-    results, final, probs = {}, {}, {}
+    cv_scoring = {"auc": "roc_auc", "precision": "precision", "recall": "recall", "accuracy": "accuracy"}
+    results, final, probs, extra = {}, {}, {}, {}
     for name, pipe in _make_models().items():
         pipe.fit(X_tr, y_tr)
         p = pipe.predict_proba(X_te)[:, 1]
         probs[name] = p
         pred = (p >= 0.5).astype(int)
         tn, fp, fn, tp = confusion_matrix(y_te, pred, labels=[0, 1]).ravel()
-        cv_auc = cross_val_score(_make_models()[name], X, y, cv=cv, scoring="roc_auc")
+        cvr = cross_validate(_make_models()[name], X, y, cv=cv, scoring=cv_scoring)
+        cv_scores = {k: [round(float(v), 4) for v in cvr[f"test_{k}"]] for k in cv_scoring}
+        cv_auc = cvr["test_auc"]
         names = _feature_names(pipe)
         if name == "lr":
             weights = pipe.named_steps["clf"].coef_[0]
         else:
             weights = pipe.named_steps["clf"].feature_importances_
+        # ความสำคัญระดับโมเดล: สลับค่าของปัจจัยทีละตัวในชุดทดสอบ แล้วดูว่า AUC ตกลงเท่าไร (เทียบได้ทั้งสองโมเดล)
+        perm = permutation_importance(pipe, X_te, y_te, scoring="roc_auc", n_repeats=10, random_state=42)
+        importance = sorted(
+            [{"feature": f, "value": round(float(m), 4), "std": round(float(s), 4)}
+             for f, m, s in zip(NUMERIC + CATEGORICAL, perm.importances_mean, perm.importances_std)],
+            key=lambda d: d["value"], reverse=True)
+        confusion = {"tn": int(tn), "fp": int(fp), "fn": int(fn), "tp": int(tp), "threshold": 0.5}
+        calibration = _calibration(y_te, p)
         results[name] = {
             "accuracy": float(accuracy_score(y_te, pred)),
             "precision": float(precision_score(y_te, pred, zero_division=0)),
@@ -119,10 +151,13 @@ def train() -> dict:
             "f1": float(f1_score(y_te, pred, zero_division=0)),
             "auc": float(roc_auc_score(y_te, p)),
             "cv_auc_mean": float(cv_auc.mean()),
-            "cv_auc_std": float(cv_auc.std()),
-            "confusion": {"tn": int(tn), "fp": int(fp), "fn": int(fn), "tp": int(tp)},
+            # SD แบบตัวอย่าง (ddof=1) ให้ตรงกับที่ API คำนวณจากผลรายพับใน cv_scores
+            "cv_auc_std": float(cv_auc.std(ddof=1)),
+            "confusion": confusion,
             "weights": [{"feature": n, "label": FEATURE_LABELS.get(n, n), "value": float(w)} for n, w in zip(names, weights)],
+            "importance": importance,
         }
+        extra[name] = {"cv_scores": cv_scores, "confusion": confusion, "calibration": calibration, "global_importance": importance}
         # หลังประเมินผลแล้ว เทรนใหม่ด้วยข้อมูลทั้งหมดเพื่อใช้งานจริง
         full = _make_models()[name]
         full.fit(X, y)
@@ -136,6 +171,8 @@ def train() -> dict:
         "late_rate": float(y.mean()),
         "features": NUMERIC + CATEGORICAL,
         "models": results,
+        # จุดอ้างอิงของ linear contributions (ค่าเฉลี่ยของข้อมูลเทรนหลังแปลง) เก็บไว้กับโมเดล ไม่ต้องคำนวณใหม่ตอนให้คะแนน
+        "explain": {"lr_mean": xp.transformed_mean(final["lr"], X)},
     }
     joblib.dump(final, MODEL_PATH)
     with open(METRICS_PATH, "w", encoding="utf-8") as fh:
@@ -154,7 +191,15 @@ def train() -> dict:
         }
         for k, i in enumerate(idx_te)
     ]
-    db.save_model_run("risk", {k: v for k, v in metrics.items() if k != "test"})
+    # หนึ่งแถวต่อหนึ่งโมเดล (risk_lr, risk_rf) พร้อมรายละเอียดสำหรับหน้าเบื้องหลัง AI
+    common = {k: v for k, v in metrics.items() if k not in ("test", "models", "explain")}
+    synthetic = db.is_synthetic()
+    for name in results:
+        db.save_model_run(
+            f"risk_{name}", {**common, **results[name]},
+            n_train=int(len(X_tr)), n_test=int(len(X_te)),
+            data_from=min(df["due"]), data_to=max(df["due"]), is_synthetic=synthetic,
+            triggered_by=triggered_by, **extra[name])
     # เก็บลงฐานข้อมูลด้วย เผื่อรันบนโฮสต์ที่ดิสก์หายเมื่อรีสตาร์ท
     try:
         buf = _io.BytesIO()
@@ -182,7 +227,16 @@ def _ensure():
         with open(METRICS_PATH, "w", encoding="utf-8") as fh:
             json.dump(meta, fh, ensure_ascii=False)
         return
-    train()
+    train(triggered_by="อัตโนมัติ (ยังไม่มีโมเดลที่เทรนไว้)")
+
+
+def _lr_mean() -> list[float] | None:
+    """จุดอ้างอิงของ linear contributions: เก็บมากับโมเดลรุ่นใหม่ ถ้าเป็นโมเดลรุ่นเก่าคำนวณจากข้อมูลเทรนครั้งเดียวแล้วจำไว้"""
+    m = _cache.get("metrics", {}).get("explain", {}).get("lr_mean")
+    if m is None and "lr_mean" not in _cache:
+        df = build_dataset()
+        _cache["lr_mean"] = xp.transformed_mean(_cache["models"]["lr"], df[NUMERIC + CATEGORICAL]) if len(df) else None
+    return m if m is not None else _cache.get("lr_mean")
 
 
 def metrics() -> dict:
@@ -208,9 +262,15 @@ def score(bill_ids: list[int], model: str = "lr") -> list[dict]:
     if not feats:
         return []
     df = pd.DataFrame.from_records(feats)
-    probs = pipe.predict_proba(df[NUMERIC + CATEGORICAL])[:, 1]
+    X = df[NUMERIC + CATEGORICAL]
+    probs = pipe.predict_proba(X)[:, 1]
+    # คำอธิบายรายบิลคำนวณตอนให้คะแนนเท่านั้น แล้ว API เก็บลง bills.risk_features (หน้าเว็บไม่ต้องเรียก ML)
+    name = model if model in _cache["models"] else "lr"
+    gi = _cache["metrics"].get("models", {}).get(name, {}).get("importance")
+    contribs, meta = xp.explain(name, pipe, X, feats, mean_z=_lr_mean() if name == "lr" else None, global_importance=gi)
     out = []
-    for f, p in zip(feats, probs):
+    for f, p, c in zip(feats, probs, contribs):
         clean = {k: (round(v, 3) if isinstance(v, float) else v) for k, v in f.items() if k != "bill_id"}
-        out.append({"bill_id": int(f["bill_id"]), "score": float(np.round(p, 4)), "features": clean, "reasons": risk_reasons(f)})
+        out.append({"bill_id": int(f["bill_id"]), "score": float(np.round(p, 4)), "features": clean,
+                    "reasons": risk_reasons(f), "contributions": c, "explain": meta})
     return out

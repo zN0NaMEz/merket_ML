@@ -182,10 +182,11 @@ router.get('/ai/showcase', auth, role('staff', 'owner'), ah(async (_req, res) =>
   res.json({ risk, meter });
 }));
 
-router.post('/ai/retrain', auth, role('staff', 'owner'), ah(async (_req, res) => {
-  const risk = await ml.trainRisk();
-  const anomaly = await ml.trainAnomaly();
-  const rescored = await billing.rescoreOpenBills();
+router.post('/ai/retrain', auth, role('staff', 'owner', 'admin'), ah(async (req, res) => {
+  const by = `${req.user.name} (${req.user.role})`;
+  const risk = await ml.trainRisk(by);
+  const anomaly = await ml.trainAnomaly(by);
+  const rescored = await billing.rescoreOpenBills(`หลังเทรนใหม่โดย ${req.user.name}`);
   res.json({ risk, anomaly, rescored });
 }));
 router.put('/ai/settings', auth, role('staff', 'owner'), ah(async (req, res) => {
@@ -202,7 +203,7 @@ router.put('/ai/settings', auth, role('staff', 'owner'), ah(async (req, res) => 
   }
   if (next.risk_mid >= next.risk_high) throw new HttpError(400, 'เกณฑ์เสี่ยงปานกลางต้องต่ำกว่าเกณฑ์เสี่ยงสูง');
   await settings.set('ai', next);
-  if (next.risk_model !== cur.risk_model) await billing.rescoreOpenBills();
+  if (next.risk_model !== cur.risk_model) await billing.rescoreOpenBills(`เปลี่ยนโมเดลเป็น ${next.risk_model} โดย ${req.user.name}`);
   res.json({ ai: next });
 }));
 module.exports = router;

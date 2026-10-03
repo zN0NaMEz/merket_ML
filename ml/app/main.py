@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from . import anomaly, risk
+from . import anomaly, drift, risk
 
 app = FastAPI(title="Bunyat Market ML Service", version="1.0.0")
 
@@ -21,6 +21,11 @@ async def require_api_key(request: Request, call_next):
         if request.headers.get("x-ml-key", "") != ML_API_KEY:
             return JSONResponse({"detail": "ไม่ได้รับอนุญาตให้เรียก ML service"}, status_code=401)
     return await call_next(request)
+
+
+class TrainRequest(BaseModel):
+    # ใครหรืออะไรสั่งเทรน (บันทึกลง model_runs.triggered_by เพื่อแสดงในประวัติการทำงาน)
+    triggered_by: str | None = Field(None, max_length=120)
 
 
 class ScoreRequest(BaseModel):
@@ -55,8 +60,8 @@ def health():
 
 
 @app.post("/risk/train")
-def risk_train():
-    return _wrap(risk.train)
+def risk_train(req: TrainRequest | None = None):
+    return _wrap(risk.train, (req.triggered_by if req else None))
 
 
 @app.get("/risk/metrics")
@@ -70,14 +75,20 @@ def risk_score(req: ScoreRequest):
 
 
 @app.post("/anomaly/train")
-def anomaly_train():
-    info = _wrap(anomaly.train)
+def anomaly_train(req: TrainRequest | None = None):
+    info = _wrap(anomaly.train, (req.triggered_by if req else None))
     return {k: v for k, v in info.items() if k != "points"}
 
 
 @app.get("/anomaly/info")
 def anomaly_info():
     return _wrap(anomaly.info)
+
+
+@app.post("/drift/run")
+def drift_run(req: TrainRequest | None = None):
+    """สร้างรายงาน drift รายเดือนแล้วบันทึกลง drift_reports (RodeMap รอบ 5)"""
+    return _wrap(drift.run, (req.triggered_by if req else None))
 
 
 @app.post("/anomaly/check")

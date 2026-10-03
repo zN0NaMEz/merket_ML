@@ -11,7 +11,7 @@ async function warmup() {
     try {
       const n = await db.one("SELECT count(*)::int AS n FROM bills WHERE kind = 'monthly' AND status IN ('unpaid','overdue') AND risk_score IS NULL");
       if (n.n === 0) return;
-      const r = await billing.rescoreOpenBills();
+      const r = await billing.rescoreOpenBills('เริ่มระบบ (บิลที่ยังไม่มีคะแนน)');
       console.log(`[warmup] ประเมินความเสี่ยงบิลค้าง ${r.count} รายการด้วยโมเดล ${r.model}`);
       return;
     } catch (e) {

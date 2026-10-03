@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { thDateLong } from '../format';
 import { useApp } from '../ui';
 import { Icon } from '../pages/owner/parts';
@@ -15,7 +15,10 @@ const TABS = [
 /** โครงหน้าของเจ้าของตลาด: หัวบอกชื่อตลาดกับวันที่ · เนื้อหา · แถบเมนูล่าง */
 export default function OwnerLayout() {
   const { user, info, unread } = useApp();
+  const { pathname } = useLocation();
   if (!user) return null;
+  // หน้าเบื้องหลัง AI เปิดจากเมนู "เพิ่มเติม" จึงให้แท็บนั้นติดอยู่
+  const moreOn = pathname.startsWith('/ai/');
   return (
     <div className="own">
       <header className="own__top">
@@ -25,7 +28,7 @@ export default function OwnerLayout() {
       <main className="own__main"><Outlet /></main>
       <nav className="own__tabs" aria-label="เมนูหลัก">
         {TABS.map(([to, label, icon]) => (
-          <NavLink key={to} to={to} end={to === '/owner'} className={({ isActive }) => `own__tab ${isActive ? 'is-on' : ''}`}>
+          <NavLink key={to} to={to} end={to === '/owner'} className={({ isActive }) => `own__tab ${isActive || (moreOn && icon === 'more') ? 'is-on' : ''}`}>
             <span className="own__tabicon"><Icon name={icon} size={28} />{icon === 'more' && unread > 0 && <i className="own__dot" aria-hidden="true" />}</span>
             <span>{label}</span>
           </NavLink>

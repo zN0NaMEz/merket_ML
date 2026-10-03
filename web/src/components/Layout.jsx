@@ -18,11 +18,16 @@ const NAV = {
     ['/staff/vendors', 'ผู้ค้าและสัญญา', '1.0'],
     ['/staff/walkin', 'พื้นที่ผู้ค้าขาจร', '2.0'],
     ['/staff/ai', 'AI วิเคราะห์', 'ML'],
+    ['/ai/behind', 'เบื้องหลัง AI', 'XAI'],
     ['/staff/notifications', 'การแจ้งเตือน', 'D7'],
+  ],
+  admin: [
+    ['/ai/behind', 'เบื้องหลัง AI', 'XAI'],
+    ['/admin/notifications', 'การแจ้งเตือน', 'D7'],
   ],
   // เจ้าของตลาดใช้ OwnerLayout (เมนูล่างแบบแอปมือถือ) แยกต่างหาก
 };
-const ROLE_NAME = { vendor: 'ผู้ค้าประจำ', staff: 'เจ้าหน้าที่สำนักงาน', owner: 'เจ้าของตลาด' };
+const ROLE_NAME = { vendor: 'ผู้ค้าประจำ', staff: 'เจ้าหน้าที่สำนักงาน', owner: 'เจ้าของตลาด', admin: 'ทีม/กรรมการ' };
 
 /**
  * แสดงเมื่อเรียก API ไม่ได้ เช่นตอนดีพลอยเฉพาะหน้าเว็บโดยไม่มีเซิร์ฟเวอร์
@@ -56,7 +61,7 @@ function Clock() {
   const { info, user, bump, toast } = useApp();
   const [busy, setBusy] = useState(false);
   if (!info) return null;
-  const canAdvance = info.demo_mode && user && user.role !== 'vendor';
+  const canAdvance = info.demo_mode && user && (user.role === 'staff' || user.role === 'owner');
   const advance = async days => {
     setBusy(true);
     try {

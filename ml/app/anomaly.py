@@ -80,7 +80,28 @@ def _training_points(by_stall, by_type) -> list[list[float]]:
     return pts
 
 
-def train() -> dict:
+def _period_range(by_stall) -> tuple:
+    """ช่วงรอบมิเตอร์ที่ใช้เทรน แปลงเป็นวันแรกของรอบแรก ถึงวันสุดท้ายของรอบสุดท้าย"""
+    from calendar import monthrange
+    from datetime import date
+    periods = sorted({m["period"] for ms in by_stall.values() for m in ms})
+    if not periods:
+        return None, None
+    y0, m0 = int(periods[0][:4]), int(periods[0][5:7])
+    y1, m1 = int(periods[-1][:4]), int(periods[-1][5:7])
+    return date(y0, m0, 1), date(y1, m1, monthrange(y1, m1)[1])
+
+
+def iforest_level(score: float, threshold: float, p95: float | None) -> str:
+    """คะแนน Isolation Forest เป็นสามระดับ: ผิดปกติ = เกินเกณฑ์ · น่าสงสัย = สูงกว่า 95% ของค่าในอดีตแต่ยังไม่ถึงเกณฑ์"""
+    if score > threshold:
+        return "abnormal"
+    if p95 is not None and score > min(p95, threshold):
+        return "suspicious"
+    return "normal"
+
+
+def train(triggered_by: str | None = None) -> dict:
     _, by_stall, by_type = _load()
     rows = _training_rows(by_stall, by_type)
     pts = [r[0] for r in rows]
@@ -107,7 +128,10 @@ def train() -> dict:
     with open(INFO_PATH, "w", encoding="utf-8") as fh:
         json.dump(info, fh, ensure_ascii=False)
     _cache["model"], _cache["info"] = model, info
-    db.save_model_run("anomaly", {k: v for k, v in info.items() if k != "points"})
+    d_from, d_to = _period_range(by_stall)
+    db.save_model_run("anomaly", {k: v for k, v in info.items() if k != "points"},
+                      n_train=len(pts), data_from=d_from, data_to=d_to,
+                      is_synthetic=db.is_synthetic(), triggered_by=triggered_by)
     try:
         buf = _io.BytesIO()
         joblib.dump(model, buf)
@@ -134,7 +158,7 @@ def _ensure():
         with open(INFO_PATH, "w", encoding="utf-8") as fh:
             json.dump(meta, fh, ensure_ascii=False)
         return
-    train()
+    train(triggered_by="อัตโนมัติ (ยังไม่มีโมเดลที่เทรนไว้)")
 
 
 def info() -> dict:
@@ -173,7 +197,8 @@ def check(period: str, readings: list[dict], method: str = "both", z_threshold: 
             out.append(res)
             continue
         uw, ue = res["use_water"], res["use_elec"]
-        mw, me = mean([h["use_water"] for h in hist]), mean([h["use_elec"] for h in hist])
+        hw, he = [h["use_water"] for h in hist], [h["use_elec"] for h in hist]
+        mw, me = mean(hw), mean(he)
         peer = peer_stats(by_type, st["type_code"], period)
         zw, ze, pzw, pze = _zscores(uw, ue, hist, peer)
         x = anomaly_vector(uw, ue, hist, peer)
@@ -182,9 +207,14 @@ def check(period: str, readings: list[dict], method: str = "both", z_threshold: 
         if_flag = ifs > if_threshold
         anomaly = z_flag if method == "z" else if_flag if method == "if" else (z_flag or if_flag)
         rw, re_ = (uw + 1) / (mw + 1), (ue + 1) / (me + 1)
+        # ความแกว่งที่ใช้คิด z (ขั้นต่ำ 8% ของค่าเฉลี่ย ตรงกับ _zscores) ส่งไปด้วยเพื่อวาดแถบช่วงปกติได้โดยไม่ต้องเรียกซ้ำ
+        sw, se = max(_sd(hw), 0.08 * mw, 1), max(_sd(he), 0.08 * me, 1)
         res.update(z_water=round(zw, 2), z_elec=round(ze, 2), peer_z_water=round(pzw, 2), peer_z_elec=round(pze, 2),
                    if_score=round(ifs, 3), z_flag=z_flag, if_flag=if_flag, anomaly=anomaly, kind="normal",
                    ratio_water=round(rw, 2), ratio_elec=round(re_, 2), mean_water=round(mw, 1), mean_elec=round(me, 1),
+                   sd_water=round(sw, 2), sd_elec=round(se, 2), z_threshold=z_threshold, if_threshold=if_threshold,
+                   if_level=iforest_level(ifs, if_threshold, (_cache.get("info") or {}).get("score_p95")),
+                   window={"from": hist[0]["period"], "to": hist[-1]["period"], "n": len(hist)},
                    x=[round(x[0], 3), round(x[1], 3)])
         if anomaly:
             reasons = []

@@ -78,6 +78,12 @@
 - แสดง z-score เป็นภาษาคน เช่น "สูงกว่าปกติของร้านนี้ราว 4 เท่าของความแปรปรวน"
 - แสดงผล Isolation Forest เป็นระดับ (ปกติ/น่าสงสัย/ผิดปกติ) [R4]
 - ปุ่ม "ยืนยันค่าถูก" / "แก้ค่า" และบันทึกว่าใครยืนยัน
+- **เลิกทำได้ (undo):** หลังกดยืนยันหรือแก้ค่า แสดง toast "ยืนยันค่าแล้ว" หรือ "แก้ค่าเป็น 412 แล้ว" พร้อมปุ่ม "เลิกทำ" นาน 6 วินาที
+  - บันทึกลงฐานข้อมูลทันที ไม่หน่วงไว้ฝั่งมือถือ (ถ้าหน่วงไว้แล้วเน็ตหลุดหรือปิดแอป การยืนยันจะหาย)
+  - กดเลิกทำ = ใส่ `undone_at` ให้รายการนั้นและคืนค่ามิเตอร์เดิม ไม่ลบแถวทิ้ง เพื่อให้ audit log ครบ
+  - server ยอมรับการเลิกทำภายใน 30 วินาทีหลังบันทึก (เผื่อเน็ตช้า) หลังจากนั้นต้องแก้ผ่านการยืนยันรอบใหม่
+  - toast ใช้ `aria-live="polite"` ไม่บังปุ่มอื่น และปุ่มเลิกทำมีขนาดแตะอย่างน้อย 44 × 44 px
+  - ระหว่างที่ยังเลิกทำได้ ห้ามออกบิลจากค่ามิเตอร์นั้น
 
 ### 3.4 คุณภาพโมเดล (ระดับโมเดล)
 - ตัวชี้วัดจากรอบเทรนล่าสุด: AUC, precision, recall พร้อมค่าเฉลี่ย ± SD จาก 5-fold CV
@@ -122,8 +128,13 @@ CREATE TABLE IF NOT EXISTS anomaly_reviews (
   old_value    numeric,
   new_value    numeric,
   reviewed_by  bigint,
-  reviewed_at  timestamptz NOT NULL DEFAULT now()
+  reviewed_at  timestamptz NOT NULL DEFAULT now(),
+  undone_at    timestamptz            -- ไม่ว่าง = ถูกเลิกทำ (ไม่ลบแถว)
 );
+
+-- รายการที่มีผลจริง
+CREATE VIEW anomaly_reviews_effective AS
+  SELECT * FROM anomaly_reviews WHERE undone_at IS NULL;
 ```
 
 ### 4.3 ML service (`ml/app/`)
@@ -136,11 +147,19 @@ CREATE TABLE IF NOT EXISTS anomaly_reviews (
 
 | Route | อ่านจาก | หมายเหตุ |
 |---|---|---|
-| `GET /api/ai/status` | `/health` (timeout 3 วินาที) + `model_runs` ล่าสุด | ถ้า ML ไม่ตอบ ให้คืนสถานะ `asleep` ไม่ใช่ 503 |
+| `GET /api/ai/status` | `/health` (timeout 3 วินาที) + `model_runs` ล่าสุด | ถ้า ML ไม่ตอบ ให้คืนสถานะ `asleep` ไม่ใช่ 503 · cache 15 วินาที (ดู 4.5) |
 | `GET /api/ai/bills/:id/explain` | `bills.risk_features` | ไม่เรียก ML |
 | `GET /api/ai/readings/:id/explain` | ผลที่เก็บตอน `/anomaly/check` + ค่าย้อนหลัง | ไม่เรียก ML |
 | `GET /api/ai/runs?model_type=` | `model_runs` | สำหรับกราฟประวัติ |
-| `POST /api/ai/readings/:id/review` | เขียน `anomaly_reviews` | ต้องเป็นเจ้าหน้าที่ |
+| `POST /api/ai/readings/:id/review` | เขียน `anomaly_reviews` | ต้องเป็นเจ้าหน้าที่ · คืน `review_id` |
+| `POST /api/ai/reviews/:id/undo` | ใส่ `undone_at` + คืนค่ามิเตอร์เดิม | เฉพาะผู้บันทึกเอง ภายใน 30 วินาที |
+
+### 4.5 Cache ของ `GET /api/ai/status`
+ถ้าหลายคนเปิดหน้าพร้อมกัน แต่ละคำขอจะยิง `/health` ไปที่ Render และรอได้ถึง 3 วินาทีตอน ML หลับ ทำให้หน้าช้าและปลุก Render ซ้ำโดยไม่จำเป็น
+- **ใช้ cache ที่ CDN ของ Vercel:** ตั้ง header `Cache-Control: public, s-maxage=15, stale-while-revalidate=30` บน response นี้ คำขอภายใน 15 วินาทีจะได้คำตอบจาก CDN โดยไม่เรียกฟังก์ชันหรือ Render เลย
+- **อย่าใช้ตัวแปรในหน่วยความจำของฟังก์ชันเป็น cache:** API บน Vercel เป็น serverless หลาย instance ไม่แชร์หน่วยความจำกัน และ instance ถูกทิ้งเมื่อว่าง
+- response นี้ต้องไม่มีข้อมูลเฉพาะผู้ใช้ เพราะ cache แบบ public ทุกคนได้คำตอบเดียวกัน ส่วนข้อมูลตามสิทธิ์ให้แยกไปอีก route
+- หน้าเว็บ poll สถานะไม่ถี่กว่าทุก 30 วินาที และหยุด poll เมื่อแท็บไม่ได้เปิดอยู่ (`document.visibilityState`)
 
 ---
 
@@ -165,9 +184,9 @@ CREATE TABLE IF NOT EXISTS anomaly_reviews (
 
 | รอบ | ขอบเขต | เกณฑ์ว่าเสร็จ |
 |---|---|---|
-| 1 | สถานะ AI + บัตรโมเดล (3.1, 3.5) + migration 4.1 | เปิดหน้าได้ตอน ML หลับโดยไม่ error, เห็นวันเวลาเทรนล่าสุดและป้ายข้อมูลจริง/จำลอง |
+| 1 | สถานะ AI + บัตรโมเดล (3.1, 3.5) + migration 4.1 + cache 4.5 | เปิดหน้าได้ตอน ML หลับโดยไม่ error, เห็นวันเวลาเทรนล่าสุดและป้ายข้อมูลจริง/จำลอง, เปิดหน้าซ้ำใน 15 วินาทีไม่ยิง `/health` ซ้ำ |
 | 2 | เหตุผลรายบิล (3.2) | ทุกบิลที่มีคะแนนแสดงปัจจัยหลักเป็นภาษาไทย, เปิดหน้าไม่เรียก ML |
-| 3 | เหตุผลรายมิเตอร์ + ปุ่มยืนยัน (3.3, 4.2) | กราฟช่วงปกติถูกต้อง, การยืนยันถูกบันทึกพร้อมผู้ยืนยัน |
+| 3 | เหตุผลรายมิเตอร์ + ปุ่มยืนยัน + เลิกทำ (3.3, 4.2) | กราฟช่วงปกติถูกต้อง, การยืนยันถูกบันทึกพร้อมผู้ยืนยัน, เลิกทำได้ภายในเวลาที่กำหนดและ audit log ยังครบ |
 | 4 | คุณภาพโมเดลและประวัติ (3.4) | แสดง CV mean ± SD, confusion matrix, calibration curve, กราฟ AUC ข้ามรอบ |
 | 5 | (เสริม) ตรวจการเปลี่ยนแปลงของข้อมูล (data drift) [R11] และใช้ `anomaly_reviews` ปรับเกณฑ์ | มีรายงาน drift รายเดือน |
 
@@ -195,6 +214,8 @@ CREATE TABLE IF NOT EXISTS anomaly_reviews (
 - Display Thai, user-facing labels for features (web/src/ai/featureLabels.js). Never show raw column names.
 - Every metric shown must come from model_runs. Show an empty state if none exist. Never hardcode or simulate metrics.
 - Show a "ข้อมูลจำลอง" badge whenever model_runs.is_synthetic is true.
+- Definition of done for every round: loading, empty, ML-asleep and error states are fully implemented and manually checked, plus tests for the main logic. Do not start the next round until these are done; list each state and how you verified it.
+- GET /api/ai/status is cached at the Vercel CDN (s-maxage=15). Never cache it in function memory.
 ```
 
 Prompt แยกตามรอบ (ใช้ทีละรอบ)
@@ -207,7 +228,9 @@ Prompt แยกตามรอบ (ใช้ทีละรอบ)
 2) แก้ขั้นตอนเทรนให้บันทึก n_train, n_test, data_from, data_to, sklearn_version, is_synthetic
 3) เพิ่ม GET /api/ai/status ที่คืน asleep เมื่อ /health ไม่ตอบใน 3 วินาที
 4) สร้างหน้า /ai/behind ส่วนสถานะและบัตรโมเดล พร้อมสถานะโหลด/ว่าง/หลับ
-สรุปไฟล์ที่แก้ และวิธีทดสอบตอน ML หลับ
+5) ตั้ง cache ตามหัวข้อ 4.5
+ก่อนจบรอบ: ทำสถานะ กำลังโหลด / ไม่มีข้อมูล / ML กำลังเปิด / ML ไม่ตอบ ให้ครบทุกส่วนที่สร้างในรอบนี้
+สรุปไฟล์ที่แก้ วิธีทดสอบตอน ML หลับ และตารางสถานะที่ทำแล้วพร้อมวิธีตรวจ ห้ามเริ่มรอบ 2 จนกว่าสถานะครบ
 ```
 
 **รอบ 2**
@@ -217,9 +240,10 @@ Prompt แยกตามรอบ (ใช้ทีละรอบ)
 - ถ้าเป็น Random Forest ลอง SHAP TreeExplainer และวัดหน่วยความจำ ถ้าเกินให้ fallback เป็น permutation importance และติดธง scope="global"
 เก็บผลลง bills.risk_features เพิ่ม GET /api/ai/bills/:id/explain และหน้าแสดงกราฟปัจจัยพร้อมประโยคสรุปภาษาไทย
 เขียน unit test ของการคำนวณ contributions
+ก่อนจบรอบ: ทำสถานะของหน้าเหตุผลรายบิลให้ครบ รวมกรณีบิลที่ยังไม่มีคะแนน และบิลที่ contributions เป็น scope="global" แล้วรายงานตารางสถานะเหมือนรอบ 1
 ```
 
-**รอบ 3–4**: ใช้รูปแบบเดียวกัน อ้างหัวข้อ 3.3, 3.4, 4.2 และเกณฑ์ในหัวข้อ 6
+**รอบ 3–4**: ใช้รูปแบบเดียวกัน อ้างหัวข้อ 3.3, 3.4, 4.2, 4.4 และเกณฑ์ในหัวข้อ 6 และปิดท้ายทุกรอบด้วยเงื่อนไข "ทำสถานะ Empty/Loading/Error ให้ครบก่อนเริ่มรอบถัดไป" รอบ 3 ต้องทดสอบการเลิกทำทั้งกรณีปกติ เกินเวลา และเน็ตหลุดระหว่างบันทึก
 
 ---
 

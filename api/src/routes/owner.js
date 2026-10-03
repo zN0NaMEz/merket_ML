@@ -14,9 +14,9 @@ const MIN_HISTORY = 3;   // ต้องมีบิลย้อนหลัง�
 
 /** คุณภาพของโมเดลล่าสุดจากผลทดสอบตอนเทรน: good / ok / weak หรือ null ถ้ายังไม่เคยเทรน */
 async function riskQuality(ai) {
-  const run = await db.one("SELECT metrics FROM model_runs WHERE model_type = 'risk' ORDER BY id DESC LIMIT 1");
-  const models = run?.metrics?.models || {};
-  const auc = (models[ai.risk_model] || models.lr)?.auc;
+  const run = await db.one(`SELECT model_type, metrics FROM model_runs WHERE model_type IN ($1, 'risk')
+    ORDER BY trained_at DESC, id DESC LIMIT 1`, [`risk_${ai.risk_model}`]);
+  const auc = run?.model_type === 'risk' ? (run.metrics?.models?.[ai.risk_model] || run.metrics?.models?.lr)?.auc : run?.metrics?.auc;
   if (auc == null) return null;
   return auc >= 0.8 ? 'good' : auc >= 0.7 ? 'ok' : 'weak';
 }

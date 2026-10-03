@@ -9,6 +9,7 @@ import '../styles/login.css';
 const DEMO = [
   ['staff', 'staff1234', 'เจ้าหน้าที่'],
   ['owner', 'owner1234', 'เจ้าของตลาด'],
+  ['admin', 'admin1234', 'ทีม/กรรมการ (ดู AI)'],
   ['a04', 'vendor1234', 'ผู้ค้า A-04 (ค้างชำระ)'],
   ['a01', 'vendor1234', 'ผู้ค้า A-01'],
 ];

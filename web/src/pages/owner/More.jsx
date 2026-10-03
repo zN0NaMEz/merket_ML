@@ -41,6 +41,7 @@ export default function More() {
       <div className="o-stack">
       <nav className="o-menu" aria-label="เมนูเพิ่มเติม">
         <Link to="/owner/rates"><Icon name="wallet" />ตั้งราคาค่าเช่า ค่าน้ำ ค่าไฟ{nextIcon}</Link>
+        <Link to="/ai/behind"><Icon name="bulb" />เบื้องหลัง AI: ทำไมระบบเตือนแบบนั้น{nextIcon}</Link>
         <Link to="/owner/notifications"><Icon name="message" />ข้อความแจ้งเตือน{unread > 0 && <b className="o-badge">{unread} ใหม่</b>}{nextIcon}</Link>
         <button type="button" onClick={() => { logout(); nav('/login'); }}><Icon name="logout" />ออกจากระบบ ({user?.name})</button>
       </nav>

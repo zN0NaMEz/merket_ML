@@ -26,10 +26,13 @@ async function call(path, body, method = body ? 'POST' : 'GET', timeout = 60000)
 
 module.exports = {
   health: () => call('/health'),
-  trainRisk: () => call('/risk/train', {}, 'POST', TRAIN_TIMEOUT),
+  // triggeredBy = ใครหรืออะไรสั่งเทรน บันทึกลง model_runs.triggered_by
+  trainRisk: triggeredBy => call('/risk/train', { triggered_by: triggeredBy || null }, 'POST', TRAIN_TIMEOUT),
   riskMetrics: () => call('/risk/metrics'),
   scoreBills: (billIds, model) => call('/risk/score', { bill_ids: billIds, model }),
-  trainAnomaly: () => call('/anomaly/train', {}, 'POST', TRAIN_TIMEOUT),
+  trainAnomaly: triggeredBy => call('/anomaly/train', { triggered_by: triggeredBy || null }, 'POST', TRAIN_TIMEOUT),
+  // รายงาน drift รายเดือน (RodeMap รอบ 5) ML คำนวณแล้วบันทึกลง drift_reports เอง
+  runDrift: triggeredBy => call('/drift/run', { triggered_by: triggeredBy || null }, 'POST', TRAIN_TIMEOUT),
   anomalyInfo: () => call('/anomaly/info'),
   checkReadings: (period, readings, ai) => call('/anomaly/check', {
     period, readings, method: ai.anomaly_method, z_threshold: Number(ai.z_threshold), if_threshold: Number(ai.if_threshold),
