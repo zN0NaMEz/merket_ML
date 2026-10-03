@@ -32,6 +32,8 @@ module.exports = {
   scoreBills: (billIds, model) => call('/risk/score', { bill_ids: billIds, model }),
   trainAnomaly: triggeredBy => call('/anomaly/train', { triggered_by: triggeredBy || null }, 'POST', TRAIN_TIMEOUT),
   // รายงาน drift รายเดือน (RodeMap รอบ 5) ML คำนวณแล้วบันทึกลง drift_reports เอง
+  // วัดผลโมเดลกับข้อมูลจำลองหลายชุด ML ตอบทันทีพร้อมเลขชุด แล้วรันต่อเบื้องหลัง
+  runBenchmark: triggeredBy => call('/benchmark/run', { triggered_by: triggeredBy || null }, 'POST'),
   runDrift: triggeredBy => call('/drift/run', { triggered_by: triggeredBy || null }, 'POST', TRAIN_TIMEOUT),
   anomalyInfo: () => call('/anomaly/info'),
   checkReadings: (period, readings, ai) => call('/anomaly/check', {

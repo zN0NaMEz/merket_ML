@@ -1,0 +1,692 @@
+[
+  {
+    "key": "baseline",
+    "title": "ตลาดปกติ",
+    "description": "พฤติกรรมเหมือนข้อมูลสาธิตของระบบ ผู้ค้า 32 ราย ประวัติ 17 เดือน",
+    "seed": 101,
+    "expect": [],
+    "expect_metric": "cv_auc",
+    "hypothesis": "",
+    "params": {
+      "n_vendors": 32,
+      "months": 17,
+      "bad_share": 0.16,
+      "new_share": 0.16,
+      "intercept": -1.2,
+      "k_discipline": 1.0,
+      "k_history": 1.0,
+      "k_ratio": 1.0,
+      "k_season": 1.0,
+      "noise_sd": 0.35,
+      "shock_p": 0.0,
+      "shock_range": [
+        1.4,
+        2.2
+      ],
+      "drop_p": 0.0,
+      "drop_range": [
+        0.35,
+        0.7
+      ],
+      "k_type": 1.0,
+      "mechanism": "additive",
+      "k_signal": 0.0
+    },
+    "task": "risk",
+    "file": "risk_baseline.csv",
+    "rows": 433,
+    "positive_rate": 0.3949
+  },
+  {
+    "key": "noisy",
+    "title": "พฤติกรรมสุ่มมาก",
+    "description": "การจ่ายช้าขึ้นกับโชคมากกว่าประวัติ สัญญาณที่โมเดลเรียนได้อ่อน",
+    "seed": 102,
+    "expect": [],
+    "expect_metric": "cv_auc",
+    "hypothesis": "",
+    "params": {
+      "n_vendors": 32,
+      "months": 17,
+      "bad_share": 0.16,
+      "new_share": 0.16,
+      "intercept": -1.2,
+      "k_discipline": 0.45,
+      "k_history": 0.5,
+      "k_ratio": 1.0,
+      "k_season": 1.0,
+      "noise_sd": 1.4,
+      "shock_p": 0.0,
+      "shock_range": [
+        1.4,
+        2.2
+      ],
+      "drop_p": 0.0,
+      "drop_range": [
+        0.35,
+        0.7
+      ],
+      "k_type": 1.0,
+      "mechanism": "additive",
+      "k_signal": 0.0
+    },
+    "task": "risk",
+    "file": "risk_noisy.csv",
+    "rows": 437,
+    "positive_rate": 0.3295
+  },
+  {
+    "key": "rare_late",
+    "title": "จ่ายช้าน้อย (ข้อมูลไม่สมดุล)",
+    "description": "จ่ายช้าราว 1 ใน 10 บิล ทดสอบ precision/recall เมื่อกลุ่มที่สนใจมีน้อย",
+    "seed": 103,
+    "expect": [],
+    "expect_metric": "cv_auc",
+    "hypothesis": "",
+    "params": {
+      "n_vendors": 32,
+      "months": 17,
+      "bad_share": 0.1,
+      "new_share": 0.16,
+      "intercept": -2.3,
+      "k_discipline": 1.0,
+      "k_history": 1.0,
+      "k_ratio": 1.0,
+      "k_season": 1.0,
+      "noise_sd": 0.35,
+      "shock_p": 0.0,
+      "shock_range": [
+        1.4,
+        2.2
+      ],
+      "drop_p": 0.0,
+      "drop_range": [
+        0.35,
+        0.7
+      ],
+      "k_type": 1.0,
+      "mechanism": "additive",
+      "k_signal": 0.0
+    },
+    "task": "risk",
+    "file": "risk_rare_late.csv",
+    "rows": 420,
+    "positive_rate": 0.1048
+  },
+  {
+    "key": "seasonal",
+    "title": "ฤดูกาลมีผลแรง",
+    "description": "หน้าฝนและเปิดเทอมจ่ายช้ามาก เทศกาลจ่ายตรง ผลของฤดูแรงกว่าปกติ 3 เท่า",
+    "seed": 104,
+    "expect": [],
+    "expect_metric": "cv_auc",
+    "hypothesis": "",
+    "params": {
+      "n_vendors": 32,
+      "months": 17,
+      "bad_share": 0.16,
+      "new_share": 0.16,
+      "intercept": -1.2,
+      "k_discipline": 1.0,
+      "k_history": 1.0,
+      "k_ratio": 1.0,
+      "k_season": 3.0,
+      "noise_sd": 0.35,
+      "shock_p": 0.0,
+      "shock_range": [
+        1.4,
+        2.2
+      ],
+      "drop_p": 0.0,
+      "drop_range": [
+        0.35,
+        0.7
+      ],
+      "k_type": 1.0,
+      "mechanism": "additive",
+      "k_signal": 0.0
+    },
+    "task": "risk",
+    "file": "risk_seasonal.csv",
+    "rows": 455,
+    "positive_rate": 0.3692
+  },
+  {
+    "key": "bill_shock",
+    "title": "ยอดบิลพุ่งทำให้จ่ายช้า",
+    "description": "บิล 15% มียอดน้ำไฟพุ่ง 1.4–2.2 เท่า และยอดที่สูงขึ้นมีผลต่อการจ่ายช้ามาก",
+    "seed": 105,
+    "expect": [],
+    "expect_metric": "cv_auc",
+    "hypothesis": "",
+    "params": {
+      "n_vendors": 32,
+      "months": 17,
+      "bad_share": 0.16,
+      "new_share": 0.16,
+      "intercept": -1.2,
+      "k_discipline": 1.0,
+      "k_history": 1.0,
+      "k_ratio": 2.5,
+      "k_season": 1.0,
+      "noise_sd": 0.35,
+      "shock_p": 0.15,
+      "shock_range": [
+        1.4,
+        2.2
+      ],
+      "drop_p": 0.0,
+      "drop_range": [
+        0.35,
+        0.7
+      ],
+      "k_type": 1.0,
+      "mechanism": "additive",
+      "k_signal": 0.0
+    },
+    "task": "risk",
+    "file": "risk_bill_shock.csv",
+    "rows": 440,
+    "positive_rate": 0.3136
+  },
+  {
+    "key": "new_market",
+    "title": "ผู้ค้าใหม่จำนวนมาก",
+    "description": "60% ของผู้ค้าเช่ามาไม่ถึงปีครึ่ง และเก็บประวัติแค่ 12 เดือน ฟีเจอร์จากประวัติจึงมีข้อมูลน้อย",
+    "seed": 106,
+    "expect": [],
+    "expect_metric": "cv_auc",
+    "hypothesis": "",
+    "params": {
+      "n_vendors": 32,
+      "months": 12,
+      "bad_share": 0.16,
+      "new_share": 0.6,
+      "intercept": -1.2,
+      "k_discipline": 1.0,
+      "k_history": 1.0,
+      "k_ratio": 1.0,
+      "k_season": 1.0,
+      "noise_sd": 0.35,
+      "shock_p": 0.0,
+      "shock_range": [
+        1.4,
+        2.2
+      ],
+      "drop_p": 0.0,
+      "drop_range": [
+        0.35,
+        0.7
+      ],
+      "k_type": 1.0,
+      "mechanism": "additive",
+      "k_signal": 0.0
+    },
+    "task": "risk",
+    "file": "risk_new_market.csv",
+    "rows": 254,
+    "positive_rate": 0.3346
+  },
+  {
+    "key": "large",
+    "title": "ตลาดใหญ่",
+    "description": "ผู้ค้า 120 ราย ประวัติ 24 เดือน ดูว่าข้อมูลมากขึ้นช่วยให้แม่นขึ้นแค่ไหน",
+    "seed": 107,
+    "expect": [],
+    "expect_metric": "cv_auc",
+    "hypothesis": "",
+    "params": {
+      "n_vendors": 120,
+      "months": 24,
+      "bad_share": 0.16,
+      "new_share": 0.16,
+      "intercept": -1.2,
+      "k_discipline": 1.0,
+      "k_history": 1.0,
+      "k_ratio": 1.0,
+      "k_season": 1.0,
+      "noise_sd": 0.35,
+      "shock_p": 0.0,
+      "shock_range": [
+        1.4,
+        2.2
+      ],
+      "drop_p": 0.0,
+      "drop_range": [
+        0.35,
+        0.7
+      ],
+      "k_type": 1.0,
+      "mechanism": "additive",
+      "k_signal": 0.0
+    },
+    "task": "risk",
+    "file": "risk_large.csv",
+    "rows": 2449,
+    "positive_rate": 0.361
+  },
+  {
+    "key": "interaction",
+    "title": "ยอดบิลส่งผลกลับทางกัน",
+    "description": "ยอดบิลสูงทำให้ผู้ค้าใหม่ (เช่าไม่ถึง 2 ปี) จ่ายช้า แต่ผู้ค้าเก่ากลับจ่ายตรงขึ้น ผู้ค้า 80 ราย ครึ่งหนึ่งเป็นผู้ค้าใหม่",
+    "seed": 108,
+    "expect": [
+      "rf"
+    ],
+    "expect_metric": "cv_auc",
+    "hypothesis": "ผลของยอดบิลกลับทิศตามระยะเวลาเช่า เส้นตรงเห็นผลรวมเป็นศูนย์ ต้นไม้แยกกลุ่มก่อนแล้วดูยอดบิลได้",
+    "params": {
+      "n_vendors": 80,
+      "months": 20,
+      "bad_share": 0.16,
+      "new_share": 0.5,
+      "intercept": -1.2,
+      "k_discipline": 0.2,
+      "k_history": 0,
+      "k_ratio": 0,
+      "k_season": 0,
+      "noise_sd": 0.35,
+      "shock_p": 0.2,
+      "shock_range": [
+        1.4,
+        2.2
+      ],
+      "drop_p": 0.2,
+      "drop_range": [
+        0.35,
+        0.7
+      ],
+      "k_type": 0,
+      "mechanism": "interaction",
+      "k_signal": 12.0
+    },
+    "task": "risk",
+    "file": "risk_interaction.csv",
+    "rows": 1013,
+    "positive_rate": 0.3011
+  },
+  {
+    "key": "u_shape",
+    "title": "ยอดบิลผิดปกติทั้งสองทาง",
+    "description": "บิลที่สูงหรือต่ำกว่าปกติมากจ่ายช้าทั้งคู่ (เช่น ร้านปิดบางวันเพราะขายไม่ดี) ผู้ค้า 80 ราย",
+    "seed": 109,
+    "expect": [
+      "rf"
+    ],
+    "expect_metric": "cv_auc",
+    "hypothesis": "ความสัมพันธ์เป็นรูปตัว U เส้นตรงลากได้ทางเดียว ต้นไม้ตัดได้สองฝั่ง",
+    "params": {
+      "n_vendors": 80,
+      "months": 20,
+      "bad_share": 0.16,
+      "new_share": 0.16,
+      "intercept": -1.2,
+      "k_discipline": 0.2,
+      "k_history": 0,
+      "k_ratio": 0,
+      "k_season": 0,
+      "noise_sd": 0.35,
+      "shock_p": 0.2,
+      "shock_range": [
+        1.4,
+        2.2
+      ],
+      "drop_p": 0.2,
+      "drop_range": [
+        0.35,
+        0.7
+      ],
+      "k_type": 0,
+      "mechanism": "u_shape",
+      "k_signal": 12.0
+    },
+    "task": "risk",
+    "file": "risk_u_shape.csv",
+    "rows": 1276,
+    "positive_rate": 0.1928
+  },
+  {
+    "key": "type_season",
+    "title": "ประเภทแผงช้าคนละฤดู",
+    "description": "ผักผลไม้ช้าหน้าฝน เสื้อผ้าช้าช่วงเปิดเทอม อาหารปรุงสุกช้าช่วงเทศกาล ที่เหลือจ่ายตรง ผู้ค้า 80 ราย",
+    "seed": 110,
+    "expect": [
+      "rf"
+    ],
+    "expect_metric": "cv_auc",
+    "hypothesis": "ต้องดูประเภทแผงคู่กับฤดู Logistic Regression ไม่มีพจน์ร่วม จึงเห็นแค่ค่าเฉลี่ยของแต่ละฝั่ง",
+    "params": {
+      "n_vendors": 80,
+      "months": 24,
+      "bad_share": 0.16,
+      "new_share": 0.16,
+      "intercept": -1.2,
+      "k_discipline": 0.4,
+      "k_history": 0,
+      "k_ratio": 0,
+      "k_season": 0,
+      "noise_sd": 0.35,
+      "shock_p": 0.0,
+      "shock_range": [
+        1.4,
+        2.2
+      ],
+      "drop_p": 0.0,
+      "drop_range": [
+        0.35,
+        0.7
+      ],
+      "k_type": 0,
+      "mechanism": "type_season",
+      "k_signal": 3.0
+    },
+    "task": "risk",
+    "file": "risk_type_season.csv",
+    "rows": 1557,
+    "positive_rate": 0.2293
+  },
+  {
+    "key": "linear_small",
+    "title": "ข้อมูลน้อยแต่ตรงไปตรงมา",
+    "description": "ผู้ค้า 12 ราย ประวัติ 10 เดือน ความเสี่ยงเพิ่มตามประวัติและยอดบิลแบบเส้นตรง",
+    "seed": 111,
+    "expect": [
+      "lr"
+    ],
+    "expect_metric": "cv_brier",
+    "hypothesis": "ข้อมูลน้อยและเป็นเส้นตรง Logistic Regression ให้ความน่าจะเป็นที่ตรงกว่า (Brier ต่ำกว่า) ส่วน Random Forest เฉลี่ยจากใบไม้ที่มีบิลไม่กี่ใบ ความน่าจะเป็นจึงหยาบกว่า",
+    "params": {
+      "n_vendors": 12,
+      "months": 10,
+      "bad_share": 0.16,
+      "new_share": 0.16,
+      "intercept": -1.2,
+      "k_discipline": 1.0,
+      "k_history": 2.0,
+      "k_ratio": 2.0,
+      "k_season": 1.0,
+      "noise_sd": 0.6,
+      "shock_p": 0.15,
+      "shock_range": [
+        1.4,
+        2.2
+      ],
+      "drop_p": 0.0,
+      "drop_range": [
+        0.35,
+        0.7
+      ],
+      "k_type": 1.0,
+      "mechanism": "additive",
+      "k_signal": 0.0
+    },
+    "task": "risk",
+    "file": "risk_linear_small.csv",
+    "rows": 91,
+    "positive_rate": 0.4835
+  },
+  {
+    "key": "baseline",
+    "title": "ค่าผิดปกติชัดเจน",
+    "description": "ค่าผิดปกติราว 4% ใช้มากขึ้น 2.5–4 เท่า หรือน้อยลงเหลือ 5–30%",
+    "seed": 201,
+    "expect": [],
+    "expect_metric": "f1",
+    "hypothesis": "",
+    "params": {
+      "n_stalls": 35,
+      "months": 24,
+      "noise_w": 0.12,
+      "noise_e": 0.1,
+      "season_amp": 1.0,
+      "anomaly_rate": 0.04,
+      "high_range": [
+        2.5,
+        4.0
+      ],
+      "low_range": [
+        0.05,
+        0.3
+      ],
+      "low_share": 0.3,
+      "pattern": false,
+      "pattern_range": [
+        1.15,
+        1.22
+      ],
+      "growth_share": 0.0,
+      "growth_rate": 0.0
+    },
+    "task": "anomaly",
+    "file": "meters_baseline.csv",
+    "rows": 840,
+    "positive_rate": 0.0429
+  },
+  {
+    "key": "subtle",
+    "title": "ผิดปกติแบบแนบเนียน",
+    "description": "ค่าผิดปกติแค่ 1.4–1.9 เท่า หรือเหลือ 40–60% ใกล้ช่วงปกติ จับยาก",
+    "seed": 202,
+    "expect": [],
+    "expect_metric": "f1",
+    "hypothesis": "",
+    "params": {
+      "n_stalls": 35,
+      "months": 24,
+      "noise_w": 0.12,
+      "noise_e": 0.1,
+      "season_amp": 1.0,
+      "anomaly_rate": 0.04,
+      "high_range": [
+        1.4,
+        1.9
+      ],
+      "low_range": [
+        0.4,
+        0.6
+      ],
+      "low_share": 0.3,
+      "pattern": false,
+      "pattern_range": [
+        1.15,
+        1.22
+      ],
+      "growth_share": 0.0,
+      "growth_rate": 0.0
+    },
+    "task": "anomaly",
+    "file": "meters_subtle.csv",
+    "rows": 840,
+    "positive_rate": 0.0345
+  },
+  {
+    "key": "noisy",
+    "title": "การใช้แกว่งมาก",
+    "description": "การใช้ปกติแกว่ง ±30% (ข้อมูลสาธิต ±10–12%) เสี่ยงทักผิดบ่อย",
+    "seed": 203,
+    "expect": [],
+    "expect_metric": "f1",
+    "hypothesis": "",
+    "params": {
+      "n_stalls": 35,
+      "months": 24,
+      "noise_w": 0.3,
+      "noise_e": 0.3,
+      "season_amp": 1.0,
+      "anomaly_rate": 0.04,
+      "high_range": [
+        2.5,
+        4.0
+      ],
+      "low_range": [
+        0.05,
+        0.3
+      ],
+      "low_share": 0.3,
+      "pattern": false,
+      "pattern_range": [
+        1.15,
+        1.22
+      ],
+      "growth_share": 0.0,
+      "growth_rate": 0.0
+    },
+    "task": "anomaly",
+    "file": "meters_noisy.csv",
+    "rows": 840,
+    "positive_rate": 0.044
+  },
+  {
+    "key": "seasonal",
+    "title": "ฤดูกาลแรง",
+    "description": "หน้าร้อนใช้ไฟเพิ่มเกือบเท่าตัว การใช้ที่สูงตามฤดูไม่ใช่ความผิดปกติ",
+    "seed": 204,
+    "expect": [],
+    "expect_metric": "f1",
+    "hypothesis": "",
+    "params": {
+      "n_stalls": 35,
+      "months": 24,
+      "noise_w": 0.12,
+      "noise_e": 0.1,
+      "season_amp": 3.0,
+      "anomaly_rate": 0.04,
+      "high_range": [
+        2.5,
+        4.0
+      ],
+      "low_range": [
+        0.05,
+        0.3
+      ],
+      "low_share": 0.3,
+      "pattern": false,
+      "pattern_range": [
+        1.15,
+        1.22
+      ],
+      "growth_share": 0.0,
+      "growth_rate": 0.0
+    },
+    "task": "anomaly",
+    "file": "meters_seasonal.csv",
+    "rows": 840,
+    "positive_rate": 0.05
+  },
+  {
+    "key": "many",
+    "title": "ค่าผิดปกติมาก",
+    "description": "ค่าผิดปกติราว 12% ประวัติของแผงเองจึงปนค่าผิดปกติด้วย",
+    "seed": 205,
+    "expect": [],
+    "expect_metric": "f1",
+    "hypothesis": "",
+    "params": {
+      "n_stalls": 35,
+      "months": 24,
+      "noise_w": 0.12,
+      "noise_e": 0.1,
+      "season_amp": 1.0,
+      "anomaly_rate": 0.12,
+      "high_range": [
+        2.5,
+        4.0
+      ],
+      "low_range": [
+        0.05,
+        0.3
+      ],
+      "low_share": 0.3,
+      "pattern": false,
+      "pattern_range": [
+        1.15,
+        1.22
+      ],
+      "growth_share": 0.0,
+      "growth_rate": 0.0
+    },
+    "task": "anomaly",
+    "file": "meters_many.csv",
+    "rows": 840,
+    "positive_rate": 0.1036
+  },
+  {
+    "key": "pattern",
+    "title": "น้ำกับไฟขยับสวนทางกัน",
+    "description": "ค่าผิดปกติคือน้ำขึ้นและไฟลงพร้อมกัน (หรือกลับกัน) 1.25–1.35 เท่า แต่ละค่ายังไม่ไกลจากช่วงปกติมาก การใช้ปกติแกว่งน้อย ±3%",
+    "seed": 206,
+    "expect": [
+      "if",
+      "both"
+    ],
+    "expect_metric": "f1",
+    "hypothesis": "z-score ดูน้ำกับไฟแยกกัน แต่ละค่าจึงมักไม่เกินเกณฑ์ วิธีที่มี Isolation Forest ดูน้ำกับไฟพร้อมกัน จึงเห็นว่าการขยับสวนทางเป็นรูปแบบแปลก",
+    "params": {
+      "n_stalls": 35,
+      "months": 24,
+      "noise_w": 0.03,
+      "noise_e": 0.03,
+      "season_amp": 1.0,
+      "anomaly_rate": 0.05,
+      "high_range": [
+        2.5,
+        4.0
+      ],
+      "low_range": [
+        0.05,
+        0.3
+      ],
+      "low_share": 0.3,
+      "pattern": true,
+      "pattern_range": [
+        1.25,
+        1.35
+      ],
+      "growth_share": 0.0,
+      "growth_rate": 0.0
+    },
+    "task": "anomaly",
+    "file": "meters_pattern.csv",
+    "rows": 840,
+    "positive_rate": 0.0345
+  },
+  {
+    "key": "growth",
+    "title": "ร้านขยายกิจการ",
+    "description": "40% ของแผงใช้น้ำไฟเพิ่มขึ้น 4% ทุกเดือนเพราะขายดีขึ้น ซึ่งไม่ใช่ความผิดปกติ ค่าผิดปกติจริงเหมือนชุดผิดปกติชัดเจน",
+    "seed": 207,
+    "expect": [
+      "if"
+    ],
+    "expect_metric": "f1",
+    "hypothesis": "z-score เทียบกับค่าเฉลี่ย 12 เดือนที่ตามไม่ทันการเติบโต จึงทักร้านที่โตผิด Isolation Forest เรียนจากรูปแบบน้ำ–ไฟของทั้งตลาดจึงทักผิดน้อยกว่า",
+    "params": {
+      "n_stalls": 35,
+      "months": 24,
+      "noise_w": 0.12,
+      "noise_e": 0.1,
+      "season_amp": 1.0,
+      "anomaly_rate": 0.04,
+      "high_range": [
+        2.5,
+        4.0
+      ],
+      "low_range": [
+        0.05,
+        0.3
+      ],
+      "low_share": 0.3,
+      "pattern": false,
+      "pattern_range": [
+        1.15,
+        1.22
+      ],
+      "growth_share": 0.4,
+      "growth_rate": 0.04
+    },
+    "task": "anomaly",
+    "file": "meters_growth.csv",
+    "rows": 840,
+    "positive_rate": 0.0381
+  }
+]

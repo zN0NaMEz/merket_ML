@@ -10,13 +10,14 @@ export const TABS = {
   meters: { label: 'มิเตอร์ที่ถูกทัก', hint: 'ทำไมเลขมิเตอร์นี้ถูกทัก' },
   quality: { label: 'คุณภาพโมเดล', hint: 'โมเดลแม่นแค่ไหน' },
   card: { label: 'บัตรโมเดล', hint: 'เทรนจากข้อมูลอะไร และใครทำอะไรไปบ้าง' },
+  eval: { label: 'ทดสอบหลายชุดข้อมูล', hint: 'วัดผลทุกโมเดลกับข้อมูลจำลองหลายแบบ' },
 };
 
 /** แท็บที่แต่ละบทบาทเห็น (หัวข้อ 3) · ตรวจสิทธิ์ซ้ำที่ API ทุก route */
 const ROLE_TABS = {
   staff: { tabs: ['bills', 'meters'], initial: 'meters' },
   owner: { tabs: ['bills', 'meters', 'quality'], initial: 'bills' },
-  admin: { tabs: ['bills', 'meters', 'quality', 'card'], initial: 'quality' },
+  admin: { tabs: ['bills', 'meters', 'quality', 'card', 'eval'], initial: 'quality' },
 };
 
 export const BEHIND_ROLES = Object.keys(ROLE_TABS);

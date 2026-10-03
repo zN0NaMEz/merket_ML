@@ -8,6 +8,7 @@ import ModelCard from './ModelCard';
 import BillsTab from './BillsTab';
 import MetersTab from './MetersTab';
 import QualityTab from './QualityTab';
+import EvalTab from './EvalTab';
 import { NoModel } from './parts';
 import '../../styles/behind.css';
 
@@ -16,7 +17,7 @@ import '../../styles/behind.css';
  * แถบสถานะบรรทัดเดียวบนสุด แล้วแท็บตามบทบาท · ทุกแท็บอ่านจาก Postgres ผ่าน /api/ai/* ไม่เรียก ML ตอนเปิดหน้า
  * ซ่อนแท็บตามบทบาทที่หน้าเว็บ และ API ตรวจสิทธิ์ซ้ำทุก route
  */
-const PANELS = { bills: BillsTab, meters: MetersTab, quality: QualityTab, card: ModelCard };
+const PANELS = { bills: BillsTab, meters: MetersTab, quality: QualityTab, card: ModelCard, eval: EvalTab };
 
 export default function Behind() {
   const { user } = useApp();
@@ -69,7 +70,7 @@ export default function Behind() {
       </div>
 
       <div role="tabpanel" id={`bh-panel-${tab}`} aria-labelledby={`bh-tab-${tab}`} className="bh-tabpanel">
-        {empty && tab !== 'card'
+        {empty && tab !== 'card' && tab !== 'eval'
           ? <NoModel onDone={status.reload} />
           : <Panel status={status.data} onTrained={status.reload} role={role} />}
       </div>

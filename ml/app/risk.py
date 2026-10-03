@@ -58,10 +58,13 @@ def _load_bills(vendor_ids: list[int] | None = None) -> dict[int, list[dict]]:
     return by_vendor
 
 
-def build_dataset() -> pd.DataFrame:
-    today = db.today()
+def build_dataset(by_vendor: dict | None = None, today=None) -> pd.DataFrame:
+    """ชุดข้อมูลเทรน: หนึ่งแถวต่อบิลที่รู้ผลแล้ว
+    by_vendor/today ส่งมาได้เพื่อใช้กับข้อมูลจำลอง (app.synthetic) ผ่านขั้นตอนติดป้ายเดียวกันทุกประการ
+    """
+    today = today or db.today()
     records = []
-    for bills in _load_bills().values():
+    for bills in (by_vendor if by_vendor is not None else _load_bills()).values():
         for i in range(1, len(bills)):
             b = bills[i]
             if b["paid_date"] is not None:

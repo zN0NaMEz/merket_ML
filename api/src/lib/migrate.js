@@ -14,12 +14,14 @@
  *     เพราะหลังออกบิล ผลตรวจบนเลขมิเตอร์เป็นของค่าที่แก้แล้ว ไม่ใช่ค่าที่ถูกทัก
  *     และแก้ is_synthetic ของรอบเทรนก่อน v2: คอลัมน์ใหม่ได้ค่าตั้งต้น false ทำให้รอบเทรนจากข้อมูลจำลองขึ้นป้าย "ข้อมูลจริง"
  *     แถวรุ่นก่อนดูได้จาก sklearn_version ที่ว่าง (ตัวเขียนรุ่นใหม่ใส่เสมอ) จึงตั้งตามข้อมูลในระบบตอนนี้
+ * v4  ผลวัดโมเดลกับข้อมูลจำลองหลายชุด (model evaluation): evaluation_batches + model_evaluations
+ *     ML เขียนผล (ml/app/benchmark.py) หน้าเว็บอ่านอย่างเดียว · ไม่ผูกกับข้อมูลของตลาด จึงไม่ถูกล้างตอนรีเซ็ตข้อมูลสาธิต
  */
 const bcrypt = require('bcryptjs');
 const config = require('../config');
 const { pool } = require('../db');
 
-const VERSION = 3;
+const VERSION = 4;
 
 const SQL_V2 = `
 ALTER TABLE model_runs
@@ -88,6 +90,22 @@ CREATE OR REPLACE VIEW anomaly_reviews_effective AS
   SELECT * FROM anomaly_reviews WHERE undone_at IS NULL;
 `;
 
+// ตารางเดียวกับ TABLE_SQL ใน ml/app/benchmark.py (ML สร้างเองด้วยเผื่อทำงานก่อน API)
+const SQL_V4 = `
+CREATE TABLE IF NOT EXISTS evaluation_batches (
+  id serial PRIMARY KEY, created_at timestamptz NOT NULL DEFAULT now(), finished_at timestamptz,
+  status text NOT NULL DEFAULT 'running' CHECK (status IN ('running','done','failed')),
+  progress int NOT NULL DEFAULT 0, total int, triggered_by text, error text, settings jsonb
+);
+CREATE TABLE IF NOT EXISTS model_evaluations (
+  id serial PRIMARY KEY, batch_id int NOT NULL REFERENCES evaluation_batches(id) ON DELETE CASCADE,
+  task text NOT NULL CHECK (task IN ('risk','anomaly')), dataset text NOT NULL, model text NOT NULL,
+  n_rows int, positive_rate real, auc real, pr_auc real, precision real, recall real, f1 real, accuracy real, brier real,
+  cv_auc_mean real, cv_auc_std real, extra jsonb, created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (batch_id, task, dataset, model)
+);
+`;
+
 const ADMIN = { username: 'admin', password: 'admin1234', name: 'ทีมพัฒนา / กรรมการ' };
 
 /** เพิ่มบัญชี admin สำหรับสาธิต (เฉพาะโหมดสาธิต ระบบจริงต้องสร้างเองพร้อมรหัสผ่านที่ปลอดภัย) */
@@ -115,6 +133,7 @@ async function migrate() {
     const steps = [
       [2, async () => { await client.query(SQL_V2); await ensureDemoAdmin(client); }],
       [3, () => client.query(SQL_V3)],
+      [4, () => client.query(SQL_V4)],
     ];
     for (const [to, run] of steps) if (v < to) await run();
     if (v < VERSION) {

@@ -1,11 +1,11 @@
 """ML Service: API ภายในที่ Backend (Node.js) เรียกใช้"""
 import os
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from . import anomaly, drift, risk
+from . import anomaly, benchmark, drift, risk
 
 app = FastAPI(title="Bunyat Market ML Service", version="1.0.0")
 
@@ -89,6 +89,17 @@ def anomaly_info():
 def drift_run(req: TrainRequest | None = None):
     """สร้างรายงาน drift รายเดือนแล้วบันทึกลง drift_reports (RodeMap รอบ 5)"""
     return _wrap(drift.run, (req.triggered_by if req else None))
+
+
+@app.post("/benchmark/run")
+def benchmark_run(background: BackgroundTasks, req: TrainRequest | None = None):
+    """วัดผลโมเดลกับข้อมูลจำลองหลายชุด รันเบื้องหลังแล้วตอบทันทีพร้อมเลขชุด (ใช้เวลาหลายนาทีบนแพลนฟรี)
+    ผลถูกเขียนลง model_evaluations · ถ้ามีชุดที่กำลังรันอยู่ จะคืนชุดนั้นแทนการรันซ้อน
+    """
+    batch = _wrap(benchmark.start_batch, (req.triggered_by if req else None))
+    if not batch["already_running"]:
+        background.add_task(benchmark.execute, batch["id"])
+    return batch
 
 
 @app.post("/anomaly/check")

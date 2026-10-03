@@ -18,6 +18,7 @@ const { periodLabel } = require('../lib/dates');
 const meters = require('../services/meters');
 const { fullView, meanSd, normalizeRun, ownerView } = require('../lib/aiQuality');
 const { reviewStats } = require('../lib/reviewStats');
+const EV = require('../lib/evaluations');
 const ml = require('../services/ml');
 
 const RISK_TYPES = ['risk_lr', 'risk_rf'];
@@ -476,6 +477,49 @@ router.get('/drift', auth, role('admin'), ah(async (_req, res) => {
 router.post('/drift/run', auth, role('admin'), ah(async (req, res) => {
   const r = await ml.runDrift(`${req.user.name} (${req.user.role})`);
   res.status(201).json(r);
+}));
+
+/* ---------------------------------------------------------------------------
+ * ผลวัดโมเดลกับข้อมูลจำลองหลายชุด (model evaluation) · เฉพาะทีม/กรรมการ
+ *   GET  /api/ai/evaluations?batch=  ชุดผลล่าสุดที่เสร็จ (หรือชุดที่ขอ) + ชุดที่กำลังรัน + รายการชุดก่อนหน้า
+ *   POST /api/ai/evaluations/run     สั่ง ML รันใหม่ (รันเบื้องหลัง ตอบ 202 ทันที หน้าเว็บถามความคืบหน้าเอง)
+ * ข้อมูลจำลองสร้างใน ML ด้วย seed คงที่ ไม่แตะข้อมูลของตลาดและไม่เปลี่ยนโมเดลที่ใช้งานจริง
+ * ------------------------------------------------------------------------- */
+router.get('/evaluations', auth, role('admin'), ah(async (req, res) => {
+  const want = req.query.batch ? Number(req.query.batch) : null;
+  if (want != null && !(Number.isInteger(want) && want > 0)) throw new HttpError(400, 'เลขชุดไม่ถูกต้อง');
+  const [batches, running] = await Promise.all([
+    db.q(`SELECT id, created_at, finished_at, status, progress, total, triggered_by, error FROM evaluation_batches
+      ORDER BY id DESC LIMIT 10`),
+    db.one(`SELECT id, created_at, status, progress, total, triggered_by,
+        (created_at < now() - interval '30 minutes') AS stale
+      FROM evaluation_batches WHERE status = 'running' ORDER BY id DESC LIMIT 1`),
+  ]);
+  const batch = want
+    ? await db.one('SELECT * FROM evaluation_batches WHERE id = $1', [want])
+    : await db.one("SELECT * FROM evaluation_batches WHERE status = 'done' ORDER BY id DESC LIMIT 1");
+  if (want && !batch) throw new HttpError(404, 'ไม่พบชุดผลวัดนี้');
+  const rows = batch && batch.status === 'done'
+    ? (await db.q(`SELECT task, dataset, model, n_rows, positive_rate, auc, pr_auc, precision, recall, f1, accuracy, brier,
+          cv_auc_mean, cv_auc_std, extra FROM model_evaluations WHERE batch_id = $1 ORDER BY task DESC, id`, [batch.id])).map(EV.normalizeRow)
+    : [];
+  res.json({
+    batch: batch && { id: batch.id, created_at: batch.created_at, finished_at: batch.finished_at, status: batch.status,
+      triggered_by: batch.triggered_by, error: batch.error },
+    protocol: batch?.settings?.protocol ?? null,
+    datasets: batch?.settings?.datasets ?? [],
+    rows,
+    summary: EV.summarize(rows),
+    best: EV.bestByDataset(rows),
+    hypotheses: EV.checkHypotheses(rows, batch?.settings?.datasets ?? []),
+    running,
+    batches,
+  });
+}));
+
+router.post('/evaluations/run', auth, role('admin'), ah(async (req, res) => {
+  const r = await ml.runBenchmark(`${req.user.name} (${req.user.role})`);
+  res.status(r.already_running ? 200 : 202).json(r);
 }));
 
 module.exports = router;

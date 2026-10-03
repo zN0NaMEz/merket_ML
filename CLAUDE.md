@@ -13,6 +13,8 @@
 - API routes: api/src/routes/ai.js · status ping: api/src/lib/aiStatus.js · schema changes: api/src/lib/migrate.js
   (idempotent, versioned in settings.schema_version, runs lazily before any /api route; bump VERSION for new steps).
 - ML: explanations in ml/app/explain.py; training writes model_runs columns via ml/app/db.py save_model_run().
+  Random Forest explanations use shap.TreeExplainer (pinned in ml/requirements.txt with numba/llvmlite, imported lazily,
+  ~75 MB extra RSS); if shap cannot load, explain() falls back to tree_path, then to global permutation importance.
 - Web: page web/src/pages/ai/*, pure logic web/src/ai/*.js (tested with node --test), styles web/src/styles/behind.css.
 - Roles: staff, owner, admin (ทีม/กรรมการ). Vendors must never see risk wording ("เสี่ยงสูง") or these pages.
 - The status endpoint is public and must stay free of per-user data; the web fetches it without an Authorization header so the CDN can cache it.
@@ -21,6 +23,14 @@
   for the latest effective review; rows are never deleted (undone_at). Bills cannot be issued while an undo is still possible.
 - Drift (round 5): ml/app/drift.py computes PSI with adaptive bins, a noise floor and a permutation p-value; the overall level
   counts only p < 0.05. `season` is excluded (calendar-driven); meter ratios compare the same month last year and skip flagged readings.
+
+- Model evaluation on synthetic data: scenarios in ml/app/synthetic.py (fixed seeds), evaluation in ml/app/benchmark.py
+  (same split/CV/threshold as production training). Results go to evaluation_batches + model_evaluations (migration v4),
+  never to model_runs, and never replace the production models. POST /benchmark/run runs in the background; the admin
+  "ทดสอบหลายชุดข้อมูล" tab polls GET /api/ai/evaluations. CSV export + datasheet: ml/data/synthetic/ (excluded from the Docker image).
+  Designed scenarios carry `expect` + `hypothesis`; the API judges them with a paired t-test on the shared CV folds
+  (|t| ≥ 2.776) or an F1 gap ≥ 0.05 for meters, and reports "unclear" otherwise. Never tune a scenario until it "wins":
+  change parameters only to fix a generator bug or to match the scenario's description, and keep honest "unclear" results.
 
 ## Tests
 - api: `cd api && npm test` · web: `cd web && npm test` · ml: `cd ml && python -m unittest discover -s tests -v`

@@ -129,13 +129,38 @@ class ExplainTest(unittest.TestCase):
         self.assertIsNone(contribs[0][0]["value"])          # ระดับโมเดล ไม่มีค่าของบิลนี้
 
     def test_explain_shap_path_when_available(self):
-        """ถ้ามี shap จริงจะใช้ shap · ถ้าไม่มี ข้ามการทดสอบนี้ (ระบบใช้ tree_path แทน)"""
+        """shap อยู่ใน requirements แล้ว RF จึงต้องใช้ shap · ถ้ารันในเครื่องที่ยังไม่ได้ติดตั้ง ข้ามการทดสอบนี้"""
         try:
             import shap  # noqa: F401
         except ImportError:
             self.skipTest("ไม่ได้ติดตั้ง shap")
         contribs, meta = xp.explain("rf", self.rf, self.sample, self.raw)
         self.assertEqual(meta["method"], "shap")
+        self.assertEqual(meta["scope"], "local")
+
+    def test_shap_sums_to_probability(self):
+        """คุณสมบัติหลักของ SHAP: ค่าฐาน + ผลรวมแรงทุกปัจจัย = ความน่าจะเป็นที่ Random Forest ทายพอดี"""
+        try:
+            import shap  # noqa: F401
+        except ImportError:
+            self.skipTest("ไม่ได้ติดตั้ง shap")
+        rows, base = xp.shap_contributions(self.rf, self.sample)
+        p = self.rf.predict_proba(self.sample)[:, 1]
+        for phi, prob in zip(rows, p):
+            self.assertAlmostEqual(base + sum(phi.values()), prob, places=6)
+        self.assertEqual(set(rows[0]), set(COLS))          # one-hot ถูกรวมกลับเป็น 6 ปัจจัย
+
+    def test_shap_and_tree_path_agree_on_main_driver(self):
+        """SHAP กับ tree_path คิดคนละวิธี แต่ปัจจัยที่แรงที่สุดของบิลส่วนใหญ่ควรเป็นตัวเดียวกัน"""
+        try:
+            import shap  # noqa: F401
+        except ImportError:
+            self.skipTest("ไม่ได้ติดตั้ง shap")
+        s_rows, _ = xp.shap_contributions(self.rf, self.sample)
+        t_rows, _ = xp.tree_path_contributions(self.rf, self.sample)
+        top = lambda phi: max(phi, key=lambda k: abs(phi[k]))
+        same = sum(top(a) == top(b) for a, b in zip(s_rows, t_rows))
+        self.assertGreaterEqual(same / len(s_rows), 0.7)
 
 
 if __name__ == "__main__":

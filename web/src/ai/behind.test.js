@@ -8,7 +8,7 @@ test('แท็บและแท็บเริ่มต้นตามบท�
   assert.equal(defaultTab('staff'), 'meters');
   assert.deepEqual(tabsFor('owner'), ['bills', 'meters', 'quality']);
   assert.equal(defaultTab('owner'), 'bills');
-  assert.deepEqual(tabsFor('admin'), ['bills', 'meters', 'quality', 'card']);
+  assert.deepEqual(tabsFor('admin'), ['bills', 'meters', 'quality', 'card', 'eval']);
   assert.equal(defaultTab('admin'), 'quality');
   assert.deepEqual(tabsFor('vendor'), []);              // ผู้ค้าไม่เห็นหน้านี้เลย
   assert.ok(!BEHIND_ROLES.includes('vendor'));
@@ -19,6 +19,7 @@ test('แท็บจาก URL ที่บทบาทนั้นไม่ม
   assert.equal(pickTab('staff', 'quality'), 'meters');
   assert.equal(pickTab('owner', 'quality'), 'quality');
   assert.equal(pickTab('admin', 'card'), 'card');
+  assert.equal(pickTab('owner', 'eval'), 'bills');            // ผลทดสอบหลายชุดเป็นของทีม/กรรมการเท่านั้น
   assert.equal(pickTab('admin', undefined), 'quality');
 });
 

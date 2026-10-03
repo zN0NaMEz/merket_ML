@@ -10,6 +10,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 ENV MODEL_DIR=/app/models
+# numba (ที่ shap ใช้) ต้องมีที่เขียนแคชที่ผู้ใช้ app เขียนได้ ไม่งั้นฟังก์ชันที่เปิดแคชจะล้มเมื่อรันแบบไม่ใช่ root
+ENV NUMBA_CACHE_DIR=/tmp/numba
 RUN mkdir -p /app/models && chown -R app:app /app
 
 USER app

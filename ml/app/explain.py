@@ -4,7 +4,7 @@
 
   linear     Logistic Regression: φ_j = w_j × (z_j − E[z_j])  (z = ค่าที่ standardize/one-hot แล้ว)
              เป็นค่า SHAP แบบตรงตัวของโมเดลเชิงเส้น หน่วยเป็น log-odds  ฐาน + Σφ = logit ของคะแนน
-  shap       Random Forest ผ่าน shap.TreeExplainer (ใช้เมื่อติดตั้งแพ็กเกจ shap ไว้เท่านั้น)
+  shap       Random Forest ผ่าน shap.TreeExplainer (ค่าตั้งต้นของ RF · ถ้าโหลด shap ไม่ได้ ถอยไปใช้ tree_path)
   tree_path  Random Forest แบบแยกเส้นทางในต้นไม้ (Saabas): ทุกครั้งที่บิลเดินผ่านจุดแยก
              ค่าความน่าจะเป็นของโหนดที่เปลี่ยนไปนับเป็นผลของปัจจัยที่ใช้แยก เฉลี่ยทุกต้น
              เบาและไม่ต้องติดตั้งอะไรเพิ่ม หน่วยเป็นความน่าจะเป็น  ฐาน + Σφ = คะแนนพอดี
@@ -93,7 +93,8 @@ def tree_path_contributions(pipe, X) -> tuple[list[dict[str, float]], float]:
 
 
 def shap_contributions(pipe, X) -> tuple[list[dict[str, float]], float]:
-    import shap  # แพ็กเกจเสริม ไม่ได้อยู่ใน requirements เพราะหน่วยความจำของ Render แพลนฟรีจำกัด
+    # import เฉพาะตอนใช้: shap + numba ใช้หน่วยความจำราว 75 MB จึงโหลดเมื่อโมเดลที่ใช้อยู่เป็น RF เท่านั้น (LR ไม่ต้องใช้)
+    import shap
 
     clf = pipe.named_steps["clf"]
     Z = _transform(pipe, X)
