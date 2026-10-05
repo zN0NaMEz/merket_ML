@@ -1,2 +1,6 @@
 .vercel
 .env*
+
+# ผลของ Playwright
+test-results/
+playwright-report/

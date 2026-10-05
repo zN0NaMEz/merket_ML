@@ -1,13 +1,16 @@
 import { useState } from 'react';
 import { api } from '../../api';
-import { baht, periodLabel, phoneFmt, thDate } from '../../format';
+import { baht, periodLabel, thDate, thDateShort } from '../../format';
 import { Chip, Empty, Loader, PageHead, RiskCell, SecHead, useApp, useData } from '../../ui';
+import Phone from '../../components/Phone';
+import { LOG_PREVIEW, collapseLog } from '../../staff/rules';
 
 // 5.0 ติดตามค้างชำระ: เรียงลำดับความสำคัญด้วยคะแนนความเสี่ยงจาก AI
 export default function FollowUp() {
   const { toast, bump, info } = useApp();
   const st = useData(() => api('/staff/followup'));
   const [busy, setBusy] = useState(false);
+  const [allLog, setAllLog] = useState(false);
   const act = async (path, msg) => {
     setBusy(true);
     try { await api(path, { method: 'POST' }); toast(msg); bump(); } catch (e) { toast(e.message, 'bad'); } finally { setBusy(false); }
@@ -26,7 +29,7 @@ export default function FollowUp() {
               <div className="tbl-wrap"><table className="tbl"><tbody>{d.to_cut.map(c => (
                 <tr key={c.stall_id}>
                   <td><span className="plate">{c.stall_id}</span></td>
-                  <td><div className="cell-name">{c.full_name}</div><small>{phoneFmt(c.phone)} · ค้าง {c.bills} บิล สูงสุด {c.max_days} วัน</small></td>
+                  <td><div className="cell-name">{c.full_name}</div><small className="cell-sub">ค้าง {c.bills} บิล สูงสุด {c.max_days} วัน</small><Phone number={c.phone} name={c.full_name} /></td>
                   <td className="num">{baht(c.total)}</td>
                   <td><button className="btn sm danger" disabled={busy} onClick={() => act(`/staff/stalls/${c.stall_id}/cut`, `บันทึกตัดน้ำไฟแผง ${c.stall_id} แล้ว`)}>บันทึกตัดน้ำไฟ</button></td>
                 </tr>))}</tbody></table></div>
@@ -54,7 +57,7 @@ export default function FollowUp() {
               <tbody>{d.overdue.map(b => (
                 <tr key={b.id}>
                   <td><span className="plate">{b.stall_id}</span></td>
-                  <td><div className="cell-name">{b.full_name}</div><small>{phoneFmt(b.phone)}</small></td>
+                  <td><div className="cell-name">{b.full_name}</div><Phone number={b.phone} name={b.full_name} /></td>
                   <td className="nowrap">{periodLabel(b.period)}</td>
                   <td className="num">{baht(b.total)}</td>
                   <td><Chip tone="bad">{b.days_overdue} วัน</Chip>{b.escalated_on && <small className="tag-src">ส่งต่อแล้ว</small>}</td>
@@ -84,10 +87,31 @@ export default function FollowUp() {
           )}
         </section>
 
-        <section className="panel">
-          <SecHead title="บันทึกระบบตั้งเวลา" />
-          <ul className="notis">{d.jobs.map((j, i) => <li key={i}><time>{thDate(j.run_date)}</time><span>{j.summary}</span></li>)}</ul>
-        </section>
+        {/* บันทึกระบบ: 3 บรรทัดล่าสุด บรรทัดซ้ำติดกันรวมเป็นบรรทัดเดียวพร้อม ×n (RodeMap ขัดเกลา [S13]) */}
+        {(() => {
+          const log = collapseLog(d.jobs);
+          const shown = allLog ? log : log.slice(0, LOG_PREVIEW);
+          return (
+            <section className="panel">
+              <SecHead title="บันทึกระบบตั้งเวลา" />
+              {log.length === 0 ? <Empty>ยังไม่มีบันทึก</Empty> : (
+                <>
+                  <ul className="notis">{shown.map((j, i) => (
+                    <li key={i}>
+                      <time>{j.count > 1 ? `${thDateShort(j.from)}–${thDate(j.to)}` : thDate(j.to)}</time>
+                      <span>{j.summary}{j.count > 1 && <b className="log-times" aria-label={`ซ้ำ ${j.count} ครั้ง`}> ×{j.count}</b>}</span>
+                    </li>))}
+                  </ul>
+                  {log.length > LOG_PREVIEW && (
+                    <button type="button" className="btn ghost log-more" aria-expanded={allLog} onClick={() => setAllLog(v => !v)}>
+                      {allLog ? 'ย่อ' : `ดูทั้งหมด (${log.length})`}
+                    </button>
+                  )}
+                </>
+              )}
+            </section>
+          );
+        })()}
       </div>
     )}</Loader>
   );

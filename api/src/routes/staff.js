@@ -7,6 +7,7 @@ const { notify } = require('../lib/notify');
 const D = require('../lib/dates');
 const billing = require('../services/billing');
 const meters = require('../services/meters');
+const { staffCounts } = require('../lib/staffCounts');
 const walkin = require('../services/walkin');
 
 const addMonths = (date, n) => {
@@ -17,7 +18,8 @@ const addMonths = (date, n) => {
 };
 
 /* ---------- 5.0 ติดตามค้างชำระ ---------- */
-router.get('/followup', ah(async (_req, res) => {
+/** ข้อมูลหน้าติดตามค้างชำระ (ใช้ซ้ำกับ /staff/today เพื่อให้ตัวเลขตรงกัน) */
+async function followupData() {
   const today = await settings.today();
   const rates = await settings.rates();
   const ai = await settings.ai();
@@ -42,9 +44,10 @@ router.get('/followup', ah(async (_req, res) => {
     ...b, days_to_due: D.diffDays(b.due_date, today), level: billing.riskLevel(b.risk_score, ai),
     reasons: b.risk_features?.reasons || [],
   }));
-  const jobs = await db.q('SELECT run_date, job, summary FROM job_logs ORDER BY id DESC LIMIT 10');
-  res.json({ today, rates, ai, overdue, to_cut: toCut, to_restore: toRestore, cut_now: cutNow, upcoming, jobs });
-}));
+  const jobs = await db.q('SELECT run_date, job, summary FROM job_logs ORDER BY id DESC LIMIT 30');
+  return { today, rates, ai, overdue, to_cut: toCut, to_restore: toRestore, cut_now: cutNow, upcoming, jobs };
+}
+router.get('/followup', ah(async (_req, res) => res.json(await followupData())));
 
 router.post('/bills/:id/remind', ah(async (req, res) => {
   const today = await settings.today();
@@ -72,15 +75,26 @@ router.post('/meters/sample', ah(async (_req, res) => res.json(await meters.fill
 router.post('/meters/issue', ah(async (req, res) => res.json(await meters.issueBills(req.user.sub))));
 
 /* ---------- 1.0 ผู้ค้าและสัญญา ---------- */
-router.get('/vendors', ah(async (_req, res) => {
-  const rows = await db.q(`SELECT v.id, v.code, v.full_name, v.phone, v.stall_id, v.since, v.credit, t.name AS type_name, s.utility_status,
+async function vendorRows() {
+  return db.q(`SELECT v.id, v.code, v.full_name, v.phone, v.stall_id, v.since, v.credit, t.name AS type_name, s.utility_status,
       c.id AS contract_id, c.start_date, c.end_date, c.deposit,
       (SELECT coalesce(sum(total),0) FROM bills WHERE vendor_id = v.id AND status = 'overdue') AS overdue_total,
       (SELECT username FROM users WHERE vendor_id = v.id LIMIT 1) AS username
     FROM vendors v JOIN stalls s ON s.id = v.stall_id JOIN stall_types t ON t.code = s.type_code
     LEFT JOIN LATERAL (SELECT * FROM contracts WHERE vendor_id = v.id AND status = 'active' ORDER BY end_date DESC LIMIT 1) c ON true
     WHERE v.active ORDER BY v.stall_id`);
-  res.json({ today: await settings.today(), vendors: rows });
+}
+router.get('/vendors', ah(async (_req, res) => res.json({ today: await settings.today(), vendors: await vendorRows() })));
+
+/**
+ * GET /api/staff/today  จำนวนงานค้างสำหรับเมนูและแถบ "งานวันนี้"
+ * คิดจากข้อมูลชุดเดียวกับหน้าปลายทาง ไม่เรียก ML (ใช้ผลตรวจที่เก็บไว้ใน meter_drafts)
+ */
+router.get('/today', ah(async (req, res) => {
+  const [ff, vendors, period] = await Promise.all([followupData(), vendorRows(), meters.currentPeriod()]);
+  const drafts = await db.q('SELECT ack, ai_check FROM meter_drafts WHERE period = $1', [period]);
+  const { n } = await db.one("SELECT count(*)::int AS n FROM notifications WHERE recipient = 'staff' AND read_at IS NULL");
+  res.json({ today: ff.today, period, ...staffCounts({ ff, vendors, drafts, today: ff.today, unread: n }) });
 }));
 router.get('/stalls/vacant', ah(async (_req, res) => {
   res.json({ stalls: await db.q(`SELECT s.id, t.name AS type_name, t.monthly_rent FROM stalls s JOIN stall_types t ON t.code = s.type_code

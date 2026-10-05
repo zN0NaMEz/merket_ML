@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 ## AI behind-the-scenes view
-- Read RodeMap.md (repo root) before working on /ai/behind.
+- Read docs/ai-behind-the-scenes-roadmap.md before working on /ai/behind (RodeMap.md now holds the current UI plan).
 - Pages under /ai/behind must read from Postgres via /api/ai/*. Never call the ML service on page load.
 - Display Thai, user-facing labels for features (web/src/ai/featureLabels.js). Never show raw column names.
 - Every metric shown must come from model_runs. Show an empty state if none exist. Never hardcode or simulate metrics.
@@ -31,6 +31,21 @@
   Designed scenarios carry `expect` + `hypothesis`; the API judges them with a paired t-test on the shared CV folds
   (|t| ≥ 2.776) or an F1 gap ≥ 0.05 for meters, and reports "unclear" otherwise. Never tune a scenario until it "wins":
   change parameters only to fix a generator bug or to match the scenario's description, and keep honest "unclear" results.
+
+## UI rules (mobile-first, keep the existing look)
+- Read RodeMap.md before UI work (its prompts refer to it as docs/ui-mobile-usability-prompts.md; RodeMap.md is the only copy). The earlier synthetic-data plan is in docs/synthetic-data-and-evaluation-prompts.md.
+- Keep the existing palette (cream, ink, bronze) and fonts. Do not add new hues. New tints/shades must be derived from existing colors and declared as tokens first.
+- Every text/background pair must meet WCAG contrast: 4.5:1 for normal text, 3:1 for large text and meaningful UI borders/icons. Report the ratio for any new pair.
+- Never use color alone to convey status; always pair with text or an icon.
+- Touch targets >= 44x44 px; primary inputs and buttons >= 48 px tall.
+- At 390 px width there must be no horizontal page scroll. Below 700 px, data tables become cards.
+- Mobile text: body 16 px, secondary 14 px, never below 13 px. Numbers use tabular-nums. Phone numbers and amounts never wrap.
+- Numeric inputs: type="text" inputmode="decimal" with enterkeyhint; never type="number".
+- Do not show internal codes (5.0, D7, XAI) outside presentation mode (?present=1, stored in localStorage; see web/src/present.js).
+- Staff pending counts come from GET /api/staff/today (api/src/lib/staffCounts.js); keep its rules identical to web/src/staff/rules.js and the destination pages.
+- Destructive actions (utility cut) need a confirmation dialog that states the consequence, plus undo via toast.
+- Every design decision cites its source ID from RodeMap.md section 9.
+- Definition of done per round: `cd web && UI_BASE_URL=... npm run test:ui` (Playwright + axe, section 6) passes at 390x844, with before/after screenshots at 390 px and 1280 px.
 
 ## Tests
 - api: `cd api && npm test` · web: `cd web && npm test` · ml: `cd ml && python -m unittest discover -s tests -v`

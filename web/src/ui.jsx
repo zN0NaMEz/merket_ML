@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { api, session } from './api';
 import { diffDays } from './format';
+import { presentMode } from './present';
 
 /* ---------- context: ผู้ใช้, วันที่ระบบ, toast ---------- */
 const AppCtx = createContext(null);
@@ -90,7 +91,7 @@ export function PageHead({ title, sub, tag, right }) {
         <h1>{title}</h1>
         {sub && <div className="sub">{sub}</div>}
       </div>
-      <div className="btn-row">{right}{tag && <span className="ptag">{tag}</span>}</div>
+      <div className="btn-row">{right}{tag && presentMode() && <span className="ptag">{tag}</span>}</div>
     </div>
   );
 }

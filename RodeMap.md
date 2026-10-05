@@ -1,345 +1,272 @@
-# ข้อมูลจำลองหลายชุดและตารางวัดผลโมเดล — แผนและ Prompt สำหรับ Claude Code
+# ปรับ UI ให้ใช้งานง่ายบนมือถือ (คงสีเดิม) — แผนและ Prompt สำหรับ Claude Code
 
-ใช้คู่กับ `docs/ai-behind-the-scenes-roadmap.md` เอกสารนี้เพิ่มสองอย่างให้ระบบ AI ของตลาดบัญญัติทรัพย์
+ที่มา: ผลตรวจ UI ของระบบบริหารตลาดบัญญัติทรัพย์ (หน้าจดมิเตอร์ ติดตามค้างชำระ ผู้ค้า และหน้า AI) ที่หน้าจอกว้าง 390 px
+เป้าหมาย: เจ้าหน้าที่ทำงานหลักบนมือถือกลางตลาดได้เร็ว อ่านง่ายกลางแดด และกดพลาดน้อยลง โดย **ไม่เปลี่ยนสไตล์และชุดสีเดิม **
 
-1. **ตัวสร้างข้อมูลจำลอง (synthetic data generator)** ที่สร้างได้หลายสถานการณ์ ทำซ้ำได้ด้วย seed และติดป้ายว่าเป็นข้อมูลจำลองเสมอ
-2. **ตารางวัดผลโมเดล (model evaluation)** ที่เก็บตัวชี้วัดของโมเดลแต่ละตัว แยกตามชุดข้อมูลที่ใช้เทรนและชุดที่ใช้ทดสอบ
-
----
-
-## 1. หลักการที่ต้องรักษา
-
-1. **ข้อมูลจำลองแยกจากข้อมูลจริงเสมอ:** เก็บใน schema `sim` ไม่ปนกับตารางธุรกิจใน `public` หน้าเว็บของผู้ใช้จริงต้องไม่เห็นบิลหรือแม่ค้าจำลอง
-2. **ทำซ้ำได้:** ทุกชุดข้อมูลมี `seed`, พารามิเตอร์ทั้งหมด และเวอร์ชันของตัวสร้าง สร้างซ้ำด้วยค่าเดิมต้องได้ข้อมูลเหมือนเดิมทุกแถว
-3. **ตัวชี้วัดมาจากการรันจริงเท่านั้น:** ตาราง evaluation ถูกเขียนโดยโค้ดวัดผลอย่างเดียว ห้ามกรอกหรือแก้ตัวเลขด้วยมือ ห้ามปรับค่าให้ดูดีขึ้น
-4. **ป้ายข้อมูลจำลองตามไปทุกที่:** ทุกผลวัดรู้ว่ามาจากชุดข้อมูลไหน และหน้าเว็บแสดงป้าย "ข้อมูลจำลอง" ทุกครั้ง
-5. **คะแนนสูงบนข้อมูลจำลองไม่ใช่หลักฐานว่าใช้ได้จริง:** โมเดลอาจแค่เรียนรู้กฎที่เราเขียนไว้ในตัวสร้าง ต้องมี noise, baseline และการทดสอบข้ามสถานการณ์ (หัวข้อ 6) และต้องเขียนข้อจำกัดนี้ในบัตรโมเดล
+ทุกข้อกำหนดในเอกสารนี้มีรหัสแหล่งอ้างอิง [S#] ซึ่งอยู่ในหัวข้อ 9
 
 ---
 
-## 2. ชุดข้อมูลจำลองที่เสนอ (scenario)
+## 1. ข้อจำกัดด้านภาพลักษณ์ (ห้ามละเมิด)
 
-อิงโครงสร้างตลาดจากเอกสารออกแบบ: 3 โซน (ของสด · อาหารและเครื่องดื่ม · แฟชั่นและสินค้าทั่วไป), มิเตอร์น้ำและไฟแยกทุกร้าน, ผู้ค้าขาประจำมีสัญญาและมัดจำ, ขาจรใช้พื้นที่หน้าตลาด, ค้างเกิน 3 วันตัดน้ำไฟ
+1. **ใช้ชุดสีเดิมเท่านั้น:** อ่านค่าสีจาก CSS variables หรือ theme ที่มีอยู่ ห้ามเพิ่มสีใหม่ ใช้ได้เฉพาะเฉดอ่อนหรือเข้มที่ได้จากสีเดิม และต้องประกาศเป็น token ก่อนใช้
+2. **ตรวจความต่างของสีทุกคู่ที่ใช้กับตัวหนังสือ:** ตัวหนังสือปกติต้องได้อย่างน้อย 4.5:1 ตัวหนังสือใหญ่ (24 px ขึ้นไป หรือ 18.66 px ตัวหนา) อย่างน้อย 3:1 ขอบปุ่มและไอคอนที่สื่อความหมายอย่างน้อย 3:1 [S1][S2] ถ้าบรอนซ์บนครีมไม่ผ่านกับตัวหนังสือขนาดเล็ก ให้ใช้บรอนซ์เฉพาะกับพื้นหลัง ขอบ หรือตัวหนังสือใหญ่ แล้วใช้หมึกกับตัวหนังสือเล็ก
+3. **สีไม่ใช่สิ่งเดียวที่บอกความหมาย:** สถานะ "AI ทัก" "ค้างชำระ" "ถูกตัดน้ำไฟ" ต้องมีข้อความหรือไอคอนกำกับเสมอ [S3]
+4. **ไม่เปลี่ยนฟอนต์ ไม่เปลี่ยนรัศมีมุมและเงาที่ใช้อยู่** ปรับได้เฉพาะขนาด ระยะห่าง และการจัดวาง
 
-| ชื่อ | จุดประสงค์ | ตั้งค่าหลัก (ค่าเริ่มต้น ปรับได้) |
+---
+
+## 2. หลักการออกแบบที่ใช้ตัดสินใจ
+
+| หลักการ | ใช้ทำอะไรในงานนี้ | อ้างอิง |
 |---|---|---|
-| `baseline` | สถานการณ์ปกติ ใช้เป็นชุดหลัก | 120 แผง, 12 เดือน, จ่ายช้า ~10% ของบิล, มิเตอร์ผิดปกติ ~1% |
-| `high_late` | เศรษฐกิจฝืด แม่ค้าจ่ายช้ามาก | จ่ายช้า ~30%, ค้างเกิน 3 วันบ่อยขึ้น |
-| `seasonal` | ช่วงเทศกาลและหน้าร้อน | การใช้ไฟและยอดขายขึ้นเป็นช่วง ทดสอบว่า anomaly ไม่ทักผิดตามฤดูกาล |
-| `meter_errors` | เจ้าหน้าที่จดเลขผิดบ่อย | มิเตอร์ผิดปกติ ~5% ครบทุกชนิดในหัวข้อ 3.3 |
-| `small_market` | ตลาดเล็กหรือเพิ่งเริ่มใช้ระบบ | 40 แผง, 3 เดือน ทดสอบว่าโมเดลทำงานได้ไหมเมื่อข้อมูลน้อย |
-| `drift` | พฤติกรรมเปลี่ยนกลางปี | 6 เดือนแรกเหมือน `baseline` 6 เดือนหลังเหมือน `high_late` ทดสอบการเสื่อมของโมเดล |
-| `label_noise` | ป้ายคำตอบไม่สมบูรณ์ | `baseline` + สลับป้าย 5% ทดสอบความทนทาน |
-
-ทุกตัวเลขในตารางเป็นสมมติฐานของทีม ไม่ใช่สถิติของตลาดจริง ถ้าได้ข้อมูลจริงจากตลาด (เช่น จำนวนแผงจริง หรือสัดส่วนบิลค้างจริง) ให้ปรับ `baseline` ตาม และบันทึกแหล่งที่มาใน `params`
+| เป้าการแตะใหญ่พอสำหรับนิ้ว | ปุ่มและช่องกรอกอย่างน้อย 44 × 44 px งานหลักใช้ 48 px | [S4][S5][S6] |
+| ไม่ต้องเลื่อนสองทิศ | ที่ความกว้าง 320–390 px อ่านได้ครบโดยไม่เลื่อนแนวนอน | [S7] |
+| ตารางบนจอแคบเปลี่ยนเป็นการ์ด | หน้าค้างชำระ ผู้ค้า และจดมิเตอร์ | [S8][S9] |
+| ใช้ภาษาของผู้ใช้ ไม่ใช่ภาษาระบบ | เลิกแสดงรหัส 5.0, 3.0, D7, XAI | [S10] (ข้อ 2) |
+| บอกสถานะของระบบเสมอ | แถบ "งานวันนี้" และหน้าสรุปหลังออกบิล | [S10] (ข้อ 1) |
+| ผู้ใช้ควบคุมและย้อนกลับได้ | เลิกทำหลังยืนยันค่าและหลังบันทึกตัดน้ำไฟ | [S10] (ข้อ 3), [S11] |
+| ป้องกันความผิดพลาดในการกระทำที่มีผลแรง | หน้าต่างยืนยันก่อนตัดน้ำไฟ | [S10] (ข้อ 5), [S11], [S12] |
+| เปิดเผยรายละเอียดทีละขั้น | ซ่อนตัวเลขเทคนิคของแผงปกติ พับบันทึกระบบ | [S13], [S10] (ข้อ 8) |
+| แสดงเฉพาะสิ่งที่ต้องทำ | ปุ่มต่อสัญญาเฉพาะรายที่ใกล้หมด | [S10] (ข้อ 8) |
+| ตัวหนังสืออ่านง่ายบนมือถือ | ตัวหลัก 16 px รองไม่ต่ำกว่า 13–14 px | [S14][S15] |
+| วางปุ่มหลักในระยะนิ้วโป้ง | ปุ่มบันทึกและถัดไปอยู่ล่างจอ แต่ไม่บังช่องที่กำลังกรอก | [S16][S17] |
 
 ---
 
-## 3. การออกแบบตัวสร้างข้อมูล
+## 3. งานแต่ละข้อ (ข้อกำหนด + เกณฑ์ตรวจรับ)
 
-ตำแหน่ง: `ml/app/synth/` (Python, ใช้ `numpy.random.default_rng(seed)` ตัวเดียวทั้งชุด)
+### ข้อ 1 · หน้าจดมิเตอร์บนมือถือ (ผลมากที่สุด)
+ปัญหา: ที่ 390 px เห็นแค่คอลัมน์น้ำ, 64 จุดกดเล็กกว่า 44 px, แถบ "กรอกแล้ว 32/32" กินจอราว 1 ใน 6
 
-### 3.1 ไฟล์ตั้งค่าต่อ scenario
-`ml/app/synth/scenarios/<name>.yaml` ตัวอย่าง
+ข้อกำหนด
+- จอแคบกว่า 700 px แสดงเป็น **การ์ดแผงละใบ** หัวการ์ดคือเลขแผงและชื่อร้าน ตามด้วยช่องน้ำและไฟเรียงลง [S8][S9]
+- ช่องกรอกสูงอย่างน้อย 48 px ตัวหนังสือในช่อง 16 px ขึ้นไป (ต่ำกว่านี้ Safari บน iPhone จะซูมหน้าจอเมื่อแตะช่อง) [S5][S6][S15]
+- ใช้ `<input type="text" inputmode="decimal" autocomplete="off">` แทน `type="number"` เพื่อเปิดแป้นตัวเลข และเลี่ยงปัญหาของ `type="number"` เช่น ค่าเปลี่ยนเมื่อเลื่อนนิ้ว [S18][S19]
+- ใส่ `enterkeyhint="next"` และเมื่อกด "ถัดไป" ให้ย้ายไปช่องถัดไปเอง (น้ำ → ไฟ → แผงถัดไป) ช่องสุดท้ายใช้ `enterkeyhint="done"` [S20]
+- แสดงเลขรอบก่อนเป็น placeholder หรือข้อความใต้ช่อง เช่น "รอบก่อน 10,482" และเมื่อพิมพ์ ให้แสดงหน่วยที่ใช้ทันที เช่น "ใช้ไป 37 หน่วย" (ลดการต้องจำ) [S10] (ข้อ 6)
+- แถบกรองบนสุด: **ยังไม่กรอก / AI ทัก / ทั้งหมด** แสดงจำนวนในแต่ละปุ่ม แผงที่ AI ทักเรียงขึ้นก่อน [S10] (ข้อ 1, 6)
+- แถบความคืบหน้าด้านล่างย่อเหลือสูงไม่เกิน 56 px รวมปุ่มหลัก และต้องไม่บังช่องที่กำลังโฟกัส (เลื่อนช่องขึ้นเหนือแถบเมื่อโฟกัส) [S17][S21]
+- แผงที่ AI ทักมีป้ายข้อความ "AI ทัก" และปุ่ม "ดูเหตุผล" (ดูข้อ 5) แผงปกติไม่แสดงตัวเลขเทคนิค (ดูข้อ 8)
 
-```yaml
-name: baseline
-generator_version: 1
-seed: 20261004
-period: { start: 2025-10-01, months: 12 }
-zones:
-  fresh:   { stalls: 50, base_kwh_per_day: [4, 9],  base_water_m3_per_day: [0.3, 0.8] }
-  food:    { stalls: 40, base_kwh_per_day: [6, 14], base_water_m3_per_day: [0.5, 1.5] }
-  fashion: { stalls: 30, base_kwh_per_day: [2, 5],  base_water_m3_per_day: [0.0, 0.1] }
-walkin_front_zone: { slots: 15, daily_occupancy: [0.3, 0.9] }
-billing: { cycle: monthly, due_days: 5, cutoff_after_days: 3 }
-merchant_archetypes:          # สัดส่วนรวมต้องเท่ากับ 1
-  punctual:    { share: 0.70, p_late: 0.03, late_days: [1, 2] }
-  sometimes:   { share: 0.20, p_late: 0.25, late_days: [1, 4] }
-  chronic:     { share: 0.10, p_late: 0.60, late_days: [2, 10] }
-anomaly_injection:
-  rate: 0.01
-  types: { spike: 0.35, zero: 0.20, rollback: 0.20, digit_swap: 0.15, decimal_shift: 0.10 }
-noise: { usage_sd_ratio: 0.15, label_flip_rate: 0.0 }
-```
+เกณฑ์ตรวจรับ
+- ที่ viewport 390 × 844 ไม่มีการเลื่อนแนวนอน (`scrollWidth <= clientWidth`)
+- ทุกจุดกดและช่องกรอกในหน้านี้ ≥ 44 × 44 px ตัวหลัก ≥ 48 px สูง
+- กรอกครบ 1 แผงด้วยแป้นตัวเลขอย่างเดียวโดยไม่ต้องแตะจอเพื่อย้ายช่อง
+- เปิดแป้นพิมพ์แล้ว ช่องที่โฟกัสอยู่ไม่ถูกแถบล่างบัง
 
-### 3.2 พฤติกรรมที่ต้องจำลอง
-- **การใช้น้ำไฟ:** ค่าพื้นฐานต่อร้านตามโซน + วันในสัปดาห์ + ฤดูกาล (ถ้าเปิด) + noise ค่ามิเตอร์สะสมต้องเพิ่มขึ้นเสมอ ยกเว้นจุดที่ฉีดความผิดปกติ
-- **การจ่ายเงิน:** แม่ค้าแต่ละคนสุ่ม archetype ครั้งเดียว แล้วใช้ตลอด ความน่าจะเป็นที่จ่ายช้าขึ้นกับ archetype, ยอดบิลเทียบกับปกติของร้าน และประวัติเดือนก่อน (ให้มีความสัมพันธ์จริงที่โมเดลเรียนรู้ได้ แต่ไม่ใช่กฎตายตัว)
-- **การตัดน้ำไฟ:** ถ้าค้างเกิน `cutoff_after_days` สร้างแถวใน `utility_cuts` และคืนเมื่อจ่ายครบ
-- **การจ่ายล่วงหน้า:** แม่ค้าบางส่วนจ่ายค่าแผงล่วงหน้ารายสัปดาห์หรือรายเดือน
+### ข้อ 2 · ตารางแตกบนมือถือ (ติดตามค้างชำระ, ผู้ค้า)
+ปัญหา: เบอร์โทรตัดเป็น 3 บรรทัด ชื่อผู้ค้าตัดแทบทุกพยางค์ คอลัมน์ท้ายหลุดจอ
 
-### 3.3 ชนิดความผิดปกติของมิเตอร์ที่ฉีด
-| ชนิด | ลักษณะ | สถานการณ์จริงที่เลียนแบบ |
+ข้อกำหนด
+- จอแคบกว่า 700 px เปลี่ยนเป็นการ์ด ในการ์ดให้ชื่อผู้ค้าเต็มบรรทัด ยอดเงินและสถานะอยู่แถวที่สอง [S7][S8]
+- เบอร์โทรและยอดเงินใช้ `white-space: nowrap` และตัวเลขความกว้างเท่ากัน (`font-variant-numeric: tabular-nums`) [S22][S23]
+- เบอร์โทรเป็นลิงก์ `tel:` พร้อมปุ่ม "โทร" ขนาดอย่างน้อย 44 × 44 px เพราะเจ้าหน้าที่ต้องโทรตามผู้ค้า [S4][S24]
+- ชื่อภาษาไทยตัดบรรทัดตามคำ ไม่ใช่ทีละพยางค์ ให้คอลัมน์ชื่อกว้างพอ (การ์ดแก้ได้เอง) ห้ามใช้ `word-break: break-all` กับข้อความไทย [S25]
+
+เกณฑ์ตรวจรับ
+- ที่ 390 px ไม่มีเบอร์โทรหรือยอดเงินที่ตัดบรรทัด ไม่มีคอลัมน์หลุดจอ
+- แตะ "โทร" แล้วเปิดแอปโทรศัพท์พร้อมเบอร์
+
+### ข้อ 3 · แถบ "งานวันนี้"
+ข้อกำหนด
+- บนสุดของหน้าแรกเจ้าหน้าที่: **ตัดน้ำไฟ n · คืนน้ำไฟ n · มิเตอร์รอตรวจ n · สัญญาใกล้หมด n** แต่ละตัวกดแล้วไปหน้านั้นพร้อมตัวกรองที่ตรงกัน [S10] (ข้อ 1, 6)
+- ใช้ส่วนประกอบเดียวกับหน้า "วันนี้" ของเจ้าของ
+- ตัวที่เป็น 0 แสดงเป็นสีจาง ไม่ซ่อน เพื่อยืนยันว่าไม่มีงานค้าง
+- บนมือถือถ้ายาวเกินหนึ่งแถว ให้เลื่อนแนวนอนได้เฉพาะแถบนี้ หรือจัดเป็น 2 × 2
+
+เกณฑ์ตรวจรับ: ตัวเลขตรงกับจำนวนในหน้าปลายทางหลังกรอง
+
+### ข้อ 4 · เลิกแสดงรหัสในเมนู
+ข้อกำหนด
+- เอารหัส "5.0, 3.0, ML, XAI, D7" ออกจากเมนูและหัวหน้า แทนด้วยจำนวนงานค้าง เช่น "ติดตามค้างชำระ 4" "จดมิเตอร์ · รอตรวจ 4" [S10] (ข้อ 2)
+- ถ้ายังต้องใช้ตอนนำเสนอ ให้มี **โหมดนำเสนอ** เปิดด้วยการตั้งค่า (เช่น query `?present=1` เก็บใน localStorage) แสดงรหัสเป็นป้ายเล็ก ค่าเริ่มต้นปิด
+
+### ข้อ 5 · รวม AI ให้อยู่ที่เดียวและยืนยันแบบเดียว
+ข้อกำหนด
+- แยกส่วนประกอบ `AnomalyReview` (กราฟช่วงปกติ + ปุ่มยืนยัน/แก้ค่า + toast เลิกทำ) จากหน้าเบื้องหลัง AI ให้ใช้ซ้ำได้
+- หน้าจดมิเตอร์: แผงที่ AI ทักมีปุ่ม "ดูเหตุผล" เปิด `AnomalyReview` ใน bottom sheet แทนการติ๊ก "ตรวจหน้างานแล้ว" ให้มีวิธียืนยันเพียงแบบเดียวทั้งระบบ [S10] (ข้อ 4)
+- รวมเมนู "AI วิเคราะห์" กับ "เบื้องหลัง AI" เป็นเมนูเดียวมีแท็บ ย้ายการปรับเกณฑ์ไปไว้ในส่วนพับ [S13]
+- การยืนยันมี toast "ยืนยันค่าแล้ว" พร้อม "เลิกทำ" ตามที่กำหนดใน roadmap หัวข้อ 3.3 และประกาศผ่าน `aria-live` [S11][S26]
+
+### ข้อ 6 · ขนาดตัวหนังสือ
+ข้อกำหนด
+- บนมือถือ: ตัวหลัก 16 px, รายละเอียดรอง 14 px, ต่ำสุด 13 px เฉพาะป้ายสั้น ห้ามต่ำกว่า 13 px [S14][S15]
+- ตั้งเป็น token (`--font-body`, `--font-secondary`, `--font-caption`) แล้วไล่แทนค่าที่กำหนดตรง ๆ ในหน้าจดมิเตอร์และหน้า AI
+- ตัวเลขในตารางและการ์ดใช้ `tabular-nums` [S23]
+- ระยะบรรทัดของข้อความไทยอย่างน้อย 1.5 เท่าของขนาดตัวอักษร เพื่อไม่ให้สระบนล่างชนกัน [S27]
+
+เกณฑ์ตรวจรับ: ไม่มีข้อความใดต่ำกว่า 13 px ที่ 390 px (ตรวจด้วยสคริปต์ในหัวข้อ 6)
+
+### ข้อ 7 · หน้าผู้ค้า: ปุ่มต่อสัญญาซ้ำ 32 ปุ่ม
+ข้อกำหนด
+- แสดงปุ่ม "ต่อสัญญา 1 ปี" เฉพาะสัญญาที่หมดแล้วหรือเหลือไม่ถึง 90 วัน รายอื่นแสดงวันหมดสัญญาเป็นข้อความ [S10] (ข้อ 8)
+- เพิ่มช่องค้นหาชื่อหรือเลขแผง และปุ่มกรอง: **ค้างชำระ / ใกล้หมดสัญญา / ถูกตัดน้ำไฟ** พร้อมจำนวน
+
+### ข้อ 8 · ซ่อนตัวเลขเทคนิคของแผงปกติ
+ข้อกำหนด
+- แผงปกติแสดงแค่ "ปกติ" ตัวเลขอย่าง "IF 0.455 · z น้ำ −1.17" อยู่ในส่วน "รายละเอียดเชิงเทคนิค" ที่พับไว้ [S13]
+- แผงที่ AI ทักแสดงเหตุผลเป็นภาษาคนก่อน เช่น "น้ำสูงกว่าปกติของร้านนี้มาก" และตัวเลขเทคนิคอยู่ในส่วนพับเช่นกัน
+
+### ขัดเกลา
+- **บันทึกระบบ:** แสดง 3 บรรทัดล่าสุด รวมบรรทัดที่ซ้ำติดกันเป็นบรรทัดเดียวพร้อม "×n" และมีปุ่ม "ดูทั้งหมด" [S13]
+- **บันทึกตัดน้ำไฟ:** หน้าต่างยืนยันที่บอกผลชัด เช่น "ตัดน้ำและไฟของแผง A-12 (สมใจ ผักสด) ค้าง 4 วัน ยอด 1,250 บาท" ปุ่มยืนยันเขียนเป็นกริยา "ตัดน้ำไฟ" ไม่ใช่ "ตกลง" และหลังบันทึกมี toast เลิกทำแบบเดียวกับหน้ามิเตอร์ [S11][S12]
+- **หลังกด "ออกบิล":** หน้าสรุป ออกบิลไปกี่ใบ AI ทักกี่แผง (กดไปดูได้) และขั้นต่อไปคืออะไร [S10] (ข้อ 1)
+
+---
+
+## 4. ลำดับการทำ
+
+| รอบ | งาน | เวลาโดยประมาณ |
 |---|---|---|
-| `spike` | ค่าพุ่ง 3–10 เท่าของปกติ | จดผิดหลัก หรือรั่วจริง |
-| `zero` | การใช้เป็น 0 ในวันที่ร้านเปิด | ลืมจด หรือมิเตอร์เสีย |
-| `rollback` | ค่าสะสมลดลง | จดสลับวัน |
-| `digit_swap` | สลับตัวเลขสองหลัก | พิมพ์ผิด |
-| `decimal_shift` | ค่าคูณหรือหารด้วย 10 | วางจุดทศนิยมผิด |
-
-ทุกจุดที่ฉีดบันทึกใน `sim.ground_truth_anomalies` เพื่อใช้เป็นคำตอบตอนวัดผล ตารางนี้ **ห้าม** ถูกอ่านตอนเทรนหรือตอนให้คะแนน
-
-### 3.4 การใช้งาน
-```bash
-python -m app.synth.generate --scenario baseline           # สร้างหนึ่งชุด
-python -m app.synth.generate --scenario baseline --seed 7   # seed ใหม่ = ชุดใหม่ สถานการณ์เดิม
-python -m app.synth.generate --all                          # สร้างทุก scenario
-```
+| 1 · แก้เร็ว | ข้อ 4, ข้อ 8, เบอร์โทรไม่ตัดบรรทัด + ปุ่มโทร, ข้อ 7 ส่วนปุ่มต่อสัญญา, พับบันทึกระบบ | ครึ่งวัน |
+| 2 · จดมิเตอร์บนมือถือ | ข้อ 1 + แยก `AnomalyReview` (ส่วนแรกของข้อ 5) + token ตัวหนังสือ (ข้อ 6) เฉพาะหน้านี้ | 1–2 วัน |
+| 3 · งานวันนี้และรวม AI | ข้อ 3 + ข้อ 5 ส่วนที่เหลือ | 1 วัน |
+| 4 · ตารางเป็นการ์ดและขัดเกลา | ข้อ 2 ทุกหน้าที่เหลือ, ข้อ 6 ทั้งระบบ, ข้อ 7 ส่วนค้นหาและกรอง, หน้าต่างยืนยันตัดน้ำไฟ, หน้าสรุปหลังออกบิล | 1–2 วัน |
 
 ---
 
-## 4. Schema ฐานข้อมูล
+## 5. เพิ่มใน `CLAUDE.md`
 
-### 4.1 ทะเบียนชุดข้อมูล
-```sql
-CREATE SCHEMA IF NOT EXISTS sim;
-
-CREATE TABLE IF NOT EXISTS sim.datasets (
-  dataset_id         bigserial PRIMARY KEY,
-  name               text NOT NULL,              -- เช่น 'baseline-s20261004'
-  scenario           text NOT NULL,              -- 'baseline' | 'high_late' | ...
-  seed               bigint NOT NULL,
-  generator_version  int  NOT NULL,
-  params             jsonb NOT NULL,             -- ค่าทั้งหมดจาก yaml หลังรวมค่าเริ่มต้น
-  period_start       date NOT NULL,
-  period_end         date NOT NULL,
-  n_merchants        int, n_bills int, n_readings int,
-  late_rate          numeric,                    -- สัดส่วนบิลจ่ายช้าที่เกิดขึ้นจริงในชุดนี้
-  anomaly_rate       numeric,
-  is_synthetic       boolean NOT NULL DEFAULT true,
-  created_at         timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (scenario, seed, generator_version)
-);
-```
-
-### 4.2 ตารางข้อมูลจำลอง
-สร้างใน schema `sim` ให้โครงสร้างเหมือนตารางจริงตาม ER Diagram (`zones`, `stalls`, `merchants`, `contracts`, `meters`, `meter_readings`, `invoices`, `invoice_items`, `payments`, `utility_cuts`, `walkin_bookings`) โดยเพิ่มคอลัมน์ `dataset_id bigint NOT NULL REFERENCES sim.datasets` และ index ที่ `dataset_id` ทุกตาราง
-
-```sql
-CREATE TABLE IF NOT EXISTS sim.ground_truth_anomalies (
-  dataset_id    bigint NOT NULL REFERENCES sim.datasets ON DELETE CASCADE,
-  reading_id    bigint NOT NULL,
-  anomaly_type  text   NOT NULL,     -- spike | zero | rollback | digit_swap | decimal_shift
-  true_value    numeric,             -- ค่าก่อนฉีด
-  PRIMARY KEY (dataset_id, reading_id)
-);
-```
-
-### 4.3 ตารางวัดผลโมเดล
-
-ใช้ตารางหัว (header) หนึ่งแถวต่อการวัดหนึ่งครั้ง และตารางตัวชี้วัดแบบแถวยาว เพื่อเพิ่มตัวชี้วัดใหม่ได้โดยไม่ต้องแก้ schema
-
-```sql
--- เชื่อมรอบเทรนกับชุดข้อมูล
-ALTER TABLE model_runs
-  ADD COLUMN IF NOT EXISTS train_dataset_id bigint REFERENCES sim.datasets,  -- NULL = ข้อมูลจริง
-  ADD COLUMN IF NOT EXISTS model_name       text;  -- risk_lr | risk_rf | anomaly_z | anomaly_iforest | anomaly_combined
-
-CREATE TABLE IF NOT EXISTS model_evaluations (
-  evaluation_id     bigserial PRIMARY KEY,
-  run_id            bigint NOT NULL REFERENCES model_runs ON DELETE CASCADE,
-  model_name        text   NOT NULL,
-  train_dataset_id  bigint REFERENCES sim.datasets,   -- NULL = ข้อมูลจริง
-  eval_dataset_id   bigint REFERENCES sim.datasets,   -- NULL = ข้อมูลจริง
-  split             text   NOT NULL CHECK (split IN ('cv_fold','cv_mean','holdout','time_holdout','cross_dataset')),
-  fold              int,                               -- ใช้เมื่อ split = 'cv_fold'
-  n_samples         int    NOT NULL,
-  n_positive        int    NOT NULL,                   -- บิลจ่ายช้า หรือมิเตอร์ผิดปกติ
-  threshold         numeric,                           -- จุดตัดที่ใช้คำนวณ precision/recall
-  is_baseline       boolean NOT NULL DEFAULT false,    -- true = โมเดลเปรียบเทียบ (หัวข้อ 6.3)
-  curves            jsonb,                             -- roc, pr, calibration, confusion
-  code_version      text,                              -- git commit
-  sklearn_version   text,
-  evaluated_at      timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS model_eval_metrics (
-  evaluation_id  bigint NOT NULL REFERENCES model_evaluations ON DELETE CASCADE,
-  metric         text   NOT NULL,      -- ดูรายชื่อในหัวข้อ 5
-  value          numeric NOT NULL,
-  std            numeric,              -- ใช้กับ split = 'cv_mean'
-  PRIMARY KEY (evaluation_id, metric)
-);
-
--- view สำหรับหน้าเว็บ: หนึ่งแถวต่อการวัด ตัวชี้วัดหลักเป็นคอลัมน์
-CREATE VIEW model_evaluation_summary AS
-SELECT e.evaluation_id, e.model_name, e.split, e.is_baseline,
-       td.name AS train_dataset, ed.name AS eval_dataset,
-       COALESCE(ed.is_synthetic, false) AS eval_is_synthetic,
-       e.n_samples, e.n_positive, e.evaluated_at,
-       MAX(m.value) FILTER (WHERE m.metric = 'precision') AS precision,
-       MAX(m.value) FILTER (WHERE m.metric = 'recall')    AS recall,
-       MAX(m.value) FILTER (WHERE m.metric = 'f1')        AS f1,
-       MAX(m.value) FILTER (WHERE m.metric = 'roc_auc')   AS roc_auc,
-       MAX(m.value) FILTER (WHERE m.metric = 'pr_auc')    AS pr_auc
-FROM model_evaluations e
-LEFT JOIN sim.datasets td ON td.dataset_id = e.train_dataset_id
-LEFT JOIN sim.datasets ed ON ed.dataset_id = e.eval_dataset_id
-LEFT JOIN model_eval_metrics m ON m.evaluation_id = e.evaluation_id
-GROUP BY e.evaluation_id, td.name, ed.name, ed.is_synthetic;
-```
-
----
-
-## 5. ตัวชี้วัดของโมเดลแต่ละตัว
-
-### 5.1 Risk (ทำนายบิลจ่ายช้า): `risk_lr`, `risk_rf`
-| metric | ความหมาย | หมายเหตุ |
-|---|---|---|
-| `accuracy` | สัดส่วนที่ทำนายถูกทั้งหมด | ดูคู่กับ baseline เสมอ เพราะข้อมูลไม่สมดุล |
-| `balanced_accuracy` | ค่าเฉลี่ย recall ของสองกลุ่ม | |
-| `precision` | ในบิลที่ทำนายว่าจะช้า ช้าจริงกี่ % | ที่ `threshold` |
-| `recall` | บิลที่ช้าจริง จับได้กี่ % | ที่ `threshold` |
-| `specificity` | บิลที่จ่ายตรงเวลา ทำนายถูกกี่ % | |
-| `f1` | ค่ากลางของ precision และ recall | |
-| `roc_auc` | ความสามารถจัดอันดับโดยรวม | |
-| `pr_auc` | average precision | เหมาะกับข้อมูลไม่สมดุลกว่า ROC-AUC [E3] |
-| `brier` | ความคลาดเคลื่อนของความน่าจะเป็น | ยิ่งต่ำยิ่งดี |
-| `log_loss` | | ยิ่งต่ำยิ่งดี |
-| `ece` | expected calibration error (10 bins) | ใช้คู่กับ calibration curve ใน `curves` |
-| `positive_rate` | สัดส่วนบิลช้าในชุดที่วัด | ใช้ตีความทุกตัวชี้วัดข้างบน |
-
-### 5.2 Anomaly (ทักเลขมิเตอร์): `anomaly_z`, `anomaly_iforest`, `anomaly_combined`
-วัดเทียบกับ `sim.ground_truth_anomalies`
-| metric | ความหมาย |
-|---|---|
-| `precision`, `recall`, `f1` | ที่เกณฑ์ที่ใช้งานจริง |
-| `roc_auc`, `pr_auc` | จากคะแนนความผิดปกติ |
-| `false_alarms_per_100` | จำนวนทักผิดต่อการจดมิเตอร์ 100 ครั้ง (ภาษาที่เจ้าหน้าที่เข้าใจ) |
-| `precision_at_k` | ในรายการที่คะแนนสูงสุด k รายการ (ค่าเริ่มต้น k = 20) ผิดปกติจริงกี่รายการ |
-| `recall_spike`, `recall_zero`, `recall_rollback`, `recall_digit_swap`, `recall_decimal_shift` | อัตราการจับได้แยกตามชนิดความผิดปกติ |
-
----
-
-## 6. วิธีวัดผล (evaluation protocol)
-
-### 6.1 การแบ่งข้อมูล
-- `cv_fold` / `cv_mean`: stratified 5-fold บนชุดเทรน เก็บทุก fold และค่าเฉลี่ย ± SD
-- `holdout`: 25% ที่แยกไว้ ไม่ใช้ตอนเลือกพารามิเตอร์
-- `time_holdout`: เทรน 9 เดือนแรก ทดสอบ 3 เดือนสุดท้าย **เป็นตัวที่ใกล้การใช้งานจริงที่สุด** เพราะระบบจริงทำนายอนาคตจากอดีตเสมอ [E2]
-- `cross_dataset`: เทรนบน scenario หนึ่ง ทดสอบบนอีก scenario หนึ่ง
-
-### 6.2 ตารางข้ามสถานการณ์
-รันทุกคู่ (เทรน × ทดสอบ) ของ `baseline`, `high_late`, `seasonal`, `drift` แล้วแสดงเป็น heatmap ของ `pr_auc` ทแยงมุมคือสถานการณ์เดียวกัน นอกทแยงบอกว่าโมเดลทนต่อการเปลี่ยนสถานการณ์แค่ไหน
-
-### 6.3 Baseline ที่ต้องเทียบทุกครั้ง (`is_baseline = true`)
-| โมเดล | baseline |
-|---|---|
-| Risk | `dummy_majority` (ทำนายว่าจ่ายตรงเวลาทุกใบ) และ `rule_last_month` (เดือนก่อนช้า → เดือนนี้ช้า) |
-| Anomaly | `rule_fixed_band` (ทักเมื่อการใช้ต่างจากค่าเฉลี่ยร้านเกิน 50%) |
-
-ถ้าโมเดล ML ไม่ชนะ baseline อย่างชัดเจน ให้รายงานตามจริง เป็นข้อมูลสำคัญสำหรับการตัดสินใจว่าควรใช้ ML หรือกฎธรรมดา
-
-### 6.4 กัน data leakage [E4]
-- ฟีเจอร์ของบิลต้องคำนวณจากข้อมูลที่รู้ก่อนวันครบกำหนดเท่านั้น
-- `sim.ground_truth_anomalies`, `archetype` ของแม่ค้า และพารามิเตอร์ของตัวสร้าง ห้ามเป็นฟีเจอร์
-- เขียน test ที่ล้มเมื่อมีคอลัมน์ต้องห้ามอยู่ในรายการฟีเจอร์
-
----
-
-## 7. การแสดงผล (เชื่อมกับหน้า "เบื้องหลัง AI")
-
-แท็บ "คุณภาพโมเดล" เพิ่ม
-- ตัวกรอง: โมเดล, ชุดข้อมูลเทรน, ชุดข้อมูลทดสอบ, ประเภท split
-- ตารางจาก `model_evaluation_summary` แถว baseline แสดงเป็นสีเทาไว้ใต้แถวโมเดลที่เทียบกัน
-- heatmap ข้ามสถานการณ์ (6.2)
-- ป้าย "ข้อมูลจำลอง · <ชื่อ scenario>" บนทุกแถวที่ `eval_is_synthetic = true`
-- ถ้ายังไม่มีผลวัด แสดงสถานะว่างพร้อมคำสั่งที่ต้องรัน ห้ามแสดงตัวเลขตัวอย่าง
-
----
-
-## 8. Prompt สำหรับ Claude Code
-
-### 8.1 เพิ่มใน `CLAUDE.md`
 ```markdown
-## Synthetic data and model evaluation
-- Read docs/synthetic-data-and-evaluation-prompts.md before touching ml/app/synth or evaluation code.
-- Synthetic data lives only in the `sim` schema. Never write synthetic rows into `public` business tables.
-- Every generated dataset must be reproducible from (scenario, seed, generator_version).
-- model_evaluations and model_eval_metrics are written only by evaluation code from real runs. Never hardcode, edit, smooth or simulate metric values.
-- sim.ground_truth_anomalies, merchant archetypes and generator params must never be used as model features.
-- Any UI showing metrics from synthetic datasets must show the "ข้อมูลจำลอง" badge with the scenario name.
-- Definition of done per round: tests pass, the round's commands run end-to-end on a clean database, and you report what was created with row counts.
-```
-
-### 8.2 รอบ A — ตัวสร้างข้อมูล
-```text
-อ่าน docs/synthetic-data-and-evaluation-prompts.md หัวข้อ 1–3 และ ER ของตารางจริงใน repo ก่อน
-สร้าง ml/app/synth/ ตามหัวข้อ 3:
-1) ตัวโหลด scenario yaml พร้อมตรวจความถูกต้อง (สัดส่วน archetype รวมเท่ากับ 1, ค่าไม่ติดลบ)
-2) ตัวสร้างข้อมูลทุกตารางตามหัวข้อ 3.2 ใช้ numpy default_rng(seed) ตัวเดียว
-3) การฉีดความผิดปกติ 5 ชนิดตามหัวข้อ 3.3 และบันทึกคำตอบแยก
-4) ไฟล์ scenario ทั้ง 7 ชุดในหัวข้อ 2
-5) CLI ตามหัวข้อ 3.4 ที่เขียนผลเป็นไฟล์ parquet ใน ml/data/synth/<name>/ ก่อน (ยังไม่แตะฐานข้อมูล)
-เขียน test: (ก) seed เดียวกันได้ผลเหมือนกันทุกแถว (ข) ค่ามิเตอร์สะสมไม่ลดลงยกเว้นจุดที่ฉีด rollback
-(ค) late_rate และ anomaly_rate ที่ได้อยู่ใกล้ค่าที่ตั้ง (ง) แม่ค้าคนเดียวมี archetype เดียวตลอด
-สรุปจำนวนแถวของแต่ละตารางในแต่ละ scenario
-```
-
-### 8.3 รอบ B — เก็บลงฐานข้อมูล
-```text
-ทำหัวข้อ 4.1 และ 4.2:
-1) migration สร้าง schema sim, sim.datasets, ตารางจำลองที่โครงสร้างเหมือนตารางจริง + dataset_id, sim.ground_truth_anomalies
-2) คำสั่ง python -m app.synth.load --scenario <name> [--seed N] ที่โหลด parquet เข้า sim และลงทะเบียนใน sim.datasets
-   ถ้า (scenario, seed, generator_version) มีอยู่แล้ว ให้ข้าม ไม่สร้างซ้ำ
-3) คำสั่งลบชุดข้อมูลตาม dataset_id (ON DELETE CASCADE)
-ตรวจว่าไม่มีแถวใดถูกเขียนลง schema public และรายงานจำนวนแถวที่โหลด
-```
-
-### 8.4 รอบ C — เทรนจากชุดข้อมูลที่เลือก
-```text
-แก้ ml/app/risk.py และโค้ด anomaly ให้รับ dataset_id (None = ข้อมูลจริงใน public)
-- POST /risk/train และ /anomaly/train รับ { "dataset_id": ... } แบบไม่บังคับ
-- บันทึก train_dataset_id และ model_name ลง model_runs
-- โมเดลที่เทรนจากข้อมูลจำลองต้องไม่ถูกตั้งเป็นโมเดลที่ใช้ให้คะแนนบิลจริงโดยอัตโนมัติ
-  (ต้องมีขั้นยืนยันแยก และบันทึกว่าใครยืนยัน)
-เพิ่ม test กัน leakage ตามหัวข้อ 6.4
-```
-
-### 8.5 รอบ D — ตารางวัดผลและสคริปต์วัดผล
-```text
-ทำหัวข้อ 4.3, 5 และ 6.1, 6.3:
-1) migration สร้าง model_evaluations, model_eval_metrics และ view model_evaluation_summary
-2) ml/app/evaluate.py ที่คำนวณตัวชี้วัดทุกตัวในหัวข้อ 5 ด้วย sklearn.metrics
-   และเก็บ curves (roc, pr, calibration, confusion) เป็น jsonb
-3) รัน split ครบ: cv_fold ทั้ง 5 fold, cv_mean, holdout, time_holdout
-4) รัน baseline ตามหัวข้อ 6.3 ทุกครั้งที่วัดผล และติด is_baseline = true
-5) CLI: python -m app.evaluate --run-id <id> --eval-dataset <id|real>
-เขียน test เทียบตัวชี้วัดกับค่าที่คำนวณมือจากชุดข้อมูลเล็ก ๆ ที่รู้คำตอบ
-ห้ามปัดหรือปรับค่าก่อนบันทึก
-```
-
-### 8.6 รอบ E — ข้ามสถานการณ์และหน้าเว็บ
-```text
-ทำหัวข้อ 6.2 และ 7:
-1) python -m app.evaluate --cross baseline,high_late,seasonal,drift เทรนและวัดทุกคู่ บันทึก split = cross_dataset
-2) API GET /api/ai/evaluations (ตัวกรองตามหัวข้อ 7) อ่านจาก model_evaluation_summary
-3) แท็บ "คุณภาพโมเดล": ตาราง, แถว baseline, heatmap pr_auc, ป้ายข้อมูลจำลอง, สถานะว่าง/โหลด/error
-ก่อนจบรอบ: รายงานตารางสถานะของหน้าเว็บที่ทำแล้วพร้อมวิธีตรวจ
+## UI rules (mobile-first, keep the existing look)
+- Read docs/ui-mobile-usability-prompts.md before UI work.
+- Keep the existing palette (cream, ink, bronze) and fonts. Do not add new hues. New tints/shades must be derived from existing colors and declared as tokens first.
+- Every text/background pair must meet WCAG contrast: 4.5:1 for normal text, 3:1 for large text and meaningful UI borders/icons. Report the ratio for any new pair.
+- Never use color alone to convey status; always pair with text or an icon.
+- Touch targets >= 44x44 px; primary inputs and buttons >= 48 px tall.
+- At 390 px width there must be no horizontal page scroll. Below 700 px, data tables become cards.
+- Mobile text: body 16 px, secondary 14 px, never below 13 px. Numbers use tabular-nums. Phone numbers and amounts never wrap.
+- Numeric inputs: type="text" inputmode="decimal" with enterkeyhint; never type="number".
+- Do not show internal codes (5.0, D7, XAI) outside presentation mode.
+- Destructive actions (utility cut) need a confirmation dialog that states the consequence, plus undo via toast.
+- Every design decision in a PR description cites its source ID from docs/ui-mobile-usability-prompts.md section 9.
+- Definition of done per round: Playwright + axe checks in section 6 pass at 390x844, and you attach before/after screenshots at 390 px and 1280 px.
 ```
 
 ---
 
-## 9. ข้อควรระวัง
+## 6. วิธีตรวจอัตโนมัติ (ใช้ทุกรอบ)
 
-- **อย่าปรับตัวสร้างเพื่อให้คะแนนโมเดลสูง:** ถ้าเปลี่ยนพารามิเตอร์ ให้เพิ่ม `generator_version` และวัดผลใหม่ทั้งชุด ผลเก่ายังเก็บไว้เทียบได้
-- **รายงานผลพร้อมชื่อชุดข้อมูลเสมอ:** เช่น "PR-AUC 0.81 บน `baseline` (ข้อมูลจำลอง), time_holdout" ไม่ใช่ "PR-AUC 0.81"
-- **ขนาดข้อมูลบนแพลนฟรี:** 120 แผง × 2 มิเตอร์ × 365 วัน ≈ 87,600 แถวต่อชุด 7 ชุดยังอยู่ในโควตาฟรีของ Neon ได้ แต่ควรตรวจพื้นที่ก่อนสร้างหลาย seed และลบชุดที่ไม่ใช้
-- **การเทรนบน Render ใช้เวลาจำกัด:** การวัดข้ามสถานการณ์หลายคู่ควรรันบนเครื่องตัวเองหรือ GitHub Actions แล้วเขียนผลเข้าฐานข้อมูล ไม่รันผ่าน endpoint ที่มี timeout 110 วินาที
+ให้ Claude Code สร้าง `web/tests/ui-mobile.spec.ts` ด้วย Playwright + `@axe-core/playwright` [S28] ตรวจทุกหน้าที่แก้ในรอบนั้นที่ viewport 390 × 844
+
+```ts
+// แนวคิดของการตรวจ (ให้ Claude Code เขียนให้สมบูรณ์)
+// 1) ไม่มีการเลื่อนแนวนอน
+expect(await page.evaluate(() =>
+  document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+
+// 2) จุดกดทุกจุดอย่างน้อย 44x44
+const small = await page.$$eval('a,button,input,select,[role=button]', els =>
+  els.filter(e => { const r = e.getBoundingClientRect();
+    return r.width > 0 && (r.width < 44 || r.height < 44); }).length);
+expect(small).toBe(0);
+
+// 3) ไม่มีตัวหนังสือเล็กกว่า 13 px
+const tiny = await page.$$eval('body *', els => els.filter(e =>
+  e.childNodes.length && [...e.childNodes].some(n => n.nodeType === 3 && n.textContent.trim()) &&
+  parseFloat(getComputedStyle(e).fontSize) < 13).length);
+expect(tiny).toBe(0);
+
+// 4) axe: ไม่มี violation ระดับ serious/critical (รวม color-contrast)
+```
+
+ตรวจด้วยมือเพิ่ม: เปิดบนมือถือจริงกลางแจ้งหรือเปิดความสว่างจอสูงสุด แล้วลองกรอกมิเตอร์ 5 แผงด้วยมือเดียว
 
 ---
 
-## 10. แหล่งอ้างอิง
+## 7. Prompt แยกตามรอบ
 
-| รหัส | แหล่ง | ใช้กับ |
+### รอบ 1 · แก้เร็ว
+```text
+อ่าน docs/ui-mobile-usability-prompts.md หัวข้อ 1, 2 และ 3 (ข้อ 4, 7, 8, ขัดเกลาเรื่องบันทึกระบบ) ก่อน
+แล้วอ่านไฟล์ theme/CSS variables ของโปรเจกต์ สรุปชุดสีและฟอนต์ที่มีอยู่ให้ผมดูก่อนแก้
+งานรอบนี้:
+1) ลบรหัส 5.0, 3.0, ML, XAI, D7 จากเมนูและหัวหน้า แทนด้วยจำนวนงานค้าง เพิ่มโหมดนำเสนอ (ค่าเริ่มต้นปิด)
+2) แผงปกติในหน้าจดมิเตอร์และหน้า AI แสดง "ปกติ" ย้ายตัวเลขเทคนิคไปส่วนพับ
+3) เบอร์โทรและยอดเงิน nowrap + tabular-nums, เบอร์โทรเป็น tel: พร้อมปุ่ม "โทร" 44x44
+4) ปุ่มต่อสัญญาแสดงเฉพาะสัญญาที่หมดหรือเหลือไม่ถึง 90 วัน
+5) บันทึกระบบแสดง 3 บรรทัดล่าสุด รวมบรรทัดซ้ำเป็น ×n และมีปุ่มดูทั้งหมด
+ห้ามเพิ่มสีใหม่ สร้าง web/tests/ui-mobile.spec.ts ตามหัวข้อ 6 ให้ผ่านสำหรับหน้าที่แก้
+ส่งภาพก่อน/หลังที่ 390 px และ 1280 px และระบุรหัสแหล่งอ้างอิง [S#] ของแต่ละการเปลี่ยนแปลง
+```
+
+### รอบ 2 · จดมิเตอร์บนมือถือ
+```text
+ทำข้อ 1 ทั้งหมด และส่วนแรกของข้อ 5 กับข้อ 6 ตาม docs/ui-mobile-usability-prompts.md
+ก่อนเขียนโค้ดจริง ทำหน้าตัวอย่างการ์ดจดมิเตอร์เป็น HTML ไฟล์เดียวด้วยสีและฟอนต์ของโปรเจกต์ ให้ผมลองบนมือถือก่อน
+หลังผมยืนยัน:
+1) การ์ดแผงละใบเมื่อจอ < 700 px, ช่องน้ำ/ไฟสูง ≥ 48 px, font 16 px, inputmode="decimal", enterkeyhint next/done และย้ายโฟกัสอัตโนมัติ
+2) แสดงเลขรอบก่อนและหน่วยที่ใช้ทันทีระหว่างพิมพ์
+3) แถบกรอง ยังไม่กรอก / AI ทัก / ทั้งหมด พร้อมจำนวน และแผงที่ AI ทักขึ้นก่อน
+4) แถบล่างสูง ≤ 56 px และไม่บังช่องที่โฟกัส
+5) แยก AnomalyReview จากหน้าเบื้องหลัง AI แล้วเปิดใน bottom sheet จากปุ่ม "ดูเหตุผล" แทนการติ๊ก "ตรวจหน้างานแล้ว"
+6) token ตัวหนังสือ --font-body/--font-secondary/--font-caption ใช้ในหน้านี้
+ทดสอบตามหัวข้อ 6 และทดสอบการกรอก 1 แผงด้วยแป้นตัวเลขอย่างเดียว รายงานผลพร้อมภาพ
+```
+
+### รอบ 3 · งานวันนี้และรวม AI
+```text
+ทำข้อ 3 และข้อ 5 ส่วนที่เหลือ:
+1) แถบงานวันนี้ใช้ส่วนประกอบเดียวกับหน้า "วันนี้" ของเจ้าของ ตัวเลขดึงจาก API เดียวกับหน้าปลายทาง กดแล้วไปหน้าพร้อมตัวกรอง
+2) รวมเมนู "AI วิเคราะห์" และ "เบื้องหลัง AI" เป็นเมนูเดียวมีแท็บ ย้ายการปรับเกณฑ์ไปส่วนพับ เก็บ URL เดิมไว้ redirect
+3) การยืนยันค่ามิเตอร์ทั้งระบบใช้ AnomalyReview ตัวเดียว
+เขียน test ว่าตัวเลขในแถบงานวันนี้ตรงกับจำนวนหลังกรองในหน้าปลายทาง
+```
+
+### รอบ 4 · ตารางเป็นการ์ดและขัดเกลา
+```text
+ทำข้อ 2 ทุกหน้าที่เหลือ, ข้อ 6 ทั้งระบบ, ข้อ 7 ส่วนค้นหาและกรอง และหัวข้อ "ขัดเกลา" ที่เหลือ:
+1) ส่วนประกอบ ResponsiveTable ที่เป็นตารางเมื่อ ≥ 700 px และเป็นการ์ดเมื่อ < 700 px ใช้ในหน้าค้างชำระและผู้ค้า
+2) ไล่แทนขนาดตัวหนังสือที่ต่ำกว่า 13 px ทั้งระบบด้วย token
+3) หน้าต่างยืนยันตัดน้ำไฟที่บอกแผง ชื่อร้าน จำนวนวันที่ค้าง และยอด ปุ่มเขียนว่า "ตัดน้ำไฟ" และ toast เลิกทำหลังบันทึก
+4) หน้าสรุปหลังออกบิล
+รัน test หัวข้อ 6 กับทุกหน้า และรายงานคู่สีใหม่ทุกคู่พร้อมอัตราส่วนความต่าง
+```
+
+---
+
+## 8. สิ่งที่ห้ามทำ
+
+- เพิ่มสีหรือฟอนต์ใหม่ หรือเปลี่ยนสไตล์ทั้งหน้าเพื่อ "ให้ดูทันสมัย"
+- ใช้ `type="number"` กับช่องมิเตอร์
+- ใช้ `word-break: break-all` กับข้อความภาษาไทย
+- ซ่อนข้อมูลสำคัญ (ยอดค้าง สถานะตัดน้ำไฟ) ไว้ในส่วนพับ ส่วนพับใช้กับรายละเอียดเชิงเทคนิคเท่านั้น
+- ใช้หน้าต่างยืนยันกับการกระทำที่ทำบ่อยและย้อนกลับได้ (เช่น ยืนยันค่ามิเตอร์) ให้ใช้เลิกทำแทน เพื่อไม่ให้ผู้ใช้กดยืนยันจนเคยชิน [S12]
+
+---
+
+## 9. แหล่งอ้างอิง
+
+| รหัส | แหล่ง | ใช้รองรับ |
 |---|---|---|
-| E1 | scikit-learn: Metrics and scoring. https://scikit-learn.org/stable/modules/model_evaluation.html | ตัวชี้วัดทั้งหมดในหัวข้อ 5 |
-| E2 | scikit-learn: Cross-validation (รวม TimeSeriesSplit). https://scikit-learn.org/stable/modules/cross_validation.html | การแบ่งข้อมูลในหัวข้อ 6.1 |
-| E3 | Saito, T., & Rehmsmeier, M. (2015). *The Precision-Recall Plot Is More Informative than the ROC Plot When Evaluating Binary Classifiers on Imbalanced Datasets*. PLOS ONE. https://doi.org/10.1371/journal.pone.0118432 | เหตุผลที่ใช้ PR-AUC |
-| E4 | Kapoor, S., & Narayanan, A. (2023). *Leakage and the reproducibility crisis in machine-learning-based science*. Patterns. https://doi.org/10.1016/j.patter.2023.100804 | การกัน data leakage |
-| E5 | Jordon, J. et al. (2022). *Synthetic Data — what, why and how?* https://arxiv.org/abs/2205.03257 | ข้อดีและข้อจำกัดของข้อมูลจำลอง |
-| E6 | Mitchell, M. et al. (2019). *Model Cards for Model Reporting*. https://arxiv.org/abs/1810.03993 | เขียนข้อจำกัดของผลบนข้อมูลจำลองในบัตรโมเดล |
-| E7 | Liu, F. T., Ting, K. M., & Zhou, Z.-H. (2008). *Isolation Forest*. IEEE ICDM. https://doi.org/10.1109/ICDM.2008.17 | โมเดล anomaly |
+| S1 | W3C. *WCAG 2.2* SC 1.4.3 Contrast (Minimum). https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html | ความต่างของสีตัวหนังสือ 4.5:1 / 3:1 |
+| S2 | W3C. *WCAG 2.2* SC 1.4.11 Non-text Contrast. https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html | ขอบปุ่มและไอคอน 3:1 |
+| S3 | W3C. *WCAG 2.2* SC 1.4.1 Use of Color. https://www.w3.org/WAI/WCAG22/Understanding/use-of-color.html | สีไม่ใช่สิ่งเดียวที่บอกสถานะ |
+| S4 | W3C. *WCAG 2.2* SC 2.5.5 Target Size (Enhanced) (44 × 44 CSS px) และ SC 2.5.8 Target Size (Minimum). https://www.w3.org/WAI/WCAG22/Understanding/target-size-enhanced.html | ขนาดจุดกด 44 px |
+| S5 | Apple. *Human Interface Guidelines — Accessibility* (เป้าการแตะอย่างน้อย 44 × 44 pt). https://developer.apple.com/design/human-interface-guidelines/accessibility | ขนาดจุดกด |
+| S6 | web.dev. *Accessible tap targets* (แนะนำราว 48 px). https://web.dev/articles/accessible-tap-targets | ช่องกรอกและปุ่มหลัก 48 px |
+| S7 | W3C. *WCAG 2.2* SC 1.4.10 Reflow. https://www.w3.org/WAI/WCAG22/Understanding/reflow.html | ไม่เลื่อนแนวนอนที่จอแคบ |
+| S8 | Nielsen Norman Group. *Mobile Tables: Comparisons and Other Data Tables*. https://www.nngroup.com/articles/mobile-tables/ | เปลี่ยนตารางเป็นการ์ดบนมือถือ |
+| S9 | Nielsen Norman Group. *Cards: UI-Component Definition*. https://www.nngroup.com/articles/cards-component/ | การ์ดแผงละใบ |
+| S10 | Nielsen, J. *10 Usability Heuristics for User Interface Design*. Nielsen Norman Group. https://www.nngroup.com/articles/ten-usability-heuristics/ | ข้อ 1 สถานะระบบ, 2 ภาษาผู้ใช้, 3 ย้อนกลับได้, 4 ความสม่ำเสมอ, 5 ป้องกันความผิดพลาด, 6 จำได้โดยไม่ต้องนึก, 8 เรียบและเฉพาะที่จำเป็น |
+| S11 | W3C. *WCAG 2.2* SC 3.3.4 Error Prevention (Legal, Financial, Data). https://www.w3.org/WAI/WCAG22/Understanding/error-prevention-legal-financial-data.html | ย้อนกลับได้หรือยืนยันก่อนสำหรับการกระทำที่มีผลทางการเงินหรือข้อมูล |
+| S12 | Nielsen Norman Group. *Confirmation Dialogs Can Prevent User Errors (If Not Overused)*. https://www.nngroup.com/articles/confirmation-dialog/ | ยืนยันเฉพาะการกระทำแรง เขียนผลที่จะเกิดและใช้ปุ่มเป็นกริยา |
+| S13 | Nielsen, J. *Progressive Disclosure*. Nielsen Norman Group. https://www.nngroup.com/articles/progressive-disclosure/ | ซ่อนรายละเอียดเทคนิค พับบันทึกระบบ |
+| S14 | Butterick, M. *Practical Typography — Point size*. https://practicaltypography.com/point-size.html | ขนาดตัวหนังสือหลักบนเว็บ |
+| S15 | CSS-Tricks. *16px or Larger Text Prevents iOS Form Zoom*. https://css-tricks.com/16px-or-larger-text-prevents-ios-form-zoom/ | ช่องกรอก 16 px |
+| S16 | Hoober, S. (2013). *How Do Users Really Hold Mobile Devices?* UXmatters. https://www.uxmatters.com/mt/archives/2013/02/how-do-users-really-hold-mobile-devices.php | วางปุ่มหลักในระยะนิ้วโป้ง |
+| S17 | Fitts, P. M. (1954). The information capacity of the human motor system in controlling the amplitude of movement. *Journal of Experimental Psychology*, 47(6), 381–391. | จุดกดใหญ่และใกล้ กดได้เร็วและพลาดน้อย |
+| S18 | GOV.UK Design System. *Text input* (หัวข้อ Numbers). https://design-system.service.gov.uk/components/text-input/ | ใช้ inputmode แทน type="number" |
+| S19 | GOV.UK Technology Blog (2020). *Why the GOV.UK Design System team changed the input type for numbers*. https://technology.blog.gov.uk/2020/02/24/why-the-gov-uk-design-system-team-changed-the-input-type-for-numbers/ | ปัญหาของ type="number" |
+| S20 | MDN. *enterkeyhint* และ *inputmode*. https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/enterkeyhint · https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/inputmode | ปุ่ม "ถัดไป" บนแป้น และแป้นตัวเลข |
+| S21 | W3C. *WCAG 2.2* SC 2.4.11 Focus Not Obscured (Minimum). https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html | แถบล่างต้องไม่บังช่องที่โฟกัส |
+| S22 | MDN. *white-space*. https://developer.mozilla.org/en-US/docs/Web/CSS/white-space | เบอร์โทรและยอดเงินไม่ตัดบรรทัด |
+| S23 | MDN. *font-variant-numeric*. https://developer.mozilla.org/en-US/docs/Web/CSS/font-variant-numeric | ตัวเลขความกว้างเท่ากัน |
+| S24 | MDN. *The Anchor element — Linking to telephone numbers*. https://developer.mozilla.org/en-US/docs/Web/HTML/Element/a | ลิงก์ tel: |
+| S25 | W3C. *Thai Gap Analysis* (การตัดคำและบรรทัดภาษาไทย). https://www.w3.org/TR/thai-gap/ | การตัดบรรทัดข้อความไทย |
+| S26 | W3C. *WCAG 2.2* SC 4.1.3 Status Messages. https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html | toast ประกาศผ่าน aria-live |
+| S27 | W3C. *WCAG 2.2* SC 1.4.12 Text Spacing. https://www.w3.org/WAI/WCAG22/Understanding/text-spacing.html | ระยะบรรทัดอย่างน้อย 1.5 เท่า |
+| S28 | Deque. *axe-core* และ *@axe-core/playwright*. https://github.com/dequelabs/axe-core | ตรวจการเข้าถึงอัตโนมัติ |
 
-> ตรวจลิงก์และรุ่นไลบรารีอีกครั้งก่อนอ้างในรายงาน
+> ตรวจลิงก์อีกครั้งก่อนอ้างในรายงาน เพราะเอกสารออนไลน์อาจย้ายที่

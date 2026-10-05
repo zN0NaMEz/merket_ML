@@ -13,6 +13,8 @@ export default function Meters() {
   const st = useData(() => api('/staff/meters'));
   const [edits, setEdits] = useState({});
   const [busy, setBusy] = useState(false);
+  // ตัวเลขเทคนิค (IF, z) ซ่อนไว้ตั้งต้น เปิดดูทั้งตารางด้วยสวิตช์เดียว (RodeMap ข้อ 8 [S13])
+  const [tech, setTech] = useState(false);
 
   const send = async readings => {
     try { st.setData(await api('/staff/meters/check', { method: 'POST', body: { readings } })); } catch (e) { toast(e.message, 'bad'); }
@@ -48,6 +50,10 @@ export default function Meters() {
           {!d.can_record && <div className="banner warn"><strong>ยังไม่ถึงรอบจด</strong>รอบ{d.period_label} บันทึกและออกบิลได้ตั้งแต่ {thDate(d.record_from)}</div>}
           {d.ml_error && <div className="banner"><strong>ML service ไม่พร้อม</strong>{d.ml_error}</div>}
           <section className="panel">
+            <label className="tech-toggle">
+              <input type="checkbox" checked={tech} onChange={e => setTech(e.target.checked)} />
+              แสดงตัวเลขเทคนิคของ AI (IF, z-score)
+            </label>
             <div className="tbl-wrap"><table className="tbl meter-tbl">
               <thead><tr><th>แผง</th><th className="num">น้ำ ก่อนหน้า</th><th>น้ำ ครั้งนี้</th><th className="num">ใช้</th><th className="num">ไฟ ก่อนหน้า</th><th>ไฟ ครั้งนี้</th><th className="num">ใช้</th><th>ผลตรวจ AI</th></tr></thead>
               <tbody>{d.rows.map(row => {
@@ -69,11 +75,11 @@ export default function Meters() {
                     <td className="ai-cell">
                       {!r ? <span className="muted">รอกรอก</span>
                         : r.kind === 'skip' ? <Chip>ประวัติไม่พอ</Chip>
-                          : !r.anomaly ? <><Chip tone="good">ปกติ</Chip><div className="scores">IF {r.if_score} · z น้ำ {r.z_water} ไฟ {r.z_elec}</div></>
+                          : !r.anomaly ? <><Chip tone="good">ปกติ</Chip>{tech && <div className="scores">IF {r.if_score} · z น้ำ {r.z_water} ไฟ {r.z_elec}</div>}</>
                             : <>
                               <Chip tone="bad">{KIND[r.kind]}</Chip>
                               <ul className="reasons">{r.reasons.map(x => <li key={x}>{x}</li>)}</ul>
-                              {r.if_score != null && <div className="scores">IF {r.if_score} · z น้ำ {r.z_water} ไฟ {r.z_elec}</div>}
+                              {tech && r.if_score != null && <div className="scores">IF {r.if_score} · z น้ำ {r.z_water} ไฟ {r.z_elec}</div>}
                               {r.kind === 'misread'
                                 ? <small className="t-bad">แก้ไขตัวเลขก่อนออกบิล</small>
                                 : <label className="ack"><input type="checkbox" checked={row.ack} onChange={e => send([{ stall_id: row.stall_id, cur_water: row.cur_water, cur_elec: row.cur_elec, ack: e.target.checked }])} />ตรวจหน้างานแล้ว ค่าถูกต้อง</label>}

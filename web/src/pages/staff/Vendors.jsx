@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { api } from '../../api';
-import { baht, diffDays, phoneFmt, thDate } from '../../format';
+import { baht, thDate } from '../../format';
 import { Chip, Loader, Modal, PageHead, useApp, useData } from '../../ui';
+import Phone from '../../components/Phone';
+import { daysLeft, needsRenewal } from '../../staff/rules';
 
 // 1.0 จัดการผู้ค้าและสัญญา (D1, D3)
 export default function Vendors() {
@@ -20,17 +22,18 @@ export default function Vendors() {
           <div className="tbl-wrap"><table className="tbl">
             <thead><tr><th>แผง</th><th>ผู้ค้า</th><th>ประเภท</th><th>เช่าตั้งแต่</th><th>สัญญาถึง</th><th className="num">ค้างชำระ</th><th>น้ำไฟ</th><th /></tr></thead>
             <tbody>{d.vendors.map(v => {
-              const left = v.end_date ? diffDays(v.end_date, d.today) : null;
+              const left = daysLeft(v.end_date, d.today);
               return (
                 <tr key={v.id}>
                   <td><span className="plate">{v.stall_id}</span></td>
-                  <td><div className="cell-name">{v.full_name}</div><small>{phoneFmt(v.phone)} · ผู้ใช้ {v.username}</small></td>
+                  <td><div className="cell-name">{v.full_name}</div><small className="cell-sub">ผู้ใช้ {v.username}</small><Phone number={v.phone} name={v.full_name} /></td>
                   <td>{v.type_name}</td>
                   <td className="nowrap">{thDate(v.since)}</td>
-                  <td className="nowrap">{thDate(v.end_date)} {left != null && left < 0 ? <Chip tone="bad">หมดอายุ</Chip> : left != null && left <= 60 ? <Chip tone="warn">อีก {left} วัน</Chip> : null}</td>
+                  <td className="nowrap">{thDate(v.end_date)} {left != null && left < 0 ? <Chip tone="bad">หมดอายุ</Chip> : needsRenewal(v.end_date, d.today) ? <Chip tone="warn">อีก {left} วัน</Chip> : null}</td>
                   <td className="num">{v.overdue_total ? <span className="t-bad">{baht(v.overdue_total)}</span> : '-'}</td>
                   <td>{v.utility_status === 'cut' ? <Chip tone="bad">ถูกตัด</Chip> : <Chip>ปกติ</Chip>}</td>
-                  <td>{v.contract_id && <button className="btn sm" onClick={() => renew(v)}>ต่อสัญญา 1 ปี</button>}</td>
+                  {/* ปุ่มต่อสัญญาเฉพาะรายที่หมดแล้วหรือเหลือไม่เกิน 90 วัน รายอื่นดูวันหมดสัญญาในคอลัมน์ก่อนหน้า (RodeMap ข้อ 7 [S10]) */}
+                  <td>{v.contract_id && needsRenewal(v.end_date, d.today) && <button className="btn sm" onClick={() => renew(v)}>ต่อสัญญา 1 ปี</button>}</td>
                 </tr>
               );
             })}</tbody>

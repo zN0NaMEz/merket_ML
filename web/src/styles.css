@@ -123,7 +123,7 @@ label.field .input,div.field .input{color:var(--ink)}
 /* tables */
 .tbl-wrap{overflow-x:auto}
 table.tbl{width:100%;border-collapse:collapse;font-size:14px}
-.tbl th{text-align:left;font-weight:600;color:var(--muted);font-size:12px;letter-spacing:.03em;padding:9px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl th{text-align:left;font-weight:600;color:var(--muted);font-size:13px;letter-spacing:.03em;padding:9px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
 .tbl td{padding:11px 8px;border-bottom:1px solid var(--line);vertical-align:top}
 .tbl tbody tr:hover td{background:var(--surface-2)}
 .tbl tr:last-child td{border-bottom:0}
@@ -134,7 +134,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px}
 .reasons li::before{content:"• ";color:var(--faint)}
 
 /* chips & risk */
-.chip{display:inline-block;font-size:12px;padding:1px 9px;border-radius:2px;background:var(--surface-2);border:1px solid var(--line);white-space:nowrap;line-height:1.7}
+.chip{display:inline-block;font-size:13px;padding:1px 9px;border-radius:2px;background:var(--surface-2);border:1px solid var(--line);white-space:nowrap;line-height:1.7}
 .chip.good{background:var(--ok-soft);border-color:transparent;color:var(--ok);font-weight:500}
 .chip.warn{background:var(--warn-soft);border-color:transparent;color:var(--warn)}
 .chip.bad{background:var(--danger-soft);border-color:transparent;color:var(--danger)}
@@ -347,7 +347,7 @@ a{color:var(--accent)}
 .hint{font-size:13px;color:var(--muted)}
 .stack{display:flex;flex-direction:column;gap:12px}
 .row-actions{display:flex;gap:6px;flex-wrap:wrap}
-.tag-src{font-size:11.5px;color:var(--muted);border:1px solid var(--line);border-radius:2px;padding:0 5px;margin-left:6px}
+.tag-src{font-size:13px;color:var(--muted);border:1px solid var(--line);border-radius:2px;padding:0 5px;margin-left:6px}
 .public-top{position:sticky;top:0;z-index:20;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 24px;background:var(--surface);border-bottom:1px solid var(--line);flex-wrap:wrap}
 .public-top nav{display:flex;gap:6px}
 .center-page{max-width:1020px;margin:0 auto;padding:34px 22px 90px}
@@ -403,3 +403,33 @@ a{color:var(--accent)}
 .reset-body{display:flex;flex-direction:column;gap:14px;font-size:14.5px;line-height:1.7}
 .reset-result{border:1px solid var(--line);border-left:3px solid var(--accent);background:var(--accent-soft);padding:14px 18px;border-radius:2px}
 .reset-result p{margin:4px 0 0}
+
+/* ---------- ปรับใช้งานบนมือถือ (RodeMap.md รอบ 1) · ใช้ชุดสีเดิมทั้งหมด ---------- */
+/* จำนวนงานค้างในเมนูแทนรหัสกระบวนการ [S10] · สีบรอนซ์บนครีม 5.76:1 / มืด 7.44:1 */
+.nav-badge{flex:none;font-size:13px;font-weight:600;line-height:1.6;padding:0 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-variant-numeric:tabular-nums;white-space:nowrap}
+.nav-item.on .nav-badge{background:var(--accent);color:var(--on-accent)}
+.nav-code{font-size:13px;color:var(--muted)}
+/* เบอร์โทร: ไม่ตัดบรรทัด ตัวเลขกว้างเท่ากัน + ปุ่มโทร [S4][S22][S23][S24] */
+.tel{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px}
+.tel__num{white-space:nowrap;font-variant-numeric:tabular-nums;font-size:13px;color:var(--muted)}
+.tel__call{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 12px;border:1px solid var(--line);border-radius:2px;background:var(--surface);color:var(--ink);text-decoration:none;font-size:13px;font-weight:500;white-space:nowrap}
+.tel__call:hover{border-color:var(--ink)}
+.cell-sub{display:block;font-size:13px;color:var(--muted)}
+.tbl small{font-size:13px}
+.log-times{font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums}
+.log-more{margin-top:8px}
+.tech-toggle{display:inline-flex;align-items:center;gap:10px;min-height:44px;margin-bottom:6px;font-size:14px;color:var(--muted);cursor:pointer}
+.tech-toggle input{width:20px;height:20px;accent-color:var(--accent)}
+
+@media (max-width:700px){
+  /* จุดกดอย่างน้อย 44 × 44 px บนจอแคบ [S4][S5][S6] */
+  .btn,.btn.sm{min-height:44px;padding:8px 14px;font-size:14px}
+  .input{min-height:44px;font-size:16px}
+  .bell{width:44px;height:44px}
+  .bell b{font-size:13px;line-height:20px;min-width:20px}
+  .nav-item{min-height:44px}
+  .clock small{font-size:13px}
+  .tel__call{min-height:48px;min-width:72px;justify-content:center}
+  .brand small{font-size:13px}
+  .ack{min-height:44px;display:inline-flex;align-items:center;gap:8px}
+}
