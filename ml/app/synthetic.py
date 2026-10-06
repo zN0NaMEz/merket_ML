@@ -237,10 +237,13 @@ def risk_bills(sc: RiskScenario) -> tuple[dict[int, list[dict]], date]:
                     "since": since, "type_code": code}
             f = risk_features(since, code, bills, bill)
             tenure_eff = 0.6 if f["tenure_years"] < 1 else 0.2 if f["tenure_years"] < 3 else -0.2
-            logit = (sc.intercept + sc.k_discipline * 4.2 * (0.5 - disc) + sc.k_history * 0.3 * f["late_count"]
-                     + sc.k_ratio * 2.2 * (f["bill_ratio"] - 1) + sc.k_type * t["risk"] + sc.k_season * SEASON_EFF[f["season"]]
-                     + tenure_eff + special_term(sc, f, code) + sc.noise_sd * rng.standard_normal())
+            signal = (sc.intercept + sc.k_discipline * 4.2 * (0.5 - disc) + sc.k_history * 0.3 * f["late_count"]
+                      + sc.k_ratio * 2.2 * (f["bill_ratio"] - 1) + sc.k_type * t["risk"] + sc.k_season * SEASON_EFF[f["season"]]
+                      + tenure_eff + special_term(sc, f, code))
+            logit = signal + sc.noise_sd * rng.standard_normal()
             late = rng.random() < _sigmoid(logit)
+            # ส่วนที่ "รู้ได้" ของ logit รวมวินัยที่ซ่อนอยู่ ใช้คิดเพดานความแม่น (oracle) ห้ามใช้เป็นฟีเจอร์
+            bill["oracle_logit"] = signal
             if due >= ANCHOR:
                 bill["status"] = "unpaid"          # ยังไม่ถึงกำหนด ไม่รู้ผล (build_dataset ข้ามเอง)
             elif late:
