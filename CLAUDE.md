@@ -24,12 +24,29 @@
 - Drift (round 5): ml/app/drift.py computes PSI with adaptive bins, a noise floor and a permutation p-value; the overall level
   counts only p < 0.05. `season` is excluded (calendar-driven); meter ratios compare the same month last year and skip flagged readings.
 
+- Risk models: lr, rf, et, gb, ens (ensemble = mean probability of lr+rf+gb, assembled from fitted members, never refit).
+  Keep the lists identical: ml/app/risk.py MODEL_KEYS · api/src/lib/constants.js RISK_MODELS · web/src/ai/behind.js
+  RISK_MODELS/MODEL_SHORT/MODEL_PLAIN · MODELS in web/src/pages/shared/AI.jsx. Models trained before a key existed are
+  missing until the next retrain: ML /risk/score raises 409 and PUT /ai/settings refuses an untrained model.
+  Tree models run single-threaded (risk.N_JOBS = 1, OMP_NUM_THREADS=1 in the Dockerfile): faster on 0.1 CPU, same results.
+- Payment-behavior features (features.BEHAVIOR: early_days_avg, seen_rate, app_share) use only what happened before the
+  bill's issue_date. bills.seen_at is recorded when a vendor opens GET /vendor/overview (migration v5). Old model sets
+  without these columns keep working (risk._cols selects each pipeline's own columns) until the next retrain.
+- Demo data profiles (api/src/lib/simBehavior.js, settings.sim): realistic (default) or clear (logit × 3, low chance).
+  Behaviors and sharpness must match ml/app/synthetic.py. ML stores metrics.sim_profile; every place that shows quality
+  numbers must show the "ข้อมูลจำลอง · ความบังเอิญต่ำ" badge for clear (SynthBadge profile prop, staff AI status line).
+  Never present clear-profile numbers as real-market accuracy. Reseeding production still needs the user's confirmation.
+- Predict from file (staff AI page, tab "ทำนายจากไฟล์"): the browser parses CSV in web/src/ai/predictFile.js → POST
+  /api/ai/predict (api/src/lib/riskInput.js re-validates, same ranges) → ML POST /risk/predict, which converts rows with
+  features.input_features() (same definitions as risk_features). Uploaded data is never stored. ML is called only on
+  the button press, never on page/tab load.
 - Model evaluation on synthetic data: scenarios in ml/app/synthetic.py (fixed seeds), evaluation in ml/app/benchmark.py
   (same split/CV/threshold as production training). Results go to evaluation_batches + model_evaluations (migration v4),
   never to model_runs, and never replace the production models. POST /benchmark/run runs in the background; the admin
   "ทดสอบหลายชุดข้อมูล" tab polls GET /api/ai/evaluations. CSV export + datasheet: ml/data/synthetic/ (excluded from the Docker image).
   Designed scenarios carry `expect` + `hypothesis`; the API judges them with a paired t-test on the shared CV folds
-  (|t| ≥ 2.776) or an F1 gap ≥ 0.05 for meters, and reports "unclear" otherwise. Never tune a scenario until it "wins":
+  (|t| ≥ 2.776) or an F1 gap ≥ 0.05 for meters, and reports "unclear" otherwise. Risk hypotheses compare LR vs RF only
+  (evaluations.js HYPOTHESIS_MODELS); et/gb/ens appear in the tables but never change a hypothesis verdict. Never tune a scenario until it "wins":
   change parameters only to fix a generator bug or to match the scenario's description, and keep honest "unclear" results.
 
 ## UI rules (mobile-first, keep the existing look)

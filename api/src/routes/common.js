@@ -5,6 +5,8 @@ const { ah, HttpError } = require('../lib/http');
 const settings = require('../lib/settings');
 const D = require('../lib/dates');
 const { auth, role, recipientOf } = require('../middleware/auth');
+const { RISK_MODELS } = require('../lib/constants');
+const { validateRows } = require('../lib/riskInput');
 const ml = require('../services/ml');
 const billing = require('../services/billing');
 const meters = require('../services/meters');
@@ -124,7 +126,8 @@ router.get('/ai/showcase', auth, role('staff', 'owner'), ah(async (_req, res) =>
       stall_id: b.stall_id, vendor: b.full_name,
       history: hist.reverse().map(h => ({ period: h.period, days_late: lateDays(h) })),
       target: {
-        period: b.period, due_date: b.due_date, total: Number(b.total), score: Number(t.score), scores: { lr: t.lr, rf: t.rf },
+        period: b.period, due_date: b.due_date, total: Number(b.total), score: Number(t.score),
+        scores: Object.fromEntries(RISK_MODELS.filter(k => t[k] != null).map(k => [k, t[k]])),
         level: billing.riskLevel(t.score, ai), reasons: t.reasons || [],
         outcome: { known: true, late: days > 0, days_late: days },
       },
@@ -189,11 +192,30 @@ router.post('/ai/retrain', auth, role('staff', 'owner', 'admin'), ah(async (req,
   const rescored = await billing.rescoreOpenBills(`หลังเทรนใหม่โดย ${req.user.name}`);
   res.json({ risk, anomaly, rescored });
 }));
+/*
+ * ทำนายจากไฟล์ที่เจ้าหน้าที่อัปโหลด (หน้า AI วิเคราะห์ แท็บ "ทำนายจากไฟล์")
+ * เบราว์เซอร์อ่าน CSV เองแล้วส่งเฉพาะค่าในตาราง ที่นี่ตรวจซ้ำแล้วส่งต่อให้ ML · ไม่บันทึกข้อมูลที่อัปโหลดลงที่ใด
+ * เรียก ML เมื่อผู้ใช้กดปุ่มเท่านั้น ไม่ใช่ตอนเปิดหน้า
+ */
+router.post('/ai/predict', auth, role('staff', 'owner', 'admin'), ah(async (req, res) => {
+  const v = validateRows(req.body?.rows);
+  if (v.error) throw new HttpError(400, v.error, v.details);
+  const out = await ml.predictRows(v.rows);
+  res.json({ ...out, active_model: (await settings.ai()).risk_model });
+}));
 router.put('/ai/settings', auth, role('staff', 'owner'), ah(async (req, res) => {
   const cur = await settings.ai();
   const b = req.body || {};
   const next = { ...cur };
-  if (b.risk_model != null) { if (!['lr', 'rf'].includes(b.risk_model)) throw new HttpError(400, 'โมเดลต้องเป็น lr หรือ rf'); next.risk_model = b.risk_model; }
+  if (b.risk_model != null) {
+    if (!RISK_MODELS.includes(b.risk_model)) throw new HttpError(400, `โมเดลต้องเป็น ${RISK_MODELS.join(', ')}`);
+    // โมเดลที่เพิ่มใหม่มีหลังเทรนใหม่เท่านั้น ตรวจก่อนบันทึก ไม่ให้การให้คะแนนบิลค้างล้มหลังเปลี่ยนแล้ว
+    if (b.risk_model !== cur.risk_model) {
+      const trained = Object.keys((await ml.riskMetrics()).models || {});
+      if (!trained.includes(b.risk_model)) throw new HttpError(409, 'โมเดลนี้ยังไม่ได้เทรน กดเทรนโมเดลใหม่หนึ่งครั้งก่อนเลือกใช้');
+    }
+    next.risk_model = b.risk_model;
+  }
   if (b.anomaly_method != null) { if (!['z', 'if', 'both'].includes(b.anomaly_method)) throw new HttpError(400, 'วิธีตรวจจับไม่ถูกต้อง'); next.anomaly_method = b.anomaly_method; }
   for (const [k, lo, hi] of [['risk_high', 0.05, 0.99], ['risk_mid', 0.01, 0.95], ['z_threshold', 1, 10], ['if_threshold', 0.4, 0.95]]) {
     if (b[k] == null) continue;

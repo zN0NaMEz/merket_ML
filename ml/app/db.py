@@ -62,6 +62,18 @@ def is_synthetic() -> bool:
         return False
 
 
+def sim_profile() -> str | None:
+    """โปรไฟล์ของข้อมูลจำลองที่ seed ไว้ (settings.sim.profile): realistic = ความบังเอิญเท่าตลาดจริง,
+    clear = ความบังเอิญต่ำ (ใช้สาธิตว่าโมเดลทำได้แค่ไหนเมื่อข้อมูลชัด) · ข้อมูลจริงหรือ seed รุ่นก่อนคืน None/realistic"""
+    if not is_synthetic():
+        return None
+    try:
+        rows = fetch_all("SELECT value FROM settings WHERE key = 'sim'")
+        return (rows[0]["value"] or {}).get("profile", "realistic") if rows else "realistic"
+    except Exception:
+        return "realistic"
+
+
 def save_model_run(model_type: str, metrics: dict, **cols) -> int:
     """บันทึกผลการเทรนหนึ่งรอบ cols = คอลัมน์รายละเอียด (ดู _RUN_COLUMNS) คืน id ของแถว"""
     import sklearn

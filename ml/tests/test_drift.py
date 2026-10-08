@@ -103,3 +103,25 @@ class PsiTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FewValuesPsiTest(unittest.TestCase):
+    """ตัวแปรที่มีแค่ไม่กี่ค่า (0/1) ต้องไม่ได้ PSI สูงเพียงเพราะ quantile ชนกัน"""
+
+    def test_binary_same_share_is_stable(self):
+        from app.drift import psi_numeric_k
+        ref = [1.0] * 21 + [0.0] * 7                   # 75% เป็น 1
+        cur = [1.0] * 23 + [0.0] * 9                   # 72% เป็น 1
+        p, used = psi_numeric_k(ref, cur, 3)
+        self.assertEqual(used, 2)
+        self.assertLess(p, 0.01)
+
+    def test_binary_real_shift_is_detected(self):
+        from app.drift import psi_numeric_k
+        p, _ = psi_numeric_k([1.0] * 21 + [0.0] * 7, [1.0] * 8 + [0.0] * 24, 3)
+        self.assertGreater(p, 0.25)
+
+    def test_constant_reference_still_uses_same_vs_different(self):
+        from app.drift import psi_numeric_k
+        p, used = psi_numeric_k([2.0] * 10, [2.0] * 10, 3)
+        self.assertEqual((round(p, 6), used), (0.0, 2))

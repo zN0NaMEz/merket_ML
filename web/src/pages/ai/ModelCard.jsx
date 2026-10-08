@@ -20,7 +20,7 @@ function Card({ c, active, lonely }) {
     <article className="bh-card" aria-labelledby={`card-${c.key}`}>
       <header className="bh-card__head">
         <h3 id={`card-${c.key}`}>{c.title}</h3>
-        {run && (run.is_synthetic ? <SynthBadge on /> : <RealBadge />)}
+        {run && (run.is_synthetic ? <SynthBadge on profile={run.sim_profile} /> : <RealBadge />)}
       </header>
       {!run && lonely && <StateBox kind="empty" title="ยังไม่เคยเทรนโมเดลนี้">บัตรโมเดลจะแสดงช่วงข้อมูลและจำนวนแถวหลังเทรนครั้งแรก</StateBox>}
       <dl className="bh-kv bh-kv--card">
@@ -52,7 +52,11 @@ function Card({ c, active, lonely }) {
             <div><dt>model_type</dt><dd><code>{run.model_type}</code> · รอบที่ {run.run_id}</dd></div>
             <div><dt>scikit-learn</dt><dd>{run.sklearn_version || 'ไม่ได้บันทึก'}</dd></div>
             {run.auc != null && <div><dt>AUC ชุดทดสอบ</dt><dd>{run.auc.toFixed(3)}</dd></div>}
-            {c.alt_run && <div><dt>อีกโมเดลที่เทรนคู่กัน</dt><dd><code>{c.alt_run.model_type}</code> · AUC {c.alt_run.auc?.toFixed(3) ?? '–'}</dd></div>}
+            {c.alt_runs?.length > 0 && (
+              <div><dt>โมเดลอื่นที่เทรนรอบเดียวกัน</dt>
+                <dd>{c.alt_runs.map(r => <span key={r.model_type} className="bh-alt"><code>{r.model_type}</code> AUC {r.auc?.toFixed(3) ?? '–'}</span>)}</dd>
+              </div>
+            )}
           </dl>
         </TechDetails>
       )}
@@ -67,7 +71,8 @@ const KIND = {
   review: { label: 'ตรวจค่ามิเตอร์', icon: 'warn' },
 };
 const FILTERS = [['all', 'ทั้งหมด'], ['train', 'เทรน'], ['rescore', 'ให้คะแนน'], ['review', 'มิเตอร์']];
-const MODEL_TH = { risk_lr: 'ความเสี่ยง (Logistic Regression)', risk_rf: 'ความเสี่ยง (Random Forest)', risk: 'ความเสี่ยง (รุ่นเดิม)', anomaly: 'ตรวจมิเตอร์' };
+const MODEL_TH = { risk_lr: 'ความเสี่ยง (Logistic Regression)', risk_rf: 'ความเสี่ยง (Random Forest)', risk_et: 'ความเสี่ยง (Extra Trees)',
+  risk_gb: 'ความเสี่ยง (Gradient Boosting)', risk_ens: 'ความเสี่ยง (โมเดลรวม)', risk: 'ความเสี่ยง (รุ่นเดิม)', anomaly: 'ตรวจมิเตอร์' };
 const UTIL = { water: 'น้ำ', elec: 'ไฟ' };
 
 function describe(it) {
@@ -130,7 +135,7 @@ export default function ModelCard({ status, onTrained }) {
   const anyRun = st.data?.cards.some(c => c.run);
   return (
     <div className="bh-panel">
-      <TabHead title="บัตรโมเดล" synthetic={status?.is_synthetic}
+      <TabHead title="บัตรโมเดล" synthetic={status?.is_synthetic} profile={status?.sim_profile}
         sub="โมเดลแต่ละตัวเทรนจากข้อมูลอะไร ช่วงไหน ใช้ทำอะไร และมีข้อจำกัดอะไร"
         right={<TrainButton onDone={() => { st.reload(); onTrained?.(); }} />} />
       {st.error && !st.data && <LoadError error={st.error} onRetry={st.reload} what="บัตรโมเดล" />}

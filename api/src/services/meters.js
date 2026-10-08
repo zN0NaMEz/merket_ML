@@ -195,13 +195,15 @@ async function issueBills(userId) {
   try {
     await billing.rescoreOpenBills(`ออกบิล${D.periodLabel(period)}`);
     const ids = created.map(b => b.id);
-    const scored = await db.q(`SELECT b.*, v.sim_discipline FROM bills b JOIN vendors v ON v.id = b.vendor_id WHERE b.id = ANY($1)`, [ids]);
+    const scored = await db.q(`SELECT b.*, v.sim_discipline, v.sim_app FROM bills b JOIN vendors v ON v.id = b.vendor_id WHERE b.id = ANY($1)`, [ids]);
     high = scored.filter(b => b.risk_score >= ai.risk_high).length;
     if (config.demoMode) {
+      const { sharp = 1 } = (await settings.get('sim')) || {};
       for (const b of scored) {
         if (!b.risk_features) continue;
-        await db.q('UPDATE bills SET sim_pay_date = $1 WHERE id = $2',
-          [billing.simPayDate(b, { id: b.vendor_id, sim_discipline: b.sim_discipline }, b.risk_features, rates.pay_within_days), b.id]);
+        const vendor = { id: b.vendor_id, sim_discipline: b.sim_discipline, sim_app: b.sim_app };
+        const pay = billing.simPayDate(b, vendor, b.risk_features, rates.pay_within_days, sharp);
+        await db.q('UPDATE bills SET sim_pay_date = $1, sim_seen_date = $2 WHERE id = $3', [pay, billing.simSeenDate(b, vendor, pay), b.id]);
       }
     }
   } catch (e) {

@@ -21,13 +21,18 @@ async function runDaily(date) {
 
   // (โหมดสาธิต) ผู้ค้าคนอื่นชำระผ่านแอปตามวันที่จำลองไว้
   if (config.demoMode) {
-    const due = await db.q(`SELECT id, vendor_id FROM bills WHERE kind = 'monthly' AND status IN ('unpaid','overdue')
-      AND sim_pay_date IS NOT NULL AND sim_pay_date <= $1`, [date]);
+    // ผู้ค้าเปิดดูบิลในแอปตามวันที่จำลองไว้ (ปัจจัยพฤติกรรม seen_at)
+    await db.q(`UPDATE bills SET seen_at = (sim_seen_date + time '12:00') AT TIME ZONE 'Asia/Bangkok'
+      WHERE seen_at IS NULL AND sim_seen_date IS NOT NULL AND sim_seen_date <= $1`, [date]);
+    const due = await db.q(`SELECT b.id, b.vendor_id, v.sim_app FROM bills b JOIN vendors v ON v.id = b.vendor_id
+      WHERE b.kind = 'monthly' AND b.status IN ('unpaid','overdue')
+      AND b.sim_pay_date IS NOT NULL AND b.sim_pay_date <= $1`, [date]);
     for (const b of due) {
       const { id } = await db.one("SELECT nextval(pg_get_serial_sequence('payments','id')) AS id");
       const bill = await db.one('SELECT total FROM bills WHERE id = $1', [b.id]);
       await db.q(`INSERT INTO payments (id, ref_no, provider, access_token, amount, status, payer, vendor_id)
-        VALUES ($1,$2,'simulated',md5(random()::text),$3,'pending',$4,$5)`, [id, billing.refNoFor(id, date), bill.total, `vendor:${b.vendor_id}`, b.vendor_id]);
+        VALUES ($1,$2,$6,md5(random()::text),$3,'pending',$4,$5)`,
+        [id, billing.refNoFor(id, date), bill.total, `vendor:${b.vendor_id}`, b.vendor_id, b.sim_app === false ? 'cash' : 'simulated']);
       await db.q('INSERT INTO payment_bills (payment_id, bill_id, amount) VALUES ($1,$2,$3)', [id, b.id, bill.total]);
       await billing.applyPaymentResult(id, 'successful');
       paid++;

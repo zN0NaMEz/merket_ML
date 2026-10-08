@@ -8,6 +8,7 @@
 const D = require('../lib/dates');
 const R = require('../lib/random');
 const { TYPES, SEASON_EFF, DEFAULT_RATES } = require('../lib/constants');
+const { SIM_PROFILES, appP, ontimeDay, seenDate } = require('../lib/simBehavior');
 
 const NAMES = ['สมศรี ทองดี','บุญมี แก้วใส','ละเอียด ชมชื่น','ประยูร ศรีสุข','วันเพ็ญ มณีรัตน์','สมชาย พึ่งบุญ','จันทร์เพ็ญ ดวงดี','อำนวย รุ่งเรือง',
   'สุดารัตน์ บุญเกิด','ทองใบ สายสุข','มาลี ใจงาม','ประเสริฐ มั่นคง','นงลักษณ์ ศรีทอง','สุรชัย แสงทอง','เยาวลักษณ์ พูลผล','ชูชาติ ทองคำ',
@@ -34,8 +35,10 @@ function features(v, prior, bill) {
   return { late, ratio: base ? bill.total / base : 1, tenure: D.diffDays(bill.issue_date, v.since) / 365, season: seasonOf(bill.due_date) };
 }
 
-function generate(anchor, seed = 20261001) {
+/** profile = realistic | clear (ดู lib/simBehavior.js) */
+function generate(anchor, seed = 20261001, profile = 'realistic') {
   const rng = R.mulberry32(seed);
+  const { sharp } = SIM_PROFILES[profile] || SIM_PROFILES.realistic;
   const rates = { ...DEFAULT_RATES };
   const HIST_LAST = D.prevPeriod(D.periodOf(anchor), 2);
   const HIST_FIRST = D.prevPeriod(HIST_LAST, 16);
@@ -57,6 +60,7 @@ function generate(anchor, seed = 20261001) {
     const phone = `08${Math.floor(rng() * 10)}${String(Math.floor(rng() * 1000)).padStart(3, '0')}${String(Math.floor(rng() * 10000)).padStart(4, '0')}`;
     const v = { idx: i + 1, code: `V${String(i + 1).padStart(3, '0')}`, full_name: NAMES[i], phone, stall_id: st.id, type_code: st.type_code, since,
       sim_discipline: Math.round(d * 1000) / 1000, sim_scale_w: Math.exp(0.25 * R.randn(rng)), sim_scale_e: Math.exp(0.25 * R.randn(rng)) };
+    v.sim_app = rng() < appP(v.sim_discipline);
     out.vendors.push(v);
     let y = Number(since.slice(0, 4)), end = since;
     while (end <= anchor) { y++; end = `${y}${since.slice(4)}`; }
@@ -92,7 +96,7 @@ function generate(anchor, seed = 20261001) {
       const prior = vBills[v.idx];
       const f = features(v, prior, bill);
       const tenureEff = f.tenure < 1 ? 0.6 : f.tenure < 3 ? 0.2 : -0.2;
-      const logit = -1.2 + 4.2 * (0.5 - v.sim_discipline) + 0.3 * f.late + 2.2 * (f.ratio - 1) + t.risk + SEASON_EFF[f.season] + tenureEff + 0.35 * R.randn(rng);
+      const logit = sharp * (-1.2 + 4.2 * (0.5 - v.sim_discipline) + 0.3 * f.late + 2.2 * (f.ratio - 1) + t.risk + SEASON_EFF[f.season] + tenureEff + 0.35 * R.randn(rng));
       const late = rng() < R.sigmoid(logit);
       if (p === HIST_LAST && FORCE_UNPAID.has(v.stall_id)) {
         bill.status = 'overdue';
@@ -100,9 +104,11 @@ function generate(anchor, seed = 20261001) {
       } else if (late) {
         bill.paid_date = D.addDays(due, 1 + Math.floor(Math.pow(rng(), 1.4) * 14 * (1.3 - v.sim_discipline)));
       } else {
-        bill.paid_date = D.addDays(issue, Math.floor(rng() * rates.pay_within_days));
+        bill.paid_date = D.addDays(issue, ontimeDay(rng(), v.sim_discipline, rates.pay_within_days));
       }
       if (bill.paid_date && bill.paid_date >= anchor) bill.paid_date = D.addDays(anchor, -1);
+      bill.seen_at = seenDate(rng, v.sim_discipline, v.sim_app, issue, bill.paid_date);
+      if (bill.seen_at && bill.seen_at >= anchor) bill.seen_at = D.addDays(anchor, -1);
       out.bills.push(bill); prior.push(bill);
     }
   }
@@ -141,7 +147,7 @@ function generate(anchor, seed = 20261001) {
   const misPeriod = D.prevPeriod(HIST_LAST, 2);
   out.anomaly_logs.push({ stall_id: 'D-02', period: misPeriod, detected_on: D.periodEnd(misPeriod), reason: 'เลขมิเตอร์ไฟน้อยกว่ารอบก่อน อาจจดผิด', resolution: 'แก้ไขค่าแล้ว' });
   out.job_logs.push({ run_date: D.addDays(anchor, -1), job: 'daily', summary: 'ตรวจบิลค้างชำระ 4 รายการ แจ้งเตือนล่วงหน้า (AI) 0 ราย ส่งต่อเจ้าหน้าที่ 0 ราย' });
-  out.meta = { anchor, hist_first: HIST_FIRST, hist_last: HIST_LAST, meter_period: meterPeriod, meter_round: { [meterPeriod]: D.periodEnd(meterPeriod) } };
+  out.meta = { profile: SIM_PROFILES[profile] ? profile : 'realistic', anchor, hist_first: HIST_FIRST, hist_last: HIST_LAST, meter_period: meterPeriod, meter_round: { [meterPeriod]: D.periodEnd(meterPeriod) } };
   return out;
 }
 

@@ -7,6 +7,7 @@ const { HttpError } = require('../lib/http');
 const D = require('../lib/dates');
 const R = require('../lib/random');
 const { TYPES, SEASON_EFF } = require('../lib/constants');
+const { ontimeDay, seenDate } = require('../lib/simBehavior');
 const ml = require('./ml');
 const providers = require('./payments');
 
@@ -40,14 +41,21 @@ async function rescoreOpenBills(reason = 'ให้คะแนนบิลค�
  * โหมดสาธิตเท่านั้น: กำหนดวันที่ผู้ค้าคนอื่น "จะ" มาชำระเอง เพื่อให้ระบบดูมีชีวิตเวลาเลื่อนวันที่จำลอง
  * ใช้ sim_discipline ที่ซ่อนไว้ในข้อมูลตัวอย่าง ไม่เกี่ยวกับโมเดล ML
  */
-function simPayDate(bill, vendor, f, payWithin) {
+function simPayDate(bill, vendor, f, payWithin, sharp = 1) {
   const rng = R.mulberry32(R.hashStr(`${bill.id}-${vendor.id}`));
   const d = vendor.sim_discipline ?? 0.7;
   const tenureEff = f.tenure_years < 1 ? 0.6 : f.tenure_years < 3 ? 0.2 : -0.2;
-  const logit = -1.2 + 4.2 * (0.5 - d) + 0.3 * f.late_count + 2.2 * (f.bill_ratio - 1)
-    + (TYPES[f.stall_type]?.risk || 0) + (SEASON_EFF[f.season] || 0) + tenureEff + 0.35 * R.randn(rng);
+  // sharp = โปรไฟล์ของข้อมูลสาธิต (settings.sim) ให้บิลใหม่มีความบังเอิญเท่ากับประวัติที่ seed ไว้
+  const logit = sharp * (-1.2 + 4.2 * (0.5 - d) + 0.3 * f.late_count + 2.2 * (f.bill_ratio - 1)
+    + (TYPES[f.stall_type]?.risk || 0) + (SEASON_EFF[f.season] || 0) + tenureEff + 0.35 * R.randn(rng));
   if (rng() < R.sigmoid(logit)) return D.addDays(bill.due_date, 1 + Math.floor(Math.pow(rng(), 1.4) * 14 * (1.3 - d)));
-  return D.addDays(bill.issue_date, 1 + Math.floor(rng() * (payWithin - 1)));
+  return D.addDays(bill.issue_date, ontimeDay(rng(), d, payWithin));
+}
+
+/** โหมดสาธิต: วันที่ผู้ค้า "จะ" เปิดดูบิลในแอป (สมมติฐานใน lib/simBehavior.js) */
+function simSeenDate(bill, vendor, payDate) {
+  const rng = R.mulberry32(R.hashStr(`${bill.id}-${vendor.id}-seen`));
+  return seenDate(rng, vendor.sim_discipline ?? 0.7, Boolean(vendor.sim_app), bill.issue_date, payDate);
 }
 
 /* ---------------- การชำระเงิน (กระบวนการ 4.0) ---------------- */
@@ -221,6 +229,6 @@ async function restoreUtility(stallId) {
 }
 
 module.exports = {
-  riskLevel, rescoreOpenBills, simPayDate, createPayment, createCashPayment, applyPaymentResult, syncPayment,
+  riskLevel, rescoreOpenBills, simPayDate, simSeenDate, createPayment, createCashPayment, applyPaymentResult, syncPayment,
   paymentView, createAdvanceBill, cutUtility, restoreUtility, refNoFor, receiptNoFor,
 };

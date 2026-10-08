@@ -3,9 +3,12 @@ import os
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from typing import Literal
+
+from pydantic import BaseModel, Field, model_validator
 
 from . import anomaly, benchmark, drift, risk
+from .features import TYPE_CODES
 
 app = FastAPI(title="Bunyat Market ML Service", version="1.0.0")
 
@@ -28,9 +31,44 @@ class TrainRequest(BaseModel):
     triggered_by: str | None = Field(None, max_length=120)
 
 
+MODEL_PATTERN = "^(" + "|".join(risk.MODEL_KEYS) + ")$"
+
+
 class ScoreRequest(BaseModel):
     bill_ids: list[int]
-    model: str = Field("lr", pattern="^(lr|rf)$")
+    model: str = Field("lr", pattern=MODEL_PATTERN)
+
+
+class PredictRow(BaseModel):
+    """หนึ่งแถวจากไฟล์ที่เจ้าหน้าที่อัปโหลด (API ตรวจแล้วชั้นหนึ่งใน api/src/lib/riskInput.js)"""
+    ref: str = Field("", max_length=60)
+    stall_type: Literal[tuple(TYPE_CODES)]  # type: ignore[valid-type]
+    due_month: int = Field(..., ge=1, le=12)
+    tenure_years: float = Field(..., ge=0, le=60)
+    n_prior: int = Field(..., ge=0, le=6)
+    late_count: int = Field(..., ge=0, le=6)
+    days_late_total: float = Field(..., ge=0, le=2000)
+    bill_total: float = Field(..., ge=1, le=1e7)
+    prev_avg: float = Field(0, ge=0, le=1e7)
+    # พฤติกรรมการจ่าย ไม่บังคับ: None = เติมค่าเฉลี่ยของข้อมูลเทรน (features.input_features)
+    early_days_avg: float | None = Field(None, ge=0, le=30)
+    seen_count: int | None = Field(None, ge=0, le=6)
+    app_count: int | None = Field(None, ge=0, le=6)
+
+    @model_validator(mode="after")
+    def consistent(self):
+        if self.late_count > self.n_prior:
+            raise ValueError("late_count มากกว่า n_prior")
+        for v in (self.seen_count, self.app_count):
+            if v is not None and v > self.n_prior:
+                raise ValueError("seen_count/app_count มากกว่า n_prior")
+        if (self.late_count == 0) != (self.days_late_total == 0) or self.days_late_total < self.late_count:
+            raise ValueError("days_late_total ไม่สอดคล้องกับ late_count")
+        return self
+
+
+class PredictRequest(BaseModel):
+    rows: list[PredictRow] = Field(..., min_length=1, max_length=500)
 
 
 class Reading(BaseModel):
@@ -72,6 +110,12 @@ def risk_metrics():
 @app.post("/risk/score")
 def risk_score(req: ScoreRequest):
     return {"model": req.model, "results": _wrap(risk.score, req.bill_ids, req.model)}
+
+
+@app.post("/risk/predict")
+def risk_predict(req: PredictRequest):
+    """ทำนายจากค่าที่อัปโหลด ไม่อ่านหรือเขียนตาราง bills · คืนคะแนนของทุกโมเดลที่เทรนไว้"""
+    return _wrap(risk.predict_rows, [r.model_dump() for r in req.rows])
 
 
 @app.post("/anomaly/train")

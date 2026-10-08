@@ -20,15 +20,20 @@ const { fullView, meanSd, normalizeRun, ownerView } = require('../lib/aiQuality'
 const { reviewStats } = require('../lib/reviewStats');
 const EV = require('../lib/evaluations');
 const ml = require('../services/ml');
+const { RISK_MODELS } = require('../lib/constants');
 
-const RISK_TYPES = ['risk_lr', 'risk_rf'];
+const RISK_TYPES = RISK_MODELS.map(k => `risk_${k}`);
+/** แถว 'risk' ของรุ่นก่อนเก็บผลของ lr กับ rf เท่านั้น โมเดลที่เพิ่มทีหลังต้องไม่หยิบแถวนั้นมาแสดงแทน */
+const LEGACY_TYPES = ['risk_lr', 'risk_rf'];
+/** รอบเทรนล่าสุดของทุกโมเดลความเสี่ยง เรียงตาม RISK_MODELS */
+const latestRiskRuns = () => Promise.all(RISK_MODELS.map(k => latestRun(`risk_${k}`)));
 
 /**
  * แถวล่าสุดของ model_runs ตามชนิด · โมเดลความเสี่ยงรับแถว 'risk' รวมของรุ่นก่อนด้วย
  * (ระบบที่อัปเกรดแล้วแต่ยังไม่ได้เทรนใหม่ ยังเห็นผลรอบล่าสุด ไม่ขึ้นว่า "ยังไม่มีโมเดล")
  */
 async function latestRun(modelType) {
-  const types = RISK_TYPES.includes(modelType) ? [modelType, 'risk'] : [modelType];
+  const types = LEGACY_TYPES.includes(modelType) ? [modelType, 'risk'] : [modelType];
   const row = await db.one(`SELECT id, model_type, trained_at, metrics, sklearn_version, n_train, n_test, data_from::text AS data_from,
       data_to::text AS data_to, is_synthetic, cv_scores, confusion, calibration, global_importance, triggered_by
     FROM model_runs WHERE model_type = ANY($1) ORDER BY trained_at DESC, id DESC LIMIT 1`, [types]);
@@ -41,6 +46,8 @@ const runSummary = r => r && ({
   n_train: r.n_train, n_test: r.n_test, data_from: r.data_from, data_to: r.data_to,
   is_synthetic: r.is_synthetic, triggered_by: r.triggered_by,
   auc: r.metrics?.auc ?? null, n_samples: r.metrics?.n_samples ?? r.n_train ?? null,
+  // realistic | clear (ข้อมูลจำลองแบบความบังเอิญต่ำ) | null = ข้อมูลจริงหรือรอบเทรนรุ่นก่อน
+  sim_profile: r.metrics?.sim_profile ?? null,
 });
 
 /* ---------------------------------------------------------------------------
@@ -66,6 +73,7 @@ router.get('/status', ah(async (_req, res) => {
     active_model: ai.risk_model,
     // ป้าย "ข้อมูลจำลอง": ตามรอบเทรนล่าสุด ถ้ายังไม่เคยเทรนให้ดูจากข้อมูลในระบบ
     is_synthetic: risk?.is_synthetic ?? anomaly?.is_synthetic ?? Boolean(synth?.s),
+    sim_profile: risk?.metrics?.sim_profile ?? null,
     models: { risk: runSummary(risk), anomaly: runSummary(anomaly) },
     scoring,
   });
@@ -76,7 +84,7 @@ router.get('/status', ah(async (_req, res) => {
  * ------------------------------------------------------------------------- */
 router.get('/runs', auth, role('owner', 'admin'), ah(async (req, res) => {
   const type = String(req.query.model_type || 'risk_lr');
-  if (![...RISK_TYPES, 'anomaly'].includes(type)) throw new HttpError(400, 'model_type ต้องเป็น risk_lr, risk_rf หรือ anomaly');
+  if (![...RISK_TYPES, 'anomaly'].includes(type)) throw new HttpError(400, `model_type ต้องเป็น ${[...RISK_TYPES, 'anomaly'].join(', ')}`);
   // ค่าเฉลี่ย ± SD ของ CV คิดจากผลรายพับที่เก็บไว้ (SD แบบตัวอย่าง) ให้ตรงกับแท็บคุณภาพ
   const rows = (await db.q(`SELECT id, trained_at, n_train, n_test, is_synthetic, triggered_by, cv_scores,
       (metrics->>'auc')::float AS auc, (metrics->>'precision')::float AS precision, (metrics->>'recall')::float AS recall
@@ -94,9 +102,9 @@ const CARDS = {
     title: 'ทำนายความเสี่ยงจ่ายช้า',
     purpose: 'ประเมินตอนออกบิลว่าบิลรายเดือนแต่ละใบมีโอกาสจ่ายหลังวันครบกำหนดแค่ไหน เพื่อให้เจ้าหน้าที่เตือนผู้ค้าล่วงหน้า',
     label: '"จ่ายช้า" = จ่ายหลังวันครบกำหนด หรือยังไม่จ่ายและเลยวันครบกำหนดแล้ว · บิลที่ยังไม่ถึงกำหนดไม่ถูกนำมาเทรน (ยังไม่รู้ผลจริง)',
-    features: ['late_count', 'avg_days_late', 'bill_ratio', 'tenure_years', 'stall_type', 'season'],
-    algorithms: 'Logistic Regression และ Random Forest (เลือกใช้ได้) แบ่งข้อมูลเทรน/ทดสอบ 75/25 ร่วมกับ 5-fold cross-validation',
-    source: 'บิลรายเดือนในระบบ (ตาราง bills) ร่วมกับประวัติการจ่ายของผู้ค้าคนเดียวกัน ประเภทแผง และวันเริ่มเช่า',
+    features: ['late_count', 'avg_days_late', 'bill_ratio', 'tenure_years', 'early_days_avg', 'seen_rate', 'app_share', 'stall_type', 'season'],
+    algorithms: 'Logistic Regression, Random Forest, Extra Trees, Gradient Boosting และโมเดลรวม (เฉลี่ยความน่าจะเป็นของ LR + RF + GB) เลือกใช้ได้หนึ่งตัว แบ่งข้อมูลเทรน/ทดสอบ 75/25 ร่วมกับ 5-fold cross-validation (ทุกโมเดลใช้พับเดียวกัน)',
+    source: 'บิลรายเดือนในระบบ (ตาราง bills) ร่วมกับประวัติการจ่ายของผู้ค้าคนเดียวกัน ประเภทแผง และวันเริ่มเช่า · พฤติกรรมการจ่าย: วันที่จ่ายจริง การเปิดดูบิลในแอป (bills.seen_at) และช่องทางชำระ (payments.provider)',
     users: 'เจ้าหน้าที่สำนักงาน (เตือนผู้ค้าล่วงหน้า) และเจ้าของตลาด (ภาพรวม) · ไม่แสดงต่อผู้ค้า',
     limitations: [
       'ฟีเจอร์คิด ณ วันออกบิลเท่านั้น ไม่ใช้ข้อมูลที่รู้หลังวันครบกำหนด (กัน data leakage)',
@@ -124,13 +132,15 @@ const RESPONSIBLE = 'ทีมพัฒนาระบบบริหารต�
 
 router.get('/card', auth, role('admin'), ah(async (_req, res) => {
   const ai = await settings.ai();
-  const [lr, rf, an] = await Promise.all([latestRun('risk_lr'), latestRun('risk_rf'), latestRun('anomaly')]);
-  const risk = ai.risk_model === 'rf' ? rf : lr;
+  const [runs, an] = await Promise.all([latestRiskRuns(), latestRun('anomaly')]);
+  const risk = runs[RISK_MODELS.indexOf(ai.risk_model)] || null;
   res.json({
     responsible: RESPONSIBLE,
     active_model: ai.risk_model,
     cards: [
-      { key: 'risk', ...CARDS.risk, run: runSummary(risk), alt_run: runSummary(ai.risk_model === 'rf' ? lr : rf),
+      { key: 'risk', ...CARDS.risk, run: runSummary(risk),
+        // โมเดลอื่นที่เทรนรอบเดียวกัน (ไม่นับตัวที่ยังไม่เคยเทรน)
+        alt_runs: RISK_MODELS.map((k, i) => (k === ai.risk_model ? null : runSummary(runs[i]))).filter(Boolean),
         late_rate: risk?.metrics?.late_rate ?? null, thresholds: { high: ai.risk_high, mid: ai.risk_mid } },
       { key: 'anomaly', ...CARDS.anomaly, run: runSummary(an),
         thresholds: { method: ai.anomaly_method, z: ai.z_threshold, if: ai.if_threshold } },
@@ -443,10 +453,10 @@ router.get('/quality', auth, role('owner', 'admin'), ah(async (req, res) => {
     return res.json({ view: 'owner', active_model: ai.risk_model, thresholds, summary: ownerView(run, prev),
       history: history.map(h => ({ id: h.id, model_type: h.model_type, trained_at: h.trained_at, auc: h.auc, is_synthetic: h.is_synthetic })) });
   }
-  const [lr, rf, an] = await Promise.all([latestRun('risk_lr'), latestRun('risk_rf'), latestRun('anomaly')]);
+  const [runs, an] = await Promise.all([latestRiskRuns(), latestRun('anomaly')]);
   res.json({
     view: 'full', active_model: ai.risk_model, thresholds,
-    models: { lr: fullView(lr), rf: fullView(rf) },
+    models: Object.fromEntries(RISK_MODELS.map((k, i) => [k, fullView(runs[i])])),
     anomaly: an && { run_id: an.id, trained_at: an.trained_at, n_train: an.n_train, data_from: an.data_from, data_to: an.data_to,
       is_synthetic: an.is_synthetic, metrics: an.metrics },
     history,

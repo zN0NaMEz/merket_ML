@@ -14,6 +14,7 @@ const D = require('../lib/dates');
 const settings = require('../lib/settings');
 const { DEFAULT_RATES, DEFAULT_AI } = require('../lib/constants');
 const { generate } = require('./generator');
+const { SIM_PROFILES } = require('../lib/simBehavior');
 const billing = require('../services/billing');
 const ml = require('../services/ml');
 const { migrate, ensureDemoAdmin, VERSION } = require('../lib/migrate');
@@ -47,10 +48,12 @@ const RESEED_LOCK = 424242;
  *   train   เทรนโมเดลต่อหลังสร้างข้อมูล
  * คืนสรุปจำนวนข้อมูล เวลาที่ใช้ และผลการเทรน (ถ้าเทรนไม่สำเร็จ ข้อมูลยังถูกรีเซ็ตแล้ว)
  */
-async function reseed({ dryRun = false, train = true, log = () => {} } = {}) {
+async function reseed({ dryRun = false, train = true, profile = process.env.SIM_PROFILE || 'realistic', log = () => {} } = {}) {
   const started = Date.now();
+  if (!SIM_PROFILES[profile]) throw Object.assign(new Error(`โปรไฟล์ข้อมูลต้องเป็น ${Object.keys(SIM_PROFILES).join(' หรือ ')}`), { status: 400 });
   const anchor = process.env.SEED_ANCHOR || `${D.periodOf(D.bangkokToday())}-01`;
-  const g = generate(anchor);
+  const g = generate(anchor, undefined, profile);
+  log(`โปรไฟล์ข้อมูล: ${profile} · ${SIM_PROFILES[profile].label}`);
   log(`สร้างข้อมูลตัวอย่าง: ประวัติ ${g.meta.hist_first} ถึง ${g.meta.hist_last} รอบมิเตอร์ปัจจุบัน ${g.meta.meter_period}`);
   const vendorPw = await bcrypt.hash('vendor1234', 10);
 
@@ -70,8 +73,8 @@ async function reseed({ dryRun = false, train = true, log = () => {} } = {}) {
     }
     const vid = {};
     for (const v of g.vendors) {
-      const r = await t.one(`INSERT INTO vendors (code, full_name, phone, stall_id, since, sim_discipline, sim_scale_w, sim_scale_e)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`, [v.code, v.full_name, v.phone, v.stall_id, v.since, v.sim_discipline, v.sim_scale_w, v.sim_scale_e]);
+      const r = await t.one(`INSERT INTO vendors (code, full_name, phone, stall_id, since, sim_discipline, sim_scale_w, sim_scale_e, sim_app)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`, [v.code, v.full_name, v.phone, v.stall_id, v.since, v.sim_discipline, v.sim_scale_w, v.sim_scale_e, v.sim_app]);
       vid[v.idx] = r.id;
       await t.q(`INSERT INTO users (username, password_hash, role, vendor_id, display_name) VALUES ($1,$2,'vendor',$3,$4)`,
         [v.stall_id.replace('-', '').toLowerCase(), vendorPw, r.id, v.full_name]);
@@ -93,15 +96,18 @@ async function reseed({ dryRun = false, train = true, log = () => {} } = {}) {
         [id, billing.refNoFor(id, paidDate), provider, amount, payer, extra.vendor_id || null, extra.booking_id || null, paidDate, billing.receiptNoFor(id, paidDate), `${paidDate}T10:00:00+07:00`]);
       return id;
     };
+    const appOf = Object.fromEntries(g.vendors.map(x => [x.idx, x.sim_app]));
     for (const b of g.bills) {
       const v = vid[b.vendor_idx];
       const bill = await t.one(`INSERT INTO bills (bill_no, kind, vendor_id, stall_id, period, rent, use_water, use_elec, water_rate, elec_rate,
-          water_amount, elec_amount, total, issue_date, due_date, status, paid_date, escalated_on)
-        VALUES ($1,'monthly',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING id`,
+          water_amount, elec_amount, total, issue_date, due_date, status, paid_date, escalated_on, seen_at)
+        VALUES ($1,'monthly',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,
+          ($18::date + time '12:00') AT TIME ZONE 'Asia/Bangkok') RETURNING id`,
         [`INV-${b.period.replace('-', '')}-${b.stall_id}`, v, b.stall_id, b.period, b.rent, b.use_water, b.use_elec, b.water_rate, b.elec_rate,
-          b.water_amount, b.elec_amount, b.total, b.issue_date, b.due_date, b.status, b.paid_date, b.escalated_on]);
+          b.water_amount, b.elec_amount, b.total, b.issue_date, b.due_date, b.status, b.paid_date, b.escalated_on, b.seen_at]);
       if (b.paid_date) {
-        const pid = await newPayment('simulated', b.total, `vendor:${v}`, b.paid_date, { vendor_id: v });
+        // ช่องทางชำระตามนิสัยของผู้ค้า: จ่ายผ่านแอป (simulated) หรือเงินสดที่สำนักงาน (cash)
+        const pid = await newPayment(appOf[b.vendor_idx] ? 'simulated' : 'cash', b.total, `vendor:${v}`, b.paid_date, { vendor_id: v });
         await t.q('INSERT INTO payment_bills (payment_id, bill_id, amount) VALUES ($1,$2,$3)', [pid, bill.id, b.total]);
         await t.q('UPDATE bills SET payment_id = $1 WHERE id = $2', [pid, bill.id]);
       }
@@ -127,6 +133,8 @@ async function reseed({ dryRun = false, train = true, log = () => {} } = {}) {
     await settings.set('clock', config.demoMode ? { demo_date: anchor } : {}, t);
     await settings.set('demo', { anomaly_period: g.meta.meter_period }, t);
     await settings.set('meter_round', g.meta.meter_round, t);
+    // ML อ่านค่านี้ไปติดป้ายผลเทรน (model_runs.metrics.sim_profile) หน้าเว็บจะบอกได้ว่าเป็นข้อมูลจำลองแบบไหน
+    await settings.set('sim', { profile, ...SIM_PROFILES[profile] }, t);
     if (dryRun) throw DRY_RUN;
   });
   } catch (e) {
@@ -134,7 +142,7 @@ async function reseed({ dryRun = false, train = true, log = () => {} } = {}) {
   }
 
   const summary = {
-    dry_run: dryRun, demo_date: anchor,
+    dry_run: dryRun, demo_date: anchor, profile,
     vendors: g.vendors.length, stalls: g.stalls.length, bills: g.bills.length, meters: g.meters.length,
     bookings: g.bookings.length, db_ms: Date.now() - started,
   };

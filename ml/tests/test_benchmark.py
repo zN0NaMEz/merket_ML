@@ -104,9 +104,9 @@ class EvaluationTest(unittest.TestCase):
         cls.meter_subtle = {r["model"]: r for r in B.evaluate_anomaly(S.meter_records(METER["subtle"]))[0]}
 
     def test_models_beat_the_reference(self):
-        self.assertEqual(set(self.risk), {"lr", "rf", "baseline"})
+        self.assertEqual(set(self.risk), {"lr", "rf", "et", "gb", "ens", "baseline"})
         self.assertEqual(self.risk["baseline"]["auc"], 0.5)
-        for m in ("lr", "rf"):
+        for m in ("lr", "rf", "et", "gb", "ens"):
             self.assertGreater(self.risk[m]["auc"], 0.7)
             self.assertGreater(self.risk[m]["pr_auc"], self.risk["baseline"]["pr_auc"])
 

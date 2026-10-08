@@ -66,6 +66,11 @@ def psi_numeric_k(ref, cur, bins: int = PSI_BINS) -> tuple:
     if len(ref) < 2 or len(cur) == 0:
         return None, 0
     inner = np.unique(np.quantile(ref, np.linspace(0, 1, bins + 1)))[1:-1]
+    if len(inner) == 0 and np.ptp(ref) > 0:
+        # ตัวแปรที่มีไม่กี่ค่า (เช่น สัดส่วนจ่ายผ่านแอปที่เกือบทั้งหมดเป็น 0 หรือ 1): quantile ชนกันจนเหลือแค่ค่าต่ำสุดกับสูงสุด
+        # ไม่ใช่ "ค่าเท่ากันหมด" จึงแบ่งช่องที่กึ่งกลางระหว่างค่าที่ต่างกันแทน (เดิมเข้ากรณีค่าเท่ากันแล้ว PSI พุ่งผิด ๆ)
+        vals = np.unique(ref)
+        inner = ((vals[:-1] + vals[1:]) / 2)[: bins - 1]
     n = len(inner) + 1
     if n == 1:                     # ค่าอ้างอิงเท่ากันหมด: เทียบสัดส่วน "เท่าค่าเดิม" กับ "ต่างไป"
         same = ref[0]

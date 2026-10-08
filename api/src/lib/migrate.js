@@ -16,12 +16,14 @@
  *     แถวรุ่นก่อนดูได้จาก sklearn_version ที่ว่าง (ตัวเขียนรุ่นใหม่ใส่เสมอ) จึงตั้งตามข้อมูลในระบบตอนนี้
  * v4  ผลวัดโมเดลกับข้อมูลจำลองหลายชุด (model evaluation): evaluation_batches + model_evaluations
  *     ML เขียนผล (ml/app/benchmark.py) หน้าเว็บอ่านอย่างเดียว · ไม่ผูกกับข้อมูลของตลาด จึงไม่ถูกล้างตอนรีเซ็ตข้อมูลสาธิต
+ * v5  ปัจจัยพฤติกรรมการจ่าย: bills.seen_at (ผู้ค้าเปิดดูบิลครั้งแรก) และค่าจำลองของโหมดสาธิต
+ *     (vendors.sim_app = จ่ายผ่านแอป, bills.sim_seen_date = วันที่ "จะ" เปิดดูบิล)
  */
 const bcrypt = require('bcryptjs');
 const config = require('../config');
 const { pool } = require('../db');
 
-const VERSION = 4;
+const VERSION = 5;
 
 const SQL_V2 = `
 ALTER TABLE model_runs
@@ -106,6 +108,12 @@ CREATE TABLE IF NOT EXISTS model_evaluations (
 );
 `;
 
+const SQL_V5 = `
+ALTER TABLE bills ADD COLUMN IF NOT EXISTS seen_at timestamptz;
+ALTER TABLE bills ADD COLUMN IF NOT EXISTS sim_seen_date date;
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS sim_app boolean;
+`;
+
 const ADMIN = { username: 'admin', password: 'admin1234', name: 'ทีมพัฒนา / กรรมการ' };
 
 /** เพิ่มบัญชี admin สำหรับสาธิต (เฉพาะโหมดสาธิต ระบบจริงต้องสร้างเองพร้อมรหัสผ่านที่ปลอดภัย) */
@@ -134,6 +142,7 @@ async function migrate() {
       [2, async () => { await client.query(SQL_V2); await ensureDemoAdmin(client); }],
       [3, () => client.query(SQL_V3)],
       [4, () => client.query(SQL_V4)],
+      [5, () => client.query(SQL_V5)],
     ];
     for (const [to, run] of steps) if (v < to) await run();
     if (v < VERSION) {

@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS vendors (
   sim_discipline real,
   sim_scale_w    real,
   sim_scale_e    real,
+  sim_app        boolean,                          -- โหมดสาธิตเท่านั้น: ผู้ค้าจ่ายผ่านแอป (ไม่ใช่เงินสด)
   created_at    timestamptz NOT NULL DEFAULT now()
 );
 
@@ -131,7 +132,9 @@ CREATE TABLE IF NOT EXISTS bills (
   risk_model        text,
   early_reminded_on date,
   escalated_on      date,
-  sim_pay_date      date                           -- โหมดสาธิตเท่านั้น
+  sim_pay_date      date,                          -- โหมดสาธิตเท่านั้น
+  seen_at           timestamptz,                   -- ผู้ค้าเปิดดูบิลครั้งแรก (ปัจจัยพฤติกรรมของโมเดลความเสี่ยง)
+  sim_seen_date     date                           -- โหมดสาธิตเท่านั้น: วันที่ผู้ค้า "จะ" เปิดดูบิล
 );
 CREATE INDEX IF NOT EXISTS bills_vendor_idx ON bills(vendor_id, period);
 CREATE INDEX IF NOT EXISTS bills_status_idx ON bills(status);

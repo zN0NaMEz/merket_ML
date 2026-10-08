@@ -41,8 +41,11 @@ def synthetic(n=400, seed=7) -> tuple[pd.DataFrame, np.ndarray]:
         tenure = round(rng.uniform(0.2, 10), 2)
         st, se = rng.choice(TYPE_CODES), rng.choice(SEASONS)
         logit = -2.2 + 0.6 * late + 0.25 * avg + 2.0 * (ratio - 1) - 0.08 * tenure + (0.4 if se == "rainy" else 0)
+        # ปัจจัยพฤติกรรม: คนจ่ายช้าบ่อยจ่ายก่อนกำหนดน้อยกว่า เปิดดูบิลน้อยกว่า
         rows.append({"late_count": late, "avg_days_late": avg, "bill_ratio": ratio, "tenure_years": tenure,
-                     "stall_type": st, "season": se})
+                     "early_days_avg": round(max(0.0, 6 - late + rng.uniform(-2, 2)), 2),
+                     "seen_rate": round(min(1.0, max(0.0, 0.9 - 0.12 * late + rng.uniform(-0.2, 0.2))), 2),
+                     "app_share": round(rng.random(), 2), "stall_type": st, "season": se})
         y.append(int(rng.random() < 1 / (1 + math.exp(-logit))))
     return pd.DataFrame(rows), np.array(y)
 

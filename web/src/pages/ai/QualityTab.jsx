@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { api } from '../../api';
 import { useData } from '../../ui';
 import { thDate } from '../../format';
-import { MODEL_PLAIN, MODEL_SHORT, num, thDateTime } from '../../ai/behind';
+import { MODEL_PLAIN, MODEL_SHORT, RISK_MODELS, num, thDateTime } from '../../ai/behind';
 import { AucHistory, CalibrationChart, ConfusionMatrix, ImportanceBars } from './QualityCharts';
 import DriftSection from './DriftSection';
 import { BIcon, LoadError, NoModel, Skeleton, StateBox, TabHead, TechDetails } from './parts';
@@ -72,12 +72,13 @@ function Metric({ label, hint, test, cv }) {
 
 function FullView({ d }) {
   const [pick, setPick] = useState(d.active_model);
-  const m = d.models[pick] || d.models[d.active_model] || d.models.lr || d.models.rf;
-  if (!d.models.lr && !d.models.rf) return <NoModel />;
+  const trained = RISK_MODELS.filter(k => d.models[k]);
+  const m = d.models[pick] || d.models[d.active_model] || d.models[trained[0]];
+  if (!trained.length) return <NoModel />;
   return (
     <>
       <div className="bh-seg" role="group" aria-label="เลือกโมเดล">
-        {['lr', 'rf'].map(k => (
+        {trained.map(k => (
           <button key={k} type="button" className={`bh-seg__btn ${pick === k ? 'is-on' : ''}`} aria-pressed={pick === k} onClick={() => setPick(k)} disabled={!d.models[k]}>
             {MODEL_SHORT[k]}{d.active_model === k && ' · ใช้อยู่'}
           </button>
@@ -160,7 +161,7 @@ export default function QualityTab({ status, role }) {
   const owner = role === 'owner';
   return (
     <div className="bh-panel">
-      <TabHead title={owner ? 'ระบบเตือนแม่นแค่ไหน' : 'คุณภาพโมเดลความเสี่ยง'} synthetic={status?.is_synthetic}
+      <TabHead title={owner ? 'ระบบเตือนแม่นแค่ไหน' : 'คุณภาพโมเดลความเสี่ยง'} synthetic={status?.is_synthetic} profile={status?.sim_profile}
         sub={owner ? 'สรุปจากการทดสอบกับบิลที่รู้ผลแล้ว ว่าระบบเตือนถูกบ่อยแค่ไหน' : 'ผลวัดจากรอบเทรนล่าสุดของแต่ละโมเดล ทุกตัวเลขมาจากตาราง model_runs'} />
       {st.error && !st.data && <LoadError error={st.error} onRetry={st.reload} what="คุณภาพโมเดล" />}
       {!st.data && !st.error && <div className="bh-qgrid"><Skeleton kind="chart" /><Skeleton kind="chart" /></div>}

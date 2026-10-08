@@ -142,7 +142,15 @@ export function ImportanceBars({ items }) {
 }
 
 /* ---------- AUC ข้ามรอบเทรน ---------- */
-const SERIES = { risk_lr: { label: 'LR', cls: 's1' }, risk_rf: { label: 'RF', cls: 's2' } };
+// มีแค่สองสีของหน้าเบื้องหลัง (ห้ามเพิ่มสีใหม่) โมเดลที่เพิ่มทีหลังใช้สีเดิมเป็นเส้นประจุดกลวง และหมึกเส้นจุด
+// ชื่อโมเดลกำกับท้ายเส้นและอยู่ในคำอธิบายเสมอ ไม่ใช้สีอย่างเดียวบอกว่าเป็นโมเดลไหน
+const SERIES = {
+  risk_lr: { label: 'LR', cls: 's1', name: 'Logistic Regression (LR)' },
+  risk_rf: { label: 'RF', cls: 's2', name: 'Random Forest (RF)' },
+  risk_et: { label: 'ET', cls: 's3', name: 'Extra Trees (ET)' },
+  risk_gb: { label: 'GB', cls: 's4', name: 'Gradient Boosting (GB)' },
+  risk_ens: { label: 'รวม', cls: 's5', name: 'โมเดลรวม LR + RF + GB' },
+};
 
 export function AucHistory({ runs, owner }) {
   const [ref, w] = useWidth(640);
@@ -208,7 +216,7 @@ export function AucHistory({ runs, owner }) {
       </div>
       {!owner && (
         <figcaption className="bh-mc__legend">
-          {types.map(t => <span key={t}><i className={`bh-mc__sw bh-qc__sw--${SERIES[t]?.cls}`} aria-hidden="true" />{t === 'risk_lr' ? 'Logistic Regression (LR)' : 'Random Forest (RF)'}</span>)}
+          {types.map(t => <span key={t}><i className={`bh-mc__sw bh-qc__sw--${SERIES[t]?.cls}`} aria-hidden="true" />{SERIES[t]?.name || t}</span>)}
           <span>เส้นตั้ง = CV ค่าเฉลี่ย ± SD</span>
         </figcaption>
       )}

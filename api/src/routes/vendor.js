@@ -11,6 +11,10 @@ router.get('/overview', ah(async (req, res) => {
   const vendor = await db.one(`SELECT v.id, v.code, v.full_name, v.phone, v.stall_id, v.since, v.credit, s.type_code, t.name AS type_name,
       t.monthly_rent, s.utility_status, s.cut_date, s.restore_pending
     FROM vendors v JOIN stalls s ON s.id = v.stall_id JOIN stall_types t ON t.code = s.type_code WHERE v.id = $1`, [vid]);
+  // ผู้ค้าเห็นบิลค้างของตัวเองแล้ว: บันทึกครั้งแรกไว้เป็นปัจจัยพฤติกรรม (สัดส่วนบิลที่เปิดดูก่อนครบกำหนด)
+  // ใช้วันที่ของระบบ (โหมดสาธิตคือวันที่จำลอง) เวลาเที่ยงตามเวลาไทย
+  await db.q(`UPDATE bills SET seen_at = ($2::date + time '12:00') AT TIME ZONE 'Asia/Bangkok'
+    WHERE vendor_id = $1 AND status IN ('unpaid','overdue') AND seen_at IS NULL`, [vid, await settings.today()]);
   const open = await db.q(`SELECT id, bill_no, kind, period, label, rent, credit_used, use_water, use_elec, water_rate, elec_rate,
       water_amount, elec_amount, total, issue_date, due_date, status
     FROM bills WHERE vendor_id = $1 AND status IN ('unpaid','overdue') ORDER BY due_date, id`, [vid]);

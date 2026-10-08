@@ -7,6 +7,9 @@
 export const MODEL_LABEL = {
   lr: 'Logistic Regression',
   rf: 'Random Forest',
+  et: 'Extra Trees',
+  gb: 'Gradient Boosting',
+  ens: 'โมเดลรวม (LR + RF + GB)',
   baseline: 'เกณฑ์อ้างอิง (เดาตามสัดส่วน)',
   z: 'z-score',
   if: 'Isolation Forest',

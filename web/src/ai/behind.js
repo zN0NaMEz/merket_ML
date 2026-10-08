@@ -55,8 +55,13 @@ export function lastUpdated(status) {
 }
 
 /** ชื่อโมเดลที่ใช้อยู่แบบสั้น */
-export const MODEL_SHORT = { lr: 'Logistic Regression', rf: 'Random Forest' };
-export const MODEL_PLAIN = { lr: 'แบบถ่วงน้ำหนักปัจจัย', rf: 'แบบต้นไม้ตัดสินใจหลายต้น' };
+export const MODEL_SHORT = { lr: 'Logistic Regression', rf: 'Random Forest', et: 'Extra Trees', gb: 'Gradient Boosting', ens: 'โมเดลรวม' };
+export const MODEL_PLAIN = {
+  lr: 'แบบถ่วงน้ำหนักปัจจัย', rf: 'แบบต้นไม้ตัดสินใจหลายต้น', et: 'แบบต้นไม้สุ่มจุดแบ่ง',
+  gb: 'แบบต้นไม้เรียนต่อกันทีละต้น', ens: 'แบบรวมความเห็นสามโมเดล',
+};
+/** ลำดับโมเดลความเสี่ยงที่แสดงทุกที่ ต้องตรงกับ api/src/lib/constants.js RISK_MODELS */
+export const RISK_MODELS = ['lr', 'rf', 'et', 'gb', 'ens'];
 
 /** จุดสถานะ ML: ข้อความสั้นบนแถบ */
 export const ML_DOT = {

@@ -3,6 +3,7 @@ import { api } from '../../api';
 import { baht, periodLabel, thDate } from '../../format';
 import { Chip, Empty, Loader, PageHead, RISK_NAME, RISK_TONE, SecHead, useApp, useData } from '../../ui';
 import { FactorBars, Meter, MeterStrips, PayForecastChart, ScoreHistogram, UsageBandChart, isFlagged } from '../../components/AiCharts';
+import PredictFromFile from './PredictFromFile';
 import '../../styles/ai.css';
 
 /*
@@ -11,10 +12,17 @@ import '../../styles/ai.css';
  * การปรับทุกอย่างเป็นแค่การลองดูจนกว่าจะกดบันทึก
  */
 
+// ลำดับและชื่อต้องตรงกับ web/src/ai/behind.js (MODEL_SHORT, MODEL_PLAIN) และ ml/app/risk.py MODEL_KEYS
 const MODELS = {
   lr: { plain: 'แบบถ่วงน้ำหนักปัจจัย', name: 'Logistic Regression', desc: 'บอกได้ว่าแต่ละปัจจัยดันความเสี่ยงขึ้นหรือลง อธิบายให้ผู้ค้าฟังได้ง่าย' },
   rf: { plain: 'แบบต้นไม้ตัดสินใจหลายต้น', name: 'Random Forest', desc: 'จับรูปแบบที่ซับซ้อนได้ดีกว่า แต่บอกได้แค่ว่าปัจจัยไหนสำคัญ' },
+  et: { plain: 'แบบต้นไม้สุ่มจุดแบ่ง', name: 'Extra Trees', desc: 'ต้นไม้หลายต้นเหมือนแบบต้นไม้ตัดสินใจ แต่สุ่มจุดแบ่งด้วย จึงไม่ยึดติดข้อมูลเทรนมาก บางข้อมูลแม่นกว่า บางข้อมูลด้อยกว่า' },
+  gb: { plain: 'แบบต้นไม้เรียนต่อกันทีละต้น', name: 'Gradient Boosting', desc: 'ต้นไม้เล็กหลายต้น ต้นถัดไปแก้จุดที่ต้นก่อนทายพลาด จับกรณีที่ปัจจัยส่งผลร่วมกันได้ดี แต่ต้องมีข้อมูลมากจึงจะแม่น' },
+  ens: { plain: 'แบบรวมความเห็นสามโมเดล', name: 'Ensemble (LR + RF + GB)', desc: 'เฉลี่ยคะแนนของแบบถ่วงน้ำหนักปัจจัย แบบต้นไม้หลายต้น และแบบเรียนต่อกัน จุดพลาดของแต่ละตัวหักล้างกัน เหมาะเมื่อไม่แน่ใจว่าจะเลือกตัวไหน' },
 };
+const MODEL_ORDER = Object.keys(MODELS);
+/** โมเดลที่เทรนไว้แล้วจริง (โมเดลที่เทรนก่อนเพิ่มตัวเลือกมีแค่ lr, rf จนกว่าจะเทรนใหม่) */
+const trainedModels = d => MODEL_ORDER.filter(k => d.risk?.models?.[k]);
 
 const RISK_PRESETS = [
   { id: 'sure', label: 'เตือนเฉพาะที่มั่นใจ', hint: 'เตือนน้อยลง แต่แทบทุกรายที่เตือนจ่ายช้าจริง', risk_high: 0.8, risk_mid: 0.5 },
@@ -104,6 +112,8 @@ export default function AI() {
               : !(d.anomaly.points?.[0]?.length >= 4) ? <NeedsRetrain onRetrain={retrain} busy={busy} />
                 : <MeterTab d={d} draft={draft} setDraft={setDraft} showcase={sc.data?.meter} />
           )}
+          {/* ไม่ต้องรอ ML ตอนเปิดแท็บ: เรียก ML เมื่อกดทำนายเท่านั้น ถ้าบริการพักอยู่ แท็บนี้บอกเองตอนกด */}
+          {tab === 'file' && <PredictFromFile models={MODELS} activeModel={d.ai.risk_model} high={draft.risk_high} mid={draft.risk_mid} />}
         </div>
 
         <SaveBar saved={d.ai} draft={draft} busy={busy === 'save'} onSave={save} onReset={() => setDraft(d.ai)} />
@@ -122,7 +132,11 @@ function Status({ d }) {
       {r.trained_at && <span>เทรนล่าสุด {thDate(r.trained_at.slice(0, 10))}</span>}
       {r.n_samples != null && <span>เรียนจากบิล {r.n_samples} ใบ</span>}
       {a.n_train != null && <span>ค่ามิเตอร์ {a.n_train} ค่า</span>}
-      <span>โมเดลที่ใช้อยู่: {MODELS[d.ai.risk_model].plain}</span>
+      <span>โมเดลที่ใช้อยู่: {MODELS[d.ai.risk_model]?.plain || d.ai.risk_model}</span>
+      {r.sim_profile === 'clear' && (
+        <span className="ai-status__synth"><b>ข้อมูลจำลองแบบความบังเอิญต่ำ</b> ตัวเลขความแม่นสูงเพราะข้อมูลชัด ไม่ใช่ภาพของตลาดจริง</span>
+      )}
+      {r.sim_profile === 'realistic' && <span>เรียนจากข้อมูลจำลองของระบบสาธิต</span>}
     </p>
   );
 }
@@ -131,12 +145,17 @@ function Tabs({ tab, setTab }) {
   const tabs = [
     ['risk', 'ทำนายการจ่ายช้า', 'ใครควรได้รับการเตือนก่อนครบกำหนด'],
     ['meter', 'ตรวจค่ามิเตอร์', 'ค่าไหนดูผิดปกติก่อนออกบิล'],
+    ['file', 'ทำนายจากไฟล์', 'อัปโหลดข้อมูลแล้วให้ AI ทำนายการจ่ายช้า'],
   ];
+  // ลูกศรซ้าย/ขวาเลื่อนแท็บแบบวน Home/End ไปแท็บแรก/สุดท้าย (รูปแบบ tablist ของ WAI-ARIA)
   const onKey = e => {
-    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
-    const next = tab === 'risk' ? 'meter' : 'risk';
-    setTab(next);
-    document.getElementById(`ai-tab-${next}`)?.focus();
+    const ids = tabs.map(t => t[0]);
+    const i = ids.indexOf(tab);
+    const to = { ArrowRight: (i + 1) % ids.length, ArrowLeft: (i - 1 + ids.length) % ids.length, Home: 0, End: ids.length - 1 }[e.key];
+    if (to == null) return;
+    e.preventDefault();
+    setTab(ids[to]);
+    document.getElementById(`ai-tab-${ids[to]}`)?.focus();
   };
   return (
     <div className="ai-tabs" role="tablist" aria-label="งานของ AI">
@@ -196,7 +215,7 @@ function NeedsRetrain({ onRetrain, busy }) {
 /** แถบบันทึก โผล่มาเมื่อมีค่าที่ลองปรับแต่ยังไม่บันทึก บอกให้เห็นว่าอะไรจะเปลี่ยน */
 function SaveBar({ saved, draft, busy, onSave, onReset }) {
   const changes = [];
-  if (draft.risk_model !== saved.risk_model) changes.push(`โมเดล: ${MODELS[saved.risk_model].plain} → ${MODELS[draft.risk_model].plain}`);
+  if (draft.risk_model !== saved.risk_model) changes.push(`โมเดล: ${MODELS[saved.risk_model]?.plain} → ${MODELS[draft.risk_model]?.plain}`);
   if (draft.risk_high !== saved.risk_high) changes.push(`เสี่ยงสูง ${pct(saved.risk_high)} → ${pct(draft.risk_high)}`);
   if (draft.risk_mid !== saved.risk_mid) changes.push(`ปานกลาง ${pct(saved.risk_mid)} → ${pct(draft.risk_mid)}`);
   if (draft.anomaly_method !== saved.anomaly_method) {
@@ -283,15 +302,17 @@ function RiskTab({ d, draft, setDraft, showcase }) {
       <OpenBills open={d.open} high={draft.risk_high} mid={draft.risk_mid} />
       <Examples rows={rows} model={m} high={draft.risk_high} mid={draft.risk_mid} />
 
-      <div className="two">
+      <ModelPicker d={d} rows={rows} draft={draft} setDraft={setDraft} />
+      {d.risk.models[m] && (
         <section className="panel">
-          <SecHead title="AI ดูอะไรบ้าง" sub={m === 'lr'
+          <SecHead title={`AI ดูอะไรบ้าง · ${MODELS[m].plain}`} sub={m === 'lr'
             ? 'ปัจจัยที่มีผลมากที่สุดอยู่บนสุด ความยาวแท่งคือแรงที่ดันคะแนนขึ้นหรือลง'
-            : 'ปัจจัยที่ AI ใช้มากที่สุดอยู่บนสุด โมเดลแบบนี้บอกได้แค่ความสำคัญ ไม่บอกทิศทาง'} />
+            : m === 'rf' || m === 'et'
+              ? 'ปัจจัยที่ AI ใช้มากที่สุดอยู่บนสุด โมเดลแบบนี้บอกได้แค่ความสำคัญ ไม่บอกทิศทาง'
+              : 'ความยาวแท่ง = ความแม่นที่หายไปเมื่อสลับค่าปัจจัยนั้นแบบสุ่ม (permutation importance) ยิ่งยาวยิ่งสำคัญ ไม่บอกทิศทาง'} />
           <FactorBars weights={d.risk.models[m].weights} signed={m === 'lr'} />
         </section>
-        <ModelPicker d={d} rows={rows} draft={draft} setDraft={setDraft} />
-      </div>
+      )}
 
       <RiskTech d={d} ev={ev} draft={draft} />
     </>
@@ -381,11 +402,20 @@ function Examples({ rows, model, high, mid }) {
 }
 
 function ModelPicker({ d, rows, draft, setDraft }) {
+  const keys = trainedModels(d);
+  // ตัวที่ AUC จาก 5-fold CV สูงสุดบนข้อมูลของตลาดนี้ (ตัวเลขจากรอบเทรนจริง ไม่ใช่ค่าที่เขียนไว้ในหน้า)
+  const cvOf = k => d.risk.models[k]?.cv_auc_mean ?? -1;
+  const top = keys.reduce((b, k) => (cvOf(k) > cvOf(b) ? k : b), keys[0]);
+  const missing = MODEL_ORDER.filter(k => !keys.includes(k));
   return (
     <section className="panel">
-      <SecHead title="เลือกโมเดล" sub={`เทียบกันที่เกณฑ์เสี่ยงสูง ${pct(draft.risk_high)} ที่กำลังตั้ง`} />
+      <SecHead title="เลือกโมเดล"
+        sub={`เทียบกันที่เกณฑ์เสี่ยงสูง ${pct(draft.risk_high)} ที่กำลังตั้ง · ค่า ± คือความแกว่งระหว่างการแบ่งข้อมูล 5 แบบ ถ้าสองโมเดลต่างกันน้อยกว่านี้ อาจเป็นความบังเอิญ`} />
+      {missing.length > 0 && (
+        <p className="banner info ai-models__note">ยังมีอีก {missing.length} โมเดลให้เลือก ({missing.map(k => MODELS[k].plain).join(', ')}) กดปุ่ม &ldquo;เทรนโมเดลใหม่&rdquo; ด้านบนหนึ่งครั้งเพื่อเทรนทุกโมเดลพร้อมกัน</p>
+      )}
       <div className="ai-models" role="radiogroup" aria-label="โมเดลทำนาย">
-        {['lr', 'rf'].map(k => {
+        {keys.map(k => {
           const e = evaluate(rows, k, draft.risk_high);
           const md = d.risk.models[k];
           const on = draft.risk_model === k;
@@ -395,6 +425,7 @@ function ModelPicker({ d, rows, draft, setDraft }) {
               <span className="ai-model__head">
                 <strong>{MODELS[k].plain}</strong>
                 {d.ai.risk_model === k && <Chip tone="good">ใช้งานอยู่</Chip>}
+                {k === top && keys.length > 1 && <Chip>AUC สูงสุดบนข้อมูลตลาดนี้</Chip>}
               </span>
               <small className="ai-model__name">{MODELS[k].name}</small>
               <span className="ai-model__desc">{MODELS[k].desc}</span>
@@ -402,8 +433,9 @@ function ModelPicker({ d, rows, draft, setDraft }) {
                 <span className="ai-model__row" key={label}><span>{label}</span><Meter value={v} label={label} /><b>{v == null ? '–' : pct(v)}</b></span>
               ))}
               <span className="ai-model__auc">
-                แยกคนจ่ายช้าออกจากคนจ่ายตรงได้ <b>{md.auc.toFixed(2)}</b>
-                <small>1.00 = แยกได้สมบูรณ์ · 0.50 = เท่ากับเดาสุ่ม</small>
+                แยกคนจ่ายช้าออกจากคนจ่ายตรงได้ <b>{(md.cv_auc_mean ?? md.auc).toFixed(2)}</b>
+                {md.cv_auc_std != null && <span className="ai-model__sd"> ± {md.cv_auc_std.toFixed(2)}</span>}
+                <small>AUC เฉลี่ยจาก 5-fold CV · 1.00 = แยกได้สมบูรณ์ · 0.50 = เท่ากับเดาสุ่ม</small>
               </span>
             </label>
           );
@@ -415,6 +447,7 @@ function ModelPicker({ d, rows, draft, setDraft }) {
 
 function RiskTech({ d, ev, draft }) {
   const md = d.risk.models[draft.risk_model];
+  if (!md) return null;
   return (
     <details className="panel ai-tech">
       <summary>รายละเอียดทางเทคนิค สำหรับทำรายงาน</summary>

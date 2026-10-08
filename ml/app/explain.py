@@ -4,8 +4,13 @@
 
   linear     Logistic Regression: φ_j = w_j × (z_j − E[z_j])  (z = ค่าที่ standardize/one-hot แล้ว)
              เป็นค่า SHAP แบบตรงตัวของโมเดลเชิงเส้น หน่วยเป็น log-odds  ฐาน + Σφ = logit ของคะแนน
-  shap       Random Forest ผ่าน shap.TreeExplainer (ค่าตั้งต้นของ RF · ถ้าโหลด shap ไม่ได้ ถอยไปใช้ tree_path)
-  tree_path  Random Forest แบบแยกเส้นทางในต้นไม้ (Saabas): ทุกครั้งที่บิลเดินผ่านจุดแยก
+  shap       โมเดลต้นไม้ (Random Forest, Extra Trees, Gradient Boosting) ผ่าน shap.TreeExplainer
+             RF/ET หน่วยเป็นความน่าจะเป็น · Gradient Boosting หน่วยเป็น log-odds (ฐาน + Σφ = logit)
+             ถ้าโหลด shap ไม่ได้ RF/ET ถอยไปใช้ tree_path ส่วน Gradient Boosting ถอยไปใช้ global
+  ensemble   โมเดลรวม (เฉลี่ยความน่าจะเป็นของ LR, RF, GB): คิดคำอธิบายของสมาชิกแต่ละตัว
+             แปลงตัวที่เป็น log-odds เป็นหน่วยความน่าจะเป็นด้วยการย่อส่วน φ × (p − p₀) / (logit − logit₀)
+             (ผลรวมยังตรงพอดี แต่การแบ่งให้แต่ละปัจจัยเป็นค่าประมาณ) แล้วเฉลี่ย  ฐาน + Σφ = คะแนนของโมเดลรวมพอดี
+  tree_path  Random Forest / Extra Trees แบบแยกเส้นทางในต้นไม้ (Saabas): ทุกครั้งที่บิลเดินผ่านจุดแยก
              ค่าความน่าจะเป็นของโหนดที่เปลี่ยนไปนับเป็นผลของปัจจัยที่ใช้แยก เฉลี่ยทุกต้น
              เบาและไม่ต้องติดตั้งอะไรเพิ่ม หน่วยเป็นความน่าจะเป็น  ฐาน + Σφ = คะแนนพอดี
   global     ถ้าคำนวณรายบิลไม่ได้ ใช้ความสำคัญของปัจจัยระดับโมเดล (permutation importance)
@@ -14,6 +19,8 @@
 ปัจจัยที่เป็นหมวดหมู่ (ประเภทแผง ฤดูกาล) ถูก one-hot เป็นหลายคอลัมน์ จะรวมกลับเป็นปัจจัยเดียวก่อนส่งออก
 """
 from __future__ import annotations
+
+import math
 
 import numpy as np
 
@@ -92,8 +99,14 @@ def tree_path_contributions(pipe, X) -> tuple[list[dict[str, float]], float]:
     return _group(contrib / n_trees, _names(pipe)), base / n_trees
 
 
+def unit_of(pipe) -> str:
+    """หน่วยของคำอธิบายแบบ shap: Gradient Boosting อธิบายเป็น log-odds ต้นไม้แบบเฉลี่ยโหวตเป็นความน่าจะเป็น"""
+    from sklearn.ensemble import HistGradientBoostingClassifier
+    return "logit" if isinstance(pipe.named_steps["clf"], HistGradientBoostingClassifier) else "probability"
+
+
 def shap_contributions(pipe, X) -> tuple[list[dict[str, float]], float]:
-    # import เฉพาะตอนใช้: shap + numba ใช้หน่วยความจำราว 75 MB จึงโหลดเมื่อโมเดลที่ใช้อยู่เป็น RF เท่านั้น (LR ไม่ต้องใช้)
+    # import เฉพาะตอนใช้: shap + numba ใช้หน่วยความจำราว 75 MB จึงโหลดเมื่อโมเดลที่ใช้อยู่เป็นต้นไม้เท่านั้น (LR ไม่ต้องใช้)
     import shap
 
     clf = pipe.named_steps["clf"]
@@ -105,9 +118,56 @@ def shap_contributions(pipe, X) -> tuple[list[dict[str, float]], float]:
         sv = sv[k]
     elif np.ndim(sv) == 3:                                 # shap รุ่นใหม่: (แถว, ฟีเจอร์, คลาส)
         sv = sv[:, :, k]
-    ev = explainer.expected_value
-    base = float(ev[k] if np.ndim(ev) else ev)
+    ev = np.ravel(explainer.expected_value)
+    base = float(ev[0] if ev.size == 1 else ev[k])         # Gradient Boosting มีค่าฐานค่าเดียว (log-odds ของคลาสบวก)
     return _group(np.asarray(sv), _names(pipe)), base
+
+
+def tree_contributions(pipe, X) -> tuple[list[dict[str, float]], float, str, str]:
+    """คำอธิบายของโมเดลต้นไม้ คืน (แถว, ฐาน, หน่วย, วิธี) · ไม่มี shap แล้ว RF/ET ถอยไปใช้ tree_path"""
+    try:
+        rows, base = shap_contributions(pipe, X)
+        return rows, base, unit_of(pipe), "shap"
+    except ImportError:
+        if not hasattr(pipe.named_steps["clf"], "estimators_"):
+            raise
+        rows, base = tree_path_contributions(pipe, X)
+        return rows, base, "probability", "tree_path"
+
+
+def _sigmoid(v: float) -> float:
+    return 1.0 / (1.0 + math.exp(-v))
+
+
+def to_probability(rows: list[dict[str, float]], base: float) -> tuple[list[dict[str, float]], float]:
+    """คำอธิบายหน่วย log-odds → หน่วยความน่าจะเป็น โดยย่อส่วนทุกปัจจัยด้วยอัตราเดียวกันของแถวนั้น
+    ฐานใหม่ = sigmoid(ฐาน) และ ฐานใหม่ + Σφ ใหม่ = sigmoid(ฐาน + Σφ) พอดี"""
+    p0 = _sigmoid(base)
+    out = []
+    for phi in rows:
+        total = sum(phi.values())
+        p = _sigmoid(base + total)
+        scale = (p - p0) / total if abs(total) > 1e-9 else p0 * (1 - p0)   # ค่าลิมิตเมื่อผลรวมเป็นศูนย์
+        out.append({f: v * scale for f, v in phi.items()})
+    return out, p0
+
+
+def ensemble_contributions(ens, X, mean_z) -> tuple[list[dict[str, float]], float, str]:
+    """เฉลี่ยคำอธิบายของสมาชิกทุกตัวในหน่วยความน่าจะเป็น (โมเดลรวมคือค่าเฉลี่ยความน่าจะเป็นของสมาชิก)"""
+    parts, methods = [], []
+    for name, pipe in ens.members_:
+        if name == "lr":
+            if mean_z is None:
+                raise ValueError("ไม่มีค่าอ้างอิงของ linear contributions")
+            rows, base = linear_contributions(pipe, X, mean_z)
+            unit, method = "logit", "linear"
+        else:
+            rows, base, unit, method = tree_contributions(pipe, X)
+        parts.append(to_probability(rows, base) if unit == "logit" else (rows, base))
+        methods.append(f"{name}:{method}")
+    n = len(parts)
+    rows = [{f: sum(p[0][i].get(f, 0.0) for p in parts) / n for f in parts[0][0][i]} for i in range(len(parts[0][0]))]
+    return rows, sum(p[1] for p in parts) / n, ",".join(methods)
 
 
 def top_contributions(phi: dict[str, float], raw: dict, k: int = TOP_K) -> list[dict]:
@@ -131,13 +191,12 @@ def explain(model: str, pipe, X, raw_rows: list[dict], mean_z=None, global_impor
                 raise ValueError("ไม่มีค่าอ้างอิงของ linear contributions")
             rows, base = linear_contributions(pipe, X, mean_z)
             meta = {"method": "linear", "scope": "local", "base": round(base, 4), "unit": "logit"}
+        elif model == "ens":
+            rows, base, parts = ensemble_contributions(pipe, X, mean_z)
+            meta = {"method": "ensemble", "scope": "local", "base": round(base, 4), "unit": "probability", "members": parts}
         else:
-            try:
-                rows, base = shap_contributions(pipe, X)
-                meta = {"method": "shap", "scope": "local", "base": round(base, 4), "unit": "probability"}
-            except ImportError:
-                rows, base = tree_path_contributions(pipe, X)
-                meta = {"method": "tree_path", "scope": "local", "base": round(base, 4), "unit": "probability"}
+            rows, base, unit, method = tree_contributions(pipe, X)
+            meta = {"method": method, "scope": "local", "base": round(base, 4), "unit": unit}
         return [top_contributions(r, raw) for r, raw in zip(rows, raw_rows)], meta
     except Exception as e:                                 # คำนวณรายบิลไม่ได้ ใช้ปัจจัยหลักของโมเดลแทน และบอกให้ชัด
         gi = global_importance or []

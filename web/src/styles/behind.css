@@ -431,6 +431,17 @@ h2 .bh-synth, h3 .bh-synth { margin-left: 10px; vertical-align: middle; }
 .bh-qc__lbl { fill: var(--bh-ink); font-size: 12.5px; font-weight: 600; font-family: inherit; }
 .bh-qc__sw--s1 { background: var(--bh-s1); border-radius: 50%; }
 .bh-qc__sw--s2 { background: var(--bh-s2); border-radius: 50%; }
+/* โมเดลที่เพิ่มทีหลัง: สีเดิม + เส้นประ + จุดกลวง (ไม่เพิ่มสีใหม่ ชื่อกำกับท้ายเส้นเสมอ) */
+.bh-qc__series--s3 { --c: var(--bh-s1); --dash: 7 4; }
+.bh-qc__series--s4 { --c: var(--bh-s2); --dash: 7 4; }
+.bh-qc__series--s5 { --c: var(--bh-ink); --dash: 2 3; }
+.bh-qc__hline { stroke-dasharray: var(--dash, none); }
+.bh-qc__series--s3 .bh-qc__hpt, .bh-qc__series--s4 .bh-qc__hpt, .bh-qc__series--s5 .bh-qc__hpt { fill: var(--bh-surface); stroke: var(--c); stroke-width: 2.5; }
+.bh-qc__sw--s3, .bh-qc__sw--s4, .bh-qc__sw--s5 { background: var(--bh-surface); border: 2.5px solid; border-radius: 50%; box-sizing: border-box; }
+.bh-qc__sw--s3 { border-color: var(--bh-s1); }
+.bh-qc__sw--s4 { border-color: var(--bh-s2); }
+.bh-qc__sw--s5 { border-color: var(--bh-ink); }
+.bh-alt { display: inline-block; margin-right: 12px; white-space: nowrap; }
 
 .bh-imp { margin: 0; display: flex; flex-direction: column; gap: 8px; }
 .bh-imp__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }

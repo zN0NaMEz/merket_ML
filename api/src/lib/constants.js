@@ -10,5 +10,7 @@ const SEASON_EFF = { festival: -0.5, school: 0.45, rainy: 0.35, normal: 0 };
 const WALKIN_SPOTS = Array.from({ length: 12 }, (_, i) => `F-${String(i + 1).padStart(2, '0')}`);
 const PRODUCTS = ['อาหารและขนม', 'ผักผลไม้', 'ของใช้ในบ้าน', 'เสื้อผ้า', 'ดอกไม้และพวงมาลัย', 'อื่น ๆ'];
 const DEFAULT_RATES = { water_rate: 18, elec_rate: 8, walkin_fee: 150, pay_within_days: 10, overdue_days: 3 };
+// โมเดลทำนายความเสี่ยงที่เลือกใช้ได้ ต้องตรงกับ ml/app/risk.py MODEL_KEYS
+const RISK_MODELS = ['lr', 'rf', 'et', 'gb', 'ens'];
 const DEFAULT_AI = { risk_model: 'lr', risk_high: 0.7, risk_mid: 0.4, anomaly_method: 'both', z_threshold: 3, if_threshold: 0.62 };
-module.exports = { TYPES, SEASON_EFF, WALKIN_SPOTS, PRODUCTS, DEFAULT_RATES, DEFAULT_AI };
+module.exports = { RISK_MODELS, TYPES, SEASON_EFF, WALKIN_SPOTS, PRODUCTS, DEFAULT_RATES, DEFAULT_AI };

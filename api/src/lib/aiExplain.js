@@ -6,7 +6,8 @@
 const { riskLevel } = require('./risk');
 
 /** ฟีเจอร์ที่โมเดลใช้จริง ค่าอื่นใน risk_features (เช่น ข้อมูลภายใน) ไม่ถูกส่งออก */
-const FEATURE_KEYS = ['late_count', 'avg_days_late', 'bill_ratio', 'tenure_years', 'stall_type', 'season', 'n_prior'];
+const FEATURE_KEYS = ['late_count', 'avg_days_late', 'bill_ratio', 'tenure_years', 'early_days_avg', 'seen_rate', 'app_share',
+  'stall_type', 'season', 'n_prior'];
 
 const pickFeatures = rf => Object.fromEntries(FEATURE_KEYS.filter(k => rf?.[k] !== undefined).map(k => [k, rf[k]]));
 

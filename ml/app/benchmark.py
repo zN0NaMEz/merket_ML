@@ -1,7 +1,8 @@
 """วัดผลโมเดล (model evaluation) กับข้อมูลจำลองหลายชุด · ดู app/synthetic.py
 
 ใช้โมเดลและขั้นตอนเดียวกับการเทรนจริงทุกประการ
-  ความเสี่ยง: Logistic Regression, Random Forest (risk._make_models) และเกณฑ์อ้างอิง "เดาตามสัดส่วน" (DummyClassifier)
+  ความเสี่ยง: Logistic Regression, Random Forest, Extra Trees, Gradient Boosting, โมเดลรวม (risk._make_models / risk._ensemble)
+             และเกณฑ์อ้างอิง "เดาตามสัดส่วน" (DummyClassifier)
              แบ่ง 75/25 แบบ stratified (random_state=42) + 5-fold CV · เกณฑ์ตัดสิน 0.5
   มิเตอร์:   z-score (เกณฑ์ 3), Isolation Forest (เกณฑ์ 0.62) และใช้ทั้งสองวิธี
              เทรน Isolation Forest จาก 60% ช่วงแรก แล้ววัดผลกับ 40% ช่วงหลัง (เหมือนใช้งานจริงที่ตรวจเดือนใหม่)
@@ -30,12 +31,14 @@ from sklearn.model_selection import StratifiedKFold, cross_validate, train_test_
 from . import synthetic as S
 from .features import CATEGORICAL, NUMERIC, anomaly_vector, peer_stats
 
-RISK_MODELS = ["lr", "rf", "baseline"]
+RISK_MODELS = ["lr", "rf", "et", "gb", "ens", "baseline"]
 ANOMALY_METHODS = ["z", "if", "both"]
 Z_THRESHOLD, IF_THRESHOLD = 3.0, 0.62
 PROTOCOL = {
     "risk": {"split": "stratified 75/25 random_state=42", "cv": "StratifiedKFold(5, shuffle, random_state=42)", "threshold": 0.5,
-             "models": {"lr": "Logistic Regression", "rf": "Random Forest (300 ต้น)", "baseline": "เดาตามสัดส่วน (DummyClassifier prior)"}},
+             "models": {"lr": "Logistic Regression", "rf": "Random Forest (300 ต้น)", "et": "Extra Trees (300 ต้น)",
+                        "gb": "Gradient Boosting (HistGradientBoosting 100 รอบ)", "ens": "โมเดลรวม (เฉลี่ย LR + RF + GB)",
+                        "baseline": "เดาตามสัดส่วน (DummyClassifier prior)"}},
     "anomaly": {"split": "เทรน Isolation Forest จาก 60% ช่วงแรก วัดผล 40% ช่วงหลัง", "z_threshold": Z_THRESHOLD, "if_threshold": IF_THRESHOLD,
                 "methods": {"z": "z-score เทียบประวัติแผงและแผงประเภทเดียวกัน", "if": "Isolation Forest", "both": "ทักเมื่อวิธีใดวิธีหนึ่งเห็นว่าผิดปกติ"}},
 }
@@ -53,8 +56,9 @@ def _sd1(xs) -> float:
 # ---------------- ความเสี่ยงจ่ายช้า ----------------
 
 def _risk_models():
-    from .risk import _make_models            # โมเดลชุดเดียวกับที่ใช้งานจริง
+    from .risk import _ensemble, _make_models  # โมเดลชุดเดียวกับที่ใช้งานจริง
     m = _make_models()
+    m["ens"] = _ensemble()
     m["baseline"] = DummyClassifier(strategy="prior")
     return m
 

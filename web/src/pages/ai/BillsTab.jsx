@@ -194,7 +194,7 @@ export default function BillsTab({ status }) {
   const synthetic = st.data?.is_synthetic ?? status?.is_synthetic;
   return (
     <div className="bh-panel">
-      <TabHead title="ทำไมบิลนี้ได้คะแนนนี้" synthetic={synthetic}
+      <TabHead title="ทำไมบิลนี้ได้คะแนนนี้" synthetic={synthetic} profile={status?.sim_profile}
         sub="เลือกบิลค้างเพื่อดูว่าปัจจัยไหนทำให้ AI ให้คะแนนความเสี่ยงจ่ายช้าสูงหรือต่ำ" />
 
       {st.error && !st.data && <LoadError error={st.error} onRetry={st.reload} what="รายการบิล" />}

@@ -45,7 +45,7 @@ export default function StatusBar({ st, compactText }) {
             ? <span>{compactText ? 'โมเดลเทรนล่าสุด' : `ความเสี่ยง: ${model}`} {thDateTime(risk.trained_at)}</span>
             : <span>ยังไม่มีโมเดลที่เทรนแล้ว</span>}
         </span>
-        <SynthBadge on={s.is_synthetic} compact />
+        <SynthBadge on={s.is_synthetic} profile={s.sim_profile} compact />
         <span className="bh-bar__more">{open ? 'ซ่อน' : 'รายละเอียด'}<BIcon name="chevron" size={16} /></span>
       </button>
 
@@ -63,7 +63,7 @@ export default function StatusBar({ st, compactText }) {
               <dt>บิลค้างที่ยังไม่มีคะแนน</dt>
               <dd>{num(s.scoring?.open_unscored)} จาก {num(s.scoring?.open_bills)} ใบ{s.scoring?.open_unscored > 0 && ' · จะได้คะแนนเมื่อเทรนใหม่หรือออกบิลรอบถัดไป'}</dd>
             </div>
-            <div><dt>ข้อมูลจริงหรือจำลอง</dt><dd>{s.is_synthetic ? 'ข้อมูลจำลองของระบบสาธิต' : 'ข้อมูลจริงของตลาด'}</dd></div>
+            <div><dt>ข้อมูลจริงหรือจำลอง</dt><dd>{s.is_synthetic ? (s.sim_profile === 'clear' ? 'ข้อมูลจำลองแบบความบังเอิญต่ำ (logit × 3) ตัวเลขสูงกว่าที่ตลาดจริงจะทำได้' : 'ข้อมูลจำลองของระบบสาธิต') : 'ข้อมูลจริงของตลาด'}</dd></div>
           </dl>
           <p className="bh-fine">ตรวจสถานะเมื่อ {thTime(s.checked_at)} น. · สถานะอาจช้ากว่าจริงได้ถึง 15 วินาที และหน้านี้ตรวจใหม่เองทุก 30 วินาทีขณะเปิดอยู่</p>
         </div>

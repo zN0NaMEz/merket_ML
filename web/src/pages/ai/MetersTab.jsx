@@ -289,7 +289,7 @@ export default function MetersTab({ status }) {
 
   return (
     <div className="bh-panel">
-      <TabHead title="ทำไมเลขมิเตอร์นี้ถูกทัก" synthetic={status?.is_synthetic}
+      <TabHead title="ทำไมเลขมิเตอร์นี้ถูกทัก" synthetic={status?.is_synthetic} profile={status?.sim_profile}
         sub="AI เทียบการใช้น้ำ–ไฟเดือนนี้กับประวัติของแผงเองและแผงประเภทเดียวกัน แล้วทักค่าที่ควรเดินไปตรวจหน้างาน คนเป็นผู้ยืนยันหรือแก้ค่า" />
       {st.error && !st.data && <LoadError error={st.error} onRetry={st.reload} what="รายการมิเตอร์" />}
       {!st.data && !st.error && <div className="bh-split"><Skeleton kind="list" /><Skeleton kind="chart" /></div>}

@@ -87,3 +87,21 @@ test('สมมติฐาน: เป็นไปตามคาด / สวน
   assert.deepEqual(h.pattern.compared, ['both', 'z']);
   assert.equal(h.plain, undefined);                         // ชุดที่ไม่ได้ตั้งสมมติฐานไม่ถูกตรวจ
 });
+
+test('สมมติฐานงานความเสี่ยงตัดสินจาก LR กับ RF เท่านั้น โมเดลที่เพิ่มทีหลังไม่เปลี่ยนผล', () => {
+  const ds = [{ task: 'risk', key: 'interaction', title: 'กลับทาง', expect: ['rf'], expect_metric: 'cv_auc', hypothesis: 'h1' }];
+  const rows = [
+    cvRow('interaction', 'lr', [0.52, 0.5, 0.55, 0.51, 0.53], [0.2, 0.2, 0.2, 0.2, 0.2]),
+    cvRow('interaction', 'rf', [0.73, 0.72, 0.75, 0.71, 0.74], [0.18, 0.18, 0.18, 0.18, 0.18]),
+    // GB แม่นกว่า RF แต่ไม่ได้อยู่ในสมมติฐาน "เส้นตรงกับต้นไม้"
+    cvRow('interaction', 'gb', [0.76, 0.75, 0.78, 0.74, 0.77], [0.17, 0.17, 0.17, 0.17, 0.17]),
+    cvRow('interaction', 'ens', [0.70, 0.69, 0.72, 0.68, 0.71], [0.18, 0.18, 0.18, 0.18, 0.18]),
+  ];
+  const [h] = E.checkHypotheses(rows, ds);
+  assert.deepEqual(E.HYPOTHESIS_MODELS.risk, ['lr', 'rf']);
+  assert.equal(h.held, 'yes');
+  assert.deepEqual(h.compared, ['rf', 'lr']);
+  assert.deepEqual(Object.keys(h.values).sort(), ['lr', 'rf']);
+  // ตารางสรุปยังนับทุกโมเดล
+  assert.deepEqual(E.summarize(rows).map(s => s.model).sort(), ['ens', 'gb', 'lr', 'rf']);
+});

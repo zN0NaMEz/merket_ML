@@ -12,6 +12,8 @@ COPY . .
 ENV MODEL_DIR=/app/models
 # numba (ที่ shap ใช้) ต้องมีที่เขียนแคชที่ผู้ใช้ app เขียนได้ ไม่งั้นฟังก์ชันที่เปิดแคชจะล้มเมื่อรันแบบไม่ใช่ root
 ENV NUMBA_CACHE_DIR=/tmp/numba
+# แพลนฟรีมี 0.1 CPU แต่ OpenMP (Gradient Boosting) และ BLAS มองเห็นคอร์ทั้งเครื่อง แตกเธรดแล้วแย่งกันจนช้าลง
+ENV OMP_NUM_THREADS=1
 RUN mkdir -p /app/models && chown -R app:app /app
 
 USER app

@@ -26,11 +26,15 @@ export function BIcon({ name, size = 20 }) {
 }
 
 /** ป้าย "ข้อมูลจำลอง" สีอำพัน มีไอคอนและข้อความเสมอ แสดงซ้ำทุกแท็บที่มีตัวเลขจากโมเดล */
-export function SynthBadge({ on, compact }) {
+export function SynthBadge({ on, compact, profile }) {
   if (!on) return null;
+  // โปรไฟล์ clear: ความบังเอิญต่ำกว่าตลาดจริง 3 เท่า ตัวเลขคุณภาพจึงสูงเพราะข้อมูลชัด ต้องบอกให้เห็นทุกที่
+  const clear = profile === 'clear';
   return (
-    <span className="bh-synth" title="โมเดลนี้เทรนจากข้อมูลจำลองของระบบสาธิต ไม่ใช่ประวัติการจ่ายจริงของตลาด">
-      <BIcon name="flask" size={compact ? 14 : 16} />ข้อมูลจำลอง
+    <span className="bh-synth" title={clear
+      ? 'ข้อมูลจำลองแบบความบังเอิญต่ำ (logit × 3): ผลจ่ายช้าขึ้นกับปัจจัยมากกว่าตลาดจริง ตัวเลขคุณภาพจึงสูงกว่าที่ตลาดจริงจะทำได้'
+      : 'โมเดลนี้เทรนจากข้อมูลจำลองของระบบสาธิต ไม่ใช่ประวัติการจ่ายจริงของตลาด'}>
+      <BIcon name="flask" size={compact ? 14 : 16} />{clear ? 'ข้อมูลจำลอง · ความบังเอิญต่ำ' : 'ข้อมูลจำลอง'}
     </span>
   );
 }
@@ -129,11 +133,11 @@ export function NoModel({ onDone }) {
 }
 
 /** หัวเรื่องของแท็บ + ป้ายข้อมูลจำลองซ้ำทุกแท็บ */
-export function TabHead({ title, sub, synthetic, right }) {
+export function TabHead({ title, sub, synthetic, profile, right }) {
   return (
     <div className="bh-tabhead">
       <div>
-        <h2>{title}<SynthBadge on={synthetic} compact /></h2>
+        <h2>{title}<SynthBadge on={synthetic} profile={profile} compact /></h2>
         {sub && <p>{sub}</p>}
       </div>
       {right}

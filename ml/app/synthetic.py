@@ -64,6 +64,8 @@ class RiskScenario:
     expect: tuple = ()             # โมเดลที่คาดว่าชนะ (ว่าง = ไม่ได้ออกแบบให้ต่าง)
     expect_metric: str = "cv_auc"  # ตัวชี้วัดที่ใช้ตัดสินสมมติฐาน: cv_auc (สูงดี) | cv_brier (ต่ำดี)
     hypothesis: str = ""
+    behavior: bool = False         # จำลองพฤติกรรมการจ่าย (ดู behave()) · ชุดเดิมปิดไว้ ข้อมูลจึงเหมือนเดิมทุกไบต์
+    sharp: float = 1.0             # คูณ logit: > 1 = ความบังเอิญต่ำ (โปรไฟล์ "ชัดเจน" ของข้อมูลสาธิตใช้ 3)
 
 
 @dataclass(frozen=True)
@@ -120,6 +122,13 @@ RISK_SCENARIOS: list[RiskScenario] = [
                  n_vendors=80, months=24, k_discipline=0.4, k_history=0, k_ratio=0, k_season=0, k_type=0,
                  mechanism="type_season", k_signal=3.0,
                  expect=("rf",), hypothesis="ต้องดูประเภทแผงคู่กับฤดู Logistic Regression ไม่มีพจน์ร่วม จึงเห็นแค่ค่าเฉลี่ยของแต่ละฝั่ง"),
+    # ---- ข้อมูลที่มีสัญญาณพฤติกรรม / ความบังเอิญต่ำ (ไม่มีสมมติฐาน LR/RF) ----
+    RiskScenario("behavior", "พฤติกรรมการจ่ายบอกวินัย", "เหมือนตลาดปกติ แต่ผู้ค้าวินัยดีจ่ายเร็วกว่า เปิดดูบิลในแอปบ่อยกว่า "
+                 "และจ่ายผ่านแอปมากกว่า (สมมติฐานเดียวกับข้อมูลสาธิตของระบบ) ปัจจัยพฤติกรรมจึงบอกวินัยที่ซ่อนอยู่ได้บางส่วน", seed=112,
+                 behavior=True),
+    RiskScenario("clear", "ความบังเอิญต่ำ (โปรไฟล์ชัดเจน)", "พฤติกรรมเดียวกับชุดก่อนหน้า แต่ผลจ่ายช้าขึ้นกับปัจจัยมากขึ้น 3 เท่า "
+                 "(logit × 3) แทบไม่มีโชคเข้ามาเกี่ยว ใช้ดูว่าโมเดลทำได้แค่ไหนเมื่อข้อมูลชัด ไม่ใช่ภาพของตลาดจริง", seed=113,
+                 behavior=True, sharp=3.0),
     RiskScenario("linear_small", "ข้อมูลน้อยแต่ตรงไปตรงมา", "ผู้ค้า 12 ราย ประวัติ 10 เดือน ความเสี่ยงเพิ่มตามประวัติและยอดบิลแบบเส้นตรง", seed=111,
                  n_vendors=12, months=10, k_history=2.0, k_ratio=2.0, shock_p=0.15, noise_sd=0.6,
                  expect=("lr",), expect_metric="cv_brier",
@@ -200,6 +209,27 @@ def special_term(sc: RiskScenario, f: dict, code: str) -> float:
     return 0.0
 
 
+# ---- พฤติกรรมการจ่าย (สมมติฐานเดียวกับ api/src/seed/generator.js และ services/billing.js · ตั้งไว้ก่อนวัดผล ไม่ปรับให้ชนะ) ----
+def APP_P(d: float) -> float:
+    """โอกาสที่ผู้ค้าจ่ายผ่านแอป (ไม่ใช่เงินสดที่สำนักงาน)"""
+    return 0.25 + 0.60 * d
+
+
+def ontime_day(u: float, d: float) -> int:
+    """วันที่จ่ายนับจากวันออกบิล (0..9) เมื่อจ่ายตรงเวลา: วินัยดีจ่ายเร็ว u^(0.6 + 2.4d) เอียงไปทางวันแรก ๆ"""
+    return min(PAY_WITHIN_DAYS - 1, int(PAY_WITHIN_DAYS * u ** (0.6 + 2.4 * d)))
+
+
+def seen_date(rng, d: float, app_user: bool, issue: date, paid: date | None):
+    """วันที่ผู้ค้าเปิดดูบิลในแอปครั้งแรก: เปิดภายใน 4 วันแรกด้วยโอกาส 0.30 + 0.65d · คนจ่ายผ่านแอปต้องเปิดบิลอย่างช้าวันที่จ่าย"""
+    seen = issue + timedelta(days=int(rng.integers(0, 4))) if rng.random() < 0.30 + 0.65 * d else None
+    if app_user and paid is not None and (seen is None or seen > paid):
+        seen = paid
+    if seen is not None and seen >= ANCHOR:
+        seen = ANCHOR - timedelta(days=1)
+    return seen
+
+
 def risk_bills(sc: RiskScenario) -> tuple[dict[int, list[dict]], date]:
     """บิลรายเดือนแยกตามผู้ค้า (รูปแบบเดียวกับ risk._load_bills) และวันที่ "วันนี้" ของชุดข้อมูล"""
     rng = np.random.default_rng(sc.seed)
@@ -214,6 +244,8 @@ def risk_bills(sc: RiskScenario) -> tuple[dict[int, list[dict]], date]:
         else:
             since = ANCHOR - timedelta(days=int(rng.uniform(2 * 365, 13 * 365)))
         sw_v, se_v = math.exp(0.25 * rng.standard_normal()), math.exp(0.25 * rng.standard_normal())
+        # สุ่มเพิ่มเฉพาะชุดที่เปิดพฤติกรรม ลำดับการสุ่มของชุดเดิมจึงไม่เปลี่ยน
+        app_user = bool(rng.random() < APP_P(disc)) if sc.behavior else False
         bills: list[dict] = []
         for p in periods:
             if f"{since.year}-{since.month:02d}" >= p:
@@ -240,18 +272,24 @@ def risk_bills(sc: RiskScenario) -> tuple[dict[int, list[dict]], date]:
             signal = (sc.intercept + sc.k_discipline * 4.2 * (0.5 - disc) + sc.k_history * 0.3 * f["late_count"]
                       + sc.k_ratio * 2.2 * (f["bill_ratio"] - 1) + sc.k_type * t["risk"] + sc.k_season * SEASON_EFF[f["season"]]
                       + tenure_eff + special_term(sc, f, code))
-            logit = signal + sc.noise_sd * rng.standard_normal()
+            logit = sc.sharp * (signal + sc.noise_sd * rng.standard_normal())
             late = rng.random() < _sigmoid(logit)
             # ส่วนที่ "รู้ได้" ของ logit รวมวินัยที่ซ่อนอยู่ ใช้คิดเพดานความแม่น (oracle) ห้ามใช้เป็นฟีเจอร์
-            bill["oracle_logit"] = signal
+            bill["oracle_logit"] = sc.sharp * signal
             if due >= ANCHOR:
                 bill["status"] = "unpaid"          # ยังไม่ถึงกำหนด ไม่รู้ผล (build_dataset ข้ามเอง)
             elif late:
                 bill["paid_date"] = due + timedelta(days=1 + int((rng.random() ** 1.4) * 14 * (1.3 - disc)))
+            elif sc.behavior:
+                bill["paid_date"] = issue + timedelta(days=ontime_day(rng.random(), disc))
             else:
                 bill["paid_date"] = issue + timedelta(days=int(rng.random() * PAY_WITHIN_DAYS))
             if bill["paid_date"] is not None and bill["paid_date"] >= ANCHOR:
                 bill["paid_date"] = ANCHOR - timedelta(days=1)
+            if sc.behavior:
+                bill["seen_at"] = seen_date(rng, disc, app_user, issue, bill["paid_date"])
+                if bill["paid_date"] is not None:
+                    bill["channel"] = "app" if app_user else "cash"
             bills.append(bill)
         by_vendor[vid] = bills
     return by_vendor, ANCHOR

@@ -9,6 +9,9 @@ export const FEATURE_LABELS = {
   avg_days_late: 'จำนวนวันที่จ่ายช้าเฉลี่ย',
   bill_ratio: 'ยอดบิลเดือนนี้เทียบกับปกติ',
   tenure_years: 'ระยะเวลาที่เช่าแผง',
+  early_days_avg: 'จ่ายก่อนวันครบกำหนดเฉลี่ย',
+  seen_rate: 'สัดส่วนบิลที่เปิดดูในแอป',
+  app_share: 'สัดส่วนที่จ่ายผ่านแอป',
   stall_type: 'ประเภทแผง',
   season: 'ช่วงเวลาของวันครบกำหนด',
   use_vs_own_mean_water: 'การใช้น้ำเทียบค่าปกติของแผงเอง',
@@ -50,6 +53,12 @@ export function describeFactor(c, features = {}) {
     }
     case 'tenure_years':
       return v < 1 ? `เพิ่งเช่าแผงได้ ${Math.max(1, Math.round(v * 12))} เดือน` : `เช่าแผงมาแล้ว ${fmt1(v)} ปี`;
+    case 'early_days_avg':
+      return v >= 1 ? `มักจ่ายก่อนครบกำหนด ${fmt1(v)} วัน` : 'มักจ่ายวันใกล้ครบกำหนด';
+    case 'seen_rate':
+      return `เปิดดูบิลในแอป ${Math.round(v * 100)}% ของบิลล่าสุด`;
+    case 'app_share':
+      return v >= 0.5 ? `จ่ายผ่านแอป ${Math.round(v * 100)}% ของบิล` : 'ส่วนใหญ่จ่ายเงินสดที่สำนักงาน';
     case 'stall_type':
       return `แผงประเภท${STALL_TYPES[v] || 'อื่น'}`;
     case 'season':

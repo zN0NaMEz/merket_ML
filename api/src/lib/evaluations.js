@@ -68,6 +68,11 @@ function summarize(rows) {
 
 /** t วิกฤตของการทดสอบแบบจับคู่ 5 พับ (df = 4) ที่ระดับ 0.05 สองทาง */
 const T_CRIT = { 4: 2.776, 3: 3.182, 2: 4.303, 1: 12.706 };
+/**
+ * สมมติฐานของงานความเสี่ยงออกแบบไว้ให้เทียบ "เส้นตรง (LR) กับต้นไม้ (RF)" จึงตัดสินจากสองตัวนี้เท่านั้น
+ * โมเดลที่เพิ่มทีหลัง (Extra Trees, Gradient Boosting, โมเดลรวม) ยังแสดงในตารางผล แต่ไม่เปลี่ยนความหมายของสมมติฐานเดิม
+ */
+const HYPOTHESIS_MODELS = { risk: ['lr', 'rf'] };
 /** มิเตอร์ไม่มีผลรายพับ ส่วนต่าง F1 ต่ำกว่านี้ถือว่าสรุปไม่ได้ */
 const F1_MARGIN = 0.05;
 
@@ -99,7 +104,8 @@ function checkHypotheses(rows, datasets = []) {
   for (const ds of datasets) {
     if (!ds.expect?.length) continue;
     const metric = ds.expect_metric || (ds.task === 'risk' ? 'cv_auc' : 'f1');
-    const rs = rows.filter(r => r.task === ds.task && r.dataset === ds.key && r.model !== 'baseline');
+    const only = HYPOTHESIS_MODELS[ds.task];
+    const rs = rows.filter(r => r.task === ds.task && r.dataset === ds.key && r.model !== 'baseline' && (!only || only.includes(r.model)));
     const scored = rs.map(r => ({ model: r.model, ...metricOf(r, metric) })).filter(x => x.value != null);
     const better = (x, y) => (x.higher ? x.value > y.value : x.value < y.value);
     const pick = xs => xs.reduce((b, x) => (!b || better(x, b) ? x : b), null);
@@ -127,4 +133,4 @@ function checkHypotheses(rows, datasets = []) {
   return out;
 }
 
-module.exports = { PRIMARY, METRICS, LOWER_IS_BETTER, meanSd, normalizeRow, bestByDataset, summarize, pairedT, checkHypotheses };
+module.exports = { PRIMARY, METRICS, HYPOTHESIS_MODELS, LOWER_IS_BETTER, meanSd, normalizeRow, bestByDataset, summarize, pairedT, checkHypotheses };
