@@ -113,7 +113,11 @@ export default function AI() {
                 : <MeterTab d={d} draft={draft} setDraft={setDraft} showcase={sc.data?.meter} />
           )}
           {/* ไม่ต้องรอ ML ตอนเปิดแท็บ: เรียก ML เมื่อกดทำนายเท่านั้น ถ้าบริการพักอยู่ แท็บนี้บอกเองตอนกด */}
-          {tab === 'file' && <PredictFromFile models={MODELS} activeModel={d.ai.risk_model} high={draft.risk_high} mid={draft.risk_mid} />}
+          {tab === 'file' && (
+            <PredictFromFile models={MODELS} activeModel={d.ai.risk_model} high={draft.risk_high} mid={draft.risk_mid}
+              train={d.risk.error ? null : d.risk.models}
+              trainInfo={{ trained_at: d.risk.trained_at, n_train: d.risk.n_train, n_test: d.risk.n_test }} />
+          )}
         </div>
 
         <SaveBar saved={d.ai} draft={draft} busy={busy === 'save'} onSave={save} onReset={() => setDraft(d.ai)} />

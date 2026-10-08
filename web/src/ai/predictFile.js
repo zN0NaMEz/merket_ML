@@ -25,20 +25,22 @@ export const COLUMNS = [
   { key: 'early_days_avg', th: 'จ่ายก่อนครบกำหนดเฉลี่ย (วัน)', hint: 'เฉพาะบิลที่จ่ายตรงเวลา เช่น จ่ายก่อน 5 วัน ใส่ 5 · เว้นว่างได้' },
   { key: 'seen_count', th: 'เปิดดูบิลในแอปกี่บิล', hint: 'จากบิลก่อนหน้าที่นับ ต้องไม่เกินจำนวนบิลที่นับ · เว้นว่างได้' },
   { key: 'app_count', th: 'จ่ายผ่านแอปกี่บิล', hint: 'จ่ายผ่าน PromptPay ในแอป ไม่ใช่เงินสดที่สำนักงาน · เว้นว่างได้' },
+  // ผลจริงใช้วัดความแม่นของ AI กับไฟล์นี้เท่านั้น ไม่ถูกส่งไปให้ AI (เบราว์เซอร์เก็บไว้เทียบเอง)
+  { key: 'actual', th: 'ผลจริง (ถ้ารู้)', hint: 'จ่ายช้า หรือ ตรงเวลา (ใส่ 1 / 0 ก็ได้) · เว้นว่างได้ ใส่เมื่ออยากวัดว่า AI ทายแม่นแค่ไหนกับไฟล์นี้' },
 ];
 /** คอลัมน์พฤติกรรมที่เว้นว่างได้ (ระบบเติมค่าเฉลี่ยของตลาด) */
 export const BEHAVIOR_KEYS = ['early_days_avg', 'seen_count', 'app_count'];
 
 /** ตัวอย่างที่ครอบคลุมหลายแบบ ให้เห็นว่าคะแนนเปลี่ยนตามปัจจัยอย่างไร */
 const SAMPLE_ROWS = [
-  ['ตัวอย่าง 1 จ่ายตรงทุกเดือน', 'ของชำ', 7, 6, 6, 0, 0, 2950, 2900, 7, 6, 6],
-  ['ตัวอย่าง 2 ช้าบ่อย', 'เสื้อผ้าและของใช้', 9, 2, 6, 4, 23, 2600, 2450, 1, 1, 0],
-  ['ตัวอย่าง 3 ผู้ค้าใหม่', 'ผักผลไม้', 5, 0.3, 2, 0, 0, 3100, 2800, 4, 2, 2],
-  ['ตัวอย่าง 4 ยอดบิลพุ่ง', 'อาหารปรุงสุก', 6, 3.5, 6, 1, 3, 6200, 3900, 3, 4, 3],
-  ['ตัวอย่าง 5 ช้าแค่ครั้งเดียว', 'อาหารสด', 12, 8, 6, 1, 2, 3400, 3350, 5, 5, 6],
-  ['ตัวอย่าง 6 ยังไม่มีประวัติ', 'อาหารสด', 8, 0, 0, 0, 0, 3200, '', '', '', ''],
-  ['ตัวอย่าง 7 ช้านานหลายวัน', 'อาหารปรุงสุก', 10, 1.5, 5, 3, 31, 4100, 4000, 0, 1, 0],
-  ['ตัวอย่าง 8 ไม่ได้กรอกพฤติกรรม', 'เสื้อผ้าและของใช้', 4, 4, 6, 2, 6, 2500, 2400, '', '', ''],
+  ['ตัวอย่าง 1 จ่ายตรงทุกเดือน', 'ของชำ', 7, 6, 6, 0, 0, 2950, 2900, 7, 6, 6, ''],
+  ['ตัวอย่าง 2 ช้าบ่อย', 'เสื้อผ้าและของใช้', 9, 2, 6, 4, 23, 2600, 2450, 1, 1, 0, ''],
+  ['ตัวอย่าง 3 ผู้ค้าใหม่', 'ผักผลไม้', 5, 0.3, 2, 0, 0, 3100, 2800, 4, 2, 2, ''],
+  ['ตัวอย่าง 4 ยอดบิลพุ่ง', 'อาหารปรุงสุก', 6, 3.5, 6, 1, 3, 6200, 3900, 3, 4, 3, ''],
+  ['ตัวอย่าง 5 ช้าแค่ครั้งเดียว', 'อาหารสด', 12, 8, 6, 1, 2, 3400, 3350, 5, 5, 6, ''],
+  ['ตัวอย่าง 6 ยังไม่มีประวัติ', 'อาหารสด', 8, 0, 0, 0, 0, 3200, '', '', '', '', ''],
+  ['ตัวอย่าง 7 ช้านานหลายวัน', 'อาหารปรุงสุก', 10, 1.5, 5, 3, 31, 4100, 4000, 0, 1, 0, ''],
+  ['ตัวอย่าง 8 ไม่ได้กรอกพฤติกรรม', 'เสื้อผ้าและของใช้', 4, 4, 6, 2, 6, 2500, 2400, '', '', '', ''],
 ];
 
 /* ---------------- CSV ---------------- */
@@ -102,6 +104,17 @@ export function toNumber(raw) {
   return /^-?\d+(\.\d+)?$/.test(s) ? Number(s) : NaN;
 }
 
+const LATE_WORDS = new Set(['จ่ายช้า', 'ช้า', 'late', '1', 'yes', 'y', 'ใช่', 'true']);
+const ONTIME_WORDS = new Set(['ตรงเวลา', 'จ่ายตรงเวลา', 'ตรง', 'ontime', 'on time', 'on-time', '0', 'no', 'n', 'ไม่', 'false']);
+/** ผลจริง: 1 = จ่ายช้า · 0 = ตรงเวลา · null = เว้นว่าง · NaN = อ่านไม่ได้ */
+export function toActual(raw) {
+  const t = String(raw ?? '').trim().toLowerCase();
+  if (t === '') return null;
+  if (LATE_WORDS.has(t)) return 1;
+  if (ONTIME_WORDS.has(t)) return 0;
+  return NaN;
+}
+
 /** เดือน 1–12 จาก "5", "2026-05", "2026-05-10" หรือ "10/5/2026" */
 export function toMonth(raw) {
   const s = String(raw ?? '').trim();
@@ -145,13 +158,15 @@ export function checkRow(cells) {
   if (n_prior != null && late_count != null && late_count > n_prior) errors.push(`จ่ายช้า ${late_count} บิล มากกว่าจำนวนบิลที่นับ (${n_prior})`);
   if (late_count === 0 && days_late_total > 0) errors.push('ไม่มีบิลที่จ่ายช้า แต่รวมวันที่ช้าไม่เป็น 0');
   if (late_count > 0 && days_late_total != null && days_late_total < late_count) errors.push(`จ่ายช้า ${late_count} บิล รวมวันที่ช้าต้องอย่างน้อย ${late_count} วัน`);
+  const actual = toActual(cells.actual);
+  if (Number.isNaN(actual)) errors.push(`ผลจริง "${cells.actual}" ใช้ได้: จ่ายช้า, ตรงเวลา, 1, 0 หรือเว้นว่าง`);
   for (const [v, label] of [[seen_count, 'เปิดดูบิลในแอป'], [app_count, 'จ่ายผ่านแอป']]) {
     if (v != null && n_prior != null && v > n_prior) errors.push(`${label} ${v} บิล มากกว่าจำนวนบิลที่นับ (${n_prior})`);
   }
   if (errors.length) return { value: null, errors };
   // พฤติกรรมที่เว้นว่างส่งเป็น null ให้ ML เติมค่าเฉลี่ยของตลาด
   return { value: { ref, stall_type, due_month, tenure_years, n_prior, late_count, days_late_total, bill_total, prev_avg: prev_avg ?? 0,
-    early_days_avg, seen_count, app_count }, errors };
+    early_days_avg, seen_count, app_count, actual }, errors };
 }
 
 /**
@@ -204,16 +219,78 @@ export function summarize(results, model, high, mid) {
   return out;
 }
 
-/** ไฟล์ผลลัพธ์: คอลัมน์เดิม + คะแนนทุกโมเดล + ระดับและเหตุผลของโมเดลที่เลือก */
+/** ส่งให้ API เฉพาะค่าที่ใช้ทำนาย ผลจริงเก็บไว้ในเบราว์เซอร์ใช้วัดผลเท่านั้น */
+export const payloadOf = value => { const { actual: _omit, ...rest } = value; return rest; };
+
+/* ---------------- ประเมินโมเดล (model evaluation) กับไฟล์ที่มีผลจริง ---------------- */
+
+/** เกณฑ์ตัดสิน "ทายว่าจ่ายช้า" ของการประเมิน เท่ากับตอนประเมินโมเดลหลังเทรน (ml/app/risk.py) จึงเทียบกันได้ */
+export const EVAL_THRESHOLD = 0.5;
+const ACTUAL_WORD = { 1: 'จ่ายช้า', 0: 'ตรงเวลา' };
+
+/** ROC-AUC แบบนับคู่ (Mann–Whitney): โอกาสที่บิลจ่ายช้าได้คะแนนสูงกว่าบิลตรงเวลา คะแนนเท่ากันนับครึ่ง */
+export function aucOf(scores, labels) {
+  const pos = [], neg = [];
+  scores.forEach((v, i) => (labels[i] ? pos : neg).push(v));
+  if (!pos.length || !neg.length) return null;
+  let wins = 0;
+  for (const p of pos) for (const n of neg) wins += p > n ? 1 : p === n ? 0.5 : 0;
+  return wins / (pos.length * neg.length);
+}
+
+/** วัดโมเดลหนึ่งกับแถวที่มีผลจริง: confusion matrix ที่เกณฑ์ 0.5 + AUC + Brier */
+export function evaluateFile(results, model, threshold = EVAL_THRESHOLD) {
+  const rows = results.filter(r => r.input.actual != null && r.scores?.[model] != null);
+  let tp = 0, fp = 0, fn = 0, tn = 0, sq = 0;
+  for (const r of rows) {
+    const p = r.scores[model], y = r.input.actual;
+    const warn = p >= threshold;
+    if (warn && y) tp += 1; else if (warn) fp += 1; else if (y) fn += 1; else tn += 1;
+    sq += (p - y) ** 2;
+  }
+  const n = rows.length;
+  const precision = tp + fp ? tp / (tp + fp) : null;
+  const recall = tp + fn ? tp / (tp + fn) : null;
+  return {
+    n, pos: tp + fn, neg: fp + tn, tp, fp, fn, tn,
+    accuracy: n ? (tp + tn) / n : null,
+    precision, recall,
+    f1: precision != null && recall != null ? (precision + recall ? (2 * precision * recall) / (precision + recall) : 0) : null,
+    auc: aucOf(rows.map(r => r.scores[model]), rows.map(r => r.input.actual)),
+    brier: n ? sq / n : null,
+  };
+}
+
+/** โมเดลที่ดีที่สุดของตัวชี้วัดหนึ่ง (เสมอกันได้หลายตัว) · lower = ค่ายิ่งต่ำยิ่งดี (Brier) */
+export function bestModels(evals, key, lower = false) {
+  const vals = Object.entries(evals).filter(([, e]) => e && e[key] != null);
+  if (vals.length < 2) return new Set();
+  const top = (lower ? Math.min : Math.max)(...vals.map(([, e]) => e[key]));
+  return new Set(vals.filter(([, e]) => Math.abs(e[key] - top) < 1e-9).map(([k]) => k));
+}
+
+/** ทายถูกไหมสำหรับแถวที่มีผลจริง (เกณฑ์ 0.5) · ไม่มีผลจริงคืน null */
+export const isCorrect = (r, model, threshold = EVAL_THRESHOLD) =>
+  (r.input.actual == null || r.scores?.[model] == null ? null : (r.scores[model] >= threshold) === Boolean(r.input.actual));
+
+/** ไฟล์ผลลัพธ์: คอลัมน์เดิม + คะแนนทุกโมเดล + ระดับและเหตุผลของโมเดลที่เลือก (+ ทายถูกไหม ถ้ามีผลจริง) */
 export function resultsCsv(results, { models, model, names, high, mid, levelWord }) {
-  const head = [...COLUMNS.map(c => c.th), ...models.map(m => `คะแนน ${names[m]} (%)`), `ระดับ (${names[model]})`, 'เหตุผล'];
+  const labeled = results.some(r => r.input.actual != null);
+  const head = [...COLUMNS.map(c => c.th), ...models.map(m => `คะแนน ${names[m]} (%)`), `ระดับ (${names[model]})`, 'เหตุผล',
+    ...(labeled ? [`ทายถูก (${names[model]} เกณฑ์ 50%)`] : [])];
+  const cell = (r, c) => {
+    if (c.key === 'stall_type') return STALL_TYPES[r.input.stall_type];
+    if (c.key === 'actual') return r.input.actual == null ? '' : ACTUAL_WORD[r.input.actual];
+    return r.input[c.key];
+  };
   const lines = results.map(r => {
-    const s = r.scores[model];
+    const ok = isCorrect(r, model);
     return [
-      ...COLUMNS.map(c => (c.key === 'stall_type' ? STALL_TYPES[r.input.stall_type] : r.input[c.key]) ?? ''),
+      ...COLUMNS.map(c => cell(r, c) ?? ''),
       ...models.map(m => (r.scores[m] == null ? '' : Math.round(r.scores[m] * 1000) / 10)),
-      levelWord[levelOf(s, high, mid)], (r.reasons || []).join(' · '),
+      levelWord[levelOf(r.scores[model], high, mid)], (r.reasons || []).join(' · '),
+      ...(labeled ? [ok == null ? '' : ok ? 'ถูก' : 'พลาด'] : []),
     ];
   });
-  return '﻿' + toCsv([head, ...lines]);
+  return '\uFEFF' + toCsv([head, ...lines]);
 }

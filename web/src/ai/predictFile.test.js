@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  COLUMNS, MAX_ROWS, checkRow, decodeBytes, fileProblem, parseCsv, readTable, resultsCsv, sampleCsv, summarize, toMonth, toNumber,
+  COLUMNS, EVAL_THRESHOLD, MAX_ROWS, aucOf, bestModels, evaluateFile, isCorrect, payloadOf, toActual, checkRow, decodeBytes, fileProblem, parseCsv, readTable, resultsCsv, sampleCsv, summarize, toMonth, toNumber,
 } from './predictFile.js';
 
 const HEAD = COLUMNS.map(c => c.th).join(',');
@@ -50,7 +50,7 @@ test('checkRow: แถวถูกต้องได้ค่าที่แป�
   const r = checkRow(good);
   assert.deepEqual(r.errors, []);
   assert.deepEqual(r.value, { ref: 'ก', stall_type: 'dry', due_month: 7, tenure_years: 2, n_prior: 6, late_count: 1, days_late_total: 3, bill_total: 3000, prev_avg: 2900,
-    early_days_avg: null, seen_count: null, app_count: null });
+    early_days_avg: null, seen_count: null, app_count: null, actual: null });
   assert.equal(checkRow({ ...good, stall_type: 'Clothes' }).value.stall_type, 'clothes');
   assert.equal(checkRow({ ...good, prev_avg: '' }).value.prev_avg, 0, 'ยอดก่อนหน้าเว้นว่างได้');
 });
@@ -117,4 +117,69 @@ test('summarize และ resultsCsv ใช้เกณฑ์เดียวก�
   assert.deepEqual(t[0].slice(-4), ['คะแนน LR (%)', 'คะแนน RF (%)', 'ระดับ (LR)', 'เหตุผล']);
   assert.deepEqual(t[1].slice(-4), ['81', '50', 'สูง', 'จ่ายช้า 1 ครั้งใน 6 บิลล่าสุด']);
   assert.equal(t[1][1], 'ของชำ', 'ประเภทแผงในไฟล์ผลเป็นภาษาไทย');
+});
+
+
+test('ผลจริง: อ่านได้หลายรูปแบบ ผิดแล้วบอกค่าที่ใช้ได้ และไม่ถูกส่งไปให้ AI', () => {
+  for (const v of ['จ่ายช้า', 'ช้า', '1', 'Late', 'YES']) assert.equal(toActual(v), 1, v);
+  for (const v of ['ตรงเวลา', 'จ่ายตรงเวลา', '0', 'on time', 'no']) assert.equal(toActual(v), 0, v);
+  assert.equal(toActual(''), null);
+  assert.ok(Number.isNaN(toActual('เกือบช้า')));
+  assert.equal(checkRow({ ...good, actual: 'จ่ายช้า' }).value.actual, 1);
+  assert.match(checkRow({ ...good, actual: 'เกือบช้า' }).errors.join(), /ผลจริง "เกือบช้า" ใช้ได้: จ่ายช้า, ตรงเวลา, 1, 0/);
+  const v = checkRow({ ...good, actual: '0' }).value;
+  assert.equal('actual' in payloadOf(v), false);
+  assert.equal(payloadOf(v).stall_type, 'dry');
+});
+
+test('aucOf: นับคู่ คะแนนเท่ากันนับครึ่ง และคิดไม่ได้ถ้ามีกลุ่มเดียว', () => {
+  assert.equal(aucOf([0.9, 0.8, 0.3, 0.1], [1, 1, 0, 0]), 1);
+  assert.equal(aucOf([0.1, 0.3, 0.8, 0.9], [1, 1, 0, 0]), 0);
+  assert.equal(aucOf([0.5, 0.5], [1, 0]), 0.5);
+  assert.equal(aucOf([0.9, 0.4, 0.6, 0.2], [1, 1, 0, 0]), 0.75);   // คู่ (0.4, 0.6) กลับทาง 1 ใน 4 คู่
+  assert.equal(aucOf([0.9, 0.8], [1, 1]), null);
+});
+
+test('evaluateFile: confusion matrix ที่เกณฑ์ 0.5 และตัวชี้วัดตามนิยาม', () => {
+  const row = (y, lr, rf) => ({ input: { actual: y }, scores: { lr, rf } });
+  const results = [row(1, 0.9, 0.4), row(1, 0.6, 0.7), row(1, 0.3, 0.2), row(0, 0.7, 0.1), row(0, 0.2, 0.3), row(0, 0.1, 0.6),
+    { input: { actual: null }, scores: { lr: 0.99, rf: 0.99 } }];               // ไม่มีผลจริง ไม่นับ
+  const e = evaluateFile(results, 'lr');
+  assert.equal(EVAL_THRESHOLD, 0.5);
+  assert.deepEqual([e.n, e.pos, e.neg, e.tp, e.fp, e.fn, e.tn], [6, 3, 3, 2, 1, 1, 2]);
+  assert.equal(e.accuracy, 4 / 6);
+  assert.equal(e.precision, 2 / 3);
+  assert.equal(e.recall, 2 / 3);
+  assert.ok(Math.abs(e.f1 - 2 / 3) < 1e-12);
+  assert.equal(e.auc, 7 / 9);                                  // 0.9 ชนะ 3 คู่, 0.6 ชนะ 2, 0.3 ชนะ 2
+  assert.ok(Math.abs(e.brier - (0.01 + 0.16 + 0.49 + 0.49 + 0.04 + 0.01) / 6) < 1e-12);
+  const r = evaluateFile(results, 'rf');
+  assert.deepEqual([r.tp, r.fp, r.fn, r.tn], [1, 1, 2, 2]);
+  // ดีที่สุดต่อตัวชี้วัด (Brier ยิ่งต่ำยิ่งดี)
+  const evals = { lr: e, rf: r };
+  assert.deepEqual([...bestModels(evals, 'auc')], ['lr']);
+  assert.deepEqual([...bestModels(evals, 'brier', true)], [e.brier < r.brier ? 'lr' : 'rf']);
+  assert.deepEqual([...bestModels({ lr: e }, 'auc')], [], 'มีโมเดลเดียวไม่ต้องบอกว่าดีสุด');
+  assert.equal(isCorrect(results[0], 'lr'), true);
+  assert.equal(isCorrect(results[0], 'rf'), false);
+  assert.equal(isCorrect(results[6], 'lr'), null);
+});
+
+test('evaluateFile: ไม่มีผลจริง หรือมีกลุ่มเดียว ไม่ล้มและไม่แต่งตัวเลข', () => {
+  const none = evaluateFile([{ input: { actual: null }, scores: { lr: 0.4 } }], 'lr');
+  assert.deepEqual([none.n, none.accuracy, none.auc, none.f1], [0, null, null, null]);
+  const allLate = evaluateFile([{ input: { actual: 1 }, scores: { lr: 0.8 } }, { input: { actual: 1 }, scores: { lr: 0.3 } }], 'lr');
+  assert.equal(allLate.auc, null);
+  assert.equal(allLate.recall, 0.5);
+  assert.equal(allLate.precision, 1);
+});
+
+test('resultsCsv: มีผลจริงแล้วเพิ่มคอลัมน์ทายถูก', () => {
+  const v = checkRow({ ...good, actual: 'จ่ายช้า' }).value;
+  const csv = resultsCsv([{ input: v, scores: { lr: 0.8 }, reasons: [] }], { models: ['lr'], model: 'lr', names: { lr: 'LR' }, high: 0.7, mid: 0.4,
+    levelWord: { high: 'สูง', mid: 'กลาง', low: 'ต่ำ' } });
+  const [head, line] = parseCsv(csv);
+  assert.equal(head.at(-1), 'ทายถูก (LR เกณฑ์ 50%)');
+  assert.equal(line.at(-1), 'ถูก');
+  assert.equal(line[head.indexOf('ผลจริง (ถ้ารู้)')], 'จ่ายช้า');
 });

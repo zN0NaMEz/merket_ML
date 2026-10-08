@@ -7,6 +7,7 @@
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { checkRow, evaluateFile } from '../src/ai/predictFile.js';
 
 const PANEL = '#ai-panel-file';
 const PW: Record<string, string> = { staff: 'staff1234', owner: 'owner1234' };
@@ -211,6 +212,101 @@ test.describe('ทำนายจากไฟล์', () => {
     await page.getByRole('button', { name: 'ให้ AI ทำนาย 8 แถว' }).click();
     await expect(page.locator('#pf-res-title')).toHaveText('ผลการทำนาย 8 แถว', { timeout: 90_000 });
     await page.screenshot({ path: 'test-results/predict-1280.png', fullPage: true });
+  });
+});
+
+/* ประเมินโมเดล: ผลตอนเทรนแสดงเสมอ · ไฟล์ที่มีผลจริงถูกวัดในเบราว์เซอร์ */
+test.describe('ประเมินโมเดลในผลทำนายจากไฟล์', () => {
+  test.beforeEach(async ({ page }) => { await loginAs(page, 'staff'); });
+
+  test('ไม่มีผลจริง: แสดงผลตอนเทรนของทุกโมเดล และบอกวิธีวัดกับไฟล์', async ({ page }) => {
+    await openTab(page);
+    await page.getByRole('button', { name: /ลองกับไฟล์ตัวอย่าง/ }).click();
+    await page.getByRole('button', { name: 'ให้ AI ทำนาย 8 แถว' }).click();
+    const ev = page.locator('.pf-eval');
+    await expect(ev).toContainText('ไฟล์นี้ยังไม่มีผลจริง', { timeout: 90_000 });
+    const cards = ev.locator('.pf-ev');
+    expect(await cards.count()).toBeGreaterThanOrEqual(2);
+    await expect(cards.first().locator('thead th')).toHaveText(['ตัวชี้วัด', 'ตอนเทรน']);
+    // ค่าตอนเทรนมาจากรอบเทรนจริง (ไม่ว่าง) และ AUC แสดงพร้อม ± ของ CV
+    await expect(cards.first().locator('tbody tr').first().locator('td')).toHaveText(/^0\.\d\d ± 0\.\d\d$/);
+    await expect(ev.locator('.cm')).toHaveCount(0);
+    await panelChecks(page);
+  });
+
+  test('มีผลจริง: วัดกับไฟล์ ตัวเลขตรงกับที่คำนวณจากคำตอบของ API', async ({ page }) => {
+    await openTab(page);
+    const head = [...HEAD, 'ผลจริง (ถ้ารู้)'];
+    const keys = ['ref', 'stall_type', 'due_month', 'tenure_years', 'n_prior', 'late_count', 'days_late_total', 'bill_total', 'prev_avg', 'actual'];
+    const raw = [
+      ['ก1', 'ของชำ', '7', '6', '6', '0', '0', '2950', '2900', 'ตรงเวลา'],
+      ['ก2', 'เสื้อผ้าและของใช้', '9', '2', '6', '5', '30', '2600', '2450', 'จ่ายช้า'],
+      ['ก3', 'ผักผลไม้', '5', '0.3', '2', '0', '0', '3100', '2800', '0'],
+      ['ก4', 'อาหารปรุงสุก', '6', '3.5', '6', '3', '12', '6200', '3900', '1'],
+      ['ก5', 'อาหารสด', '12', '8', '6', '1', '2', '3400', '3350', 'ตรงเวลา'],
+      ['ก6', 'อาหารสด', '8', '0', '0', '0', '0', '3200', '', 'ตรงเวลา'],
+      ['ก7', 'อาหารปรุงสุก', '10', '1.5', '5', '4', '31', '4100', '4000', 'จ่ายช้า'],
+      ['ก8', 'เสื้อผ้าและของใช้', '4', '4', '6', '2', '6', '2500', '2400', 'ตรงเวลา'],
+      ['ก9', 'ของชำ', '3', '9', '6', '0', '0', '2800', '2800', ''],          // ไม่รู้ผล ไม่นับในการวัด
+      ['ก10', 'ผักผลไม้', '9', '1', '6', '6', '40', '3500', '2600', 'จ่ายช้า'],
+    ];
+    await page.locator(`${PANEL} input[type=file]`).setInputFiles({ name: 'มีผลจริง.csv', mimeType: 'text/csv', buffer: csv([head, ...raw]) });
+    await expect(page.locator('.pf-check__sum')).toContainText('พร้อมทำนาย 10 แถว');
+    const [resp] = await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/ai/predict') && r.request().method() === 'POST', { timeout: 90_000 }),
+      page.getByRole('button', { name: 'ให้ AI ทำนาย 10 แถว' }).click(),
+    ]);
+    const req = resp.request().postDataJSON();
+    expect(req.rows.every((r: Record<string, unknown>) => !('actual' in r)), 'ผลจริงต้องไม่ถูกส่งไปให้ AI').toBe(true);
+    const out = await resp.json();
+    const ev = page.locator('.pf-eval');
+    await expect(ev).toContainText('วัดกับ 9 แถว');
+    await expect(ev).toContainText('จ่ายช้า 4 · ตรงเวลา 5');
+    await expect(ev.locator('.banner.warn')).toContainText('มีผลจริงแค่ 9 แถว');
+    // ค่าในการ์ดของโมเดลที่กำลังดู = evaluateFile กับคำตอบเดียวกัน
+    const results = out.results.map((r: Record<string, unknown>, i: number) => ({
+      ...r, input: checkRow(Object.fromEntries(keys.map((k, j) => [k, raw[i][j]]))).value,
+    }));
+    const on = ev.locator('.pf-ev.is-on');
+    const name = (await on.locator('small').innerText()).trim();
+    const key = Object.entries({ lr: 'Logistic Regression', rf: 'Random Forest', et: 'Extra Trees', gb: 'Gradient Boosting', ens: 'Ensemble (LR + RF + GB)' })
+      .find(([, n]) => name.startsWith(n))![0];
+    const e = evaluateFile(results, key);
+    const firstCell = async (row: number) => (await on.locator('tbody tr').nth(row).locator('td').first().innerText()).replace('ดีสุด', '').trim();
+    expect(await firstCell(0)).toBe(e.auc!.toFixed(2));
+    expect(await firstCell(1)).toBe(`${Math.round(e.accuracy! * 100)}%`);
+    // confusion matrix รวมได้เท่าจำนวนแถวที่มีผลจริง
+    const cells = (await ev.locator('.cm .v').allInnerTexts()).map(t => parseInt(t, 10));
+    expect(cells).toEqual([e.tn, e.fp, e.fn, e.tp]);
+    expect(cells.reduce((a, b) => a + b, 0)).toBe(9);
+    // การ์ดผลรายแถวบอกผลจริงและทายถูกไหม
+    await expect(page.locator('.pf-card', { hasText: 'ก2' }).locator('.ai-ex__facts')).toContainText('จ่ายช้า');
+    expect(await page.locator('.pf-card .chip', { hasText: /ทายถูก|ทายพลาด/ }).count()).toBe(9);
+    // ไฟล์ผลมีคอลัมน์ทายถูก
+    const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'ดาวน์โหลดผล (.csv)' }).click()]);
+    expect(readFileSync((await dl.path())!, 'utf8')).toContain('ทายถูก (');
+    await page.screenshot({ path: 'test-results/predict-eval-390.png', fullPage: true });
+    await panelChecks(page);
+  });
+
+  test('ผลจริงมีแบบเดียว: บอกว่าคิด AUC ไม่ได้', async ({ page }) => {
+    await openTab(page);
+    await page.locator(`${PANEL} input[type=file]`).setInputFiles({ name: 'ช้าหมด.csv', mimeType: 'text/csv', buffer: csv([
+      [...HEAD, 'ผลจริง (ถ้ารู้)'],
+      ['ก1', 'ของชำ', '7', '6', '6', '2', '4', '2950', '2900', 'จ่ายช้า'],
+      ['ก2', 'อาหารสด', '7', '6', '6', '3', '9', '2950', '2900', 'จ่ายช้า'],
+    ]) });
+    await page.getByRole('button', { name: 'ให้ AI ทำนาย 2 แถว' }).click();
+    await expect(page.locator('.pf-eval')).toContainText('คิด AUC ไม่ได้', { timeout: 90_000 });
+    await expect(page.locator('.pf-ev.is-on tbody tr').first().locator('td').first()).toHaveText('–');
+  });
+
+  test('ผลจริงพิมพ์ผิด: บอกค่าที่ใช้ได้', async ({ page }) => {
+    await openTab(page);
+    await page.locator(`${PANEL} input[type=file]`).setInputFiles({ name: 'ผิด.csv', mimeType: 'text/csv', buffer: csv([
+      [...HEAD, 'ผลจริง (ถ้ารู้)'], ['ก1', 'ของชำ', '7', '6', '6', '0', '0', '2950', '2900', 'เกือบช้า'],
+    ]) });
+    await expect(page.locator('.pf-invalid')).toContainText('ผลจริง "เกือบช้า" ใช้ได้: จ่ายช้า, ตรงเวลา, 1, 0');
   });
 });
 
