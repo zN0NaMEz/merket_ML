@@ -144,7 +144,7 @@ npm run dev                     # http://localhost:5173
   | `stall_type` | ประเภทแผง (one-hot) |
   | `season` | ฤดูกาลของวันครบกำหนด: เทศกาล / เปิดเทอม / หน้าฝน / ปกติ (one-hot) |
 
-- **โมเดล:** `StandardScaler + OneHotEncoder` แล้วตามด้วย `LogisticRegression` หรือ `RandomForestClassifier(300 ต้น, max_depth=6)`
+- **โมเดล:** `StandardScaler + OneHotEncoder` แล้วตามด้วย `LogisticRegression` หรือ `RandomForestClassifier(300 ต้น, max_depth=10, min_samples_leaf=10)`
 - **การประเมิน:** แบ่ง train/test 75/25 แบบ stratified และทำ 5-fold cross-validation หลังประเมินแล้วเทรนใหม่ด้วยข้อมูลทั้งหมดเพื่อใช้งานจริง
 
 **ผลการวัดกับข้อมูลตัวอย่าง** (475 บิล อัตราจ่ายช้า 37.5%, test 119 บิล)

@@ -101,11 +101,16 @@ def _preprocessor() -> ColumnTransformer:
     ])
 
 
+# ค่าพารามิเตอร์ RF เลือกจากการค้นหาบนข้อมูลจำลอง 11 ชุด + ข้อมูลสาธิต แล้วยืนยันด้วย CV 5×3 คนละ seed
+# (ลึก 10, ใบละ ≥ 10 แถว): AUC ดีขึ้นเฉลี่ย +0.0045 ใน 9/12 ชุด, t ข้ามชุด = 2.95 (df 11)  ค่าเดิมคือ ลึก 6, ใบละ ≥ 4
+# LR คง C=1.0: ค่า C อื่น ๆ (0.03–10) ไม่ต่างอย่างมีนัยสำคัญ (C=0.1: +0.003, t = 1.25)
+RF_PARAMS = {"n_estimators": 300, "max_depth": 10, "min_samples_leaf": 10, "max_features": "sqrt"}
+
+
 def _make_models() -> dict[str, Pipeline]:
     return {
         "lr": Pipeline([("pre", _preprocessor()), ("clf", LogisticRegression(max_iter=2000, C=1.0))]),
-        "rf": Pipeline([("pre", _preprocessor()), ("clf", RandomForestClassifier(
-            n_estimators=300, max_depth=6, min_samples_leaf=4, random_state=42, n_jobs=-1))]),
+        "rf": Pipeline([("pre", _preprocessor()), ("clf", RandomForestClassifier(**RF_PARAMS, random_state=42, n_jobs=-1))]),
     }
 
 
