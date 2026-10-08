@@ -3,6 +3,7 @@ import { api } from '../../api';
 import { TH_M, baht, thDate } from '../../format';
 import { Chip, Empty, RISK_NAME, RISK_TONE, SecHead } from '../../ui';
 import { Meter } from '../../components/AiCharts';
+import { CLEAR_NOTE } from './DataProfile';
 import { STALL_TYPES, summarySentence } from '../../ai/featureLabels';
 import {
   COLUMNS, MAX_ROWS, SAMPLE_NAME, bestModels, decodeBytes, evaluateFile, fileProblem, isCorrect, levelOf, payloadOf, readTable,
@@ -258,6 +259,7 @@ function ModelEval({ out, model, models, avail, train, trainInfo }) {
       {labeled > 0 && (e0.pos === 0 || e0.neg === 0) && (
         <p className="banner warn pf-eval__note">ผลจริงมีแต่{e0.pos ? 'จ่ายช้า' : 'ตรงเวลา'} จึงคิด AUC ไม่ได้ ต้องมีทั้งสองแบบ</p>
       )}
+      {trainInfo?.sim_profile === 'clear' && <p className="ai-kpis__note pf-eval__note" role="note">ค่า &ldquo;ตอนเทรน&rdquo;: {CLEAR_NOTE}</p>}
       {!train && <p className="banner info pf-eval__note">ยังไม่มีผลประเมินตอนเทรน (บริการ AI ไม่ตอบตอนเปิดหน้า) รีเฟรชหน้านี้เมื่อบริการพร้อม</p>}
 
       <div className="pf-evals">

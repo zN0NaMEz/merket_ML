@@ -403,6 +403,17 @@ a{color:var(--accent)}
 .reset-body{display:flex;flex-direction:column;gap:14px;font-size:14.5px;line-height:1.7}
 .reset-result{border:1px solid var(--line);border-left:3px solid var(--accent);background:var(--accent-soft);padding:14px 18px;border-radius:2px}
 .reset-result p{margin:4px 0 0}
+/* เลือกโปรไฟล์ข้อมูลสาธิต: จุดกดทั้งแถบ ≥ 48 px [S4][S6] สีจาก token เดิม */
+.reset-profiles{display:grid;gap:8px;margin:0;padding:0;border:0;min-width:0}
+.reset-profiles legend{margin-bottom:6px;padding:0;font-size:14px;font-weight:600}
+.reset-profile{display:flex;gap:10px;align-items:flex-start;min-height:48px;padding:10px 12px;border:1px solid var(--line);border-radius:2px;background:var(--surface);cursor:pointer}
+.reset-profile:hover{border-color:var(--ink)}
+.reset-profile.is-on{border-color:var(--accent);background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent)}
+.reset-profile:has(input:focus-visible){outline:2px solid var(--focus);outline-offset:2px}
+.reset-profile input{flex:none;width:18px;height:18px;margin:4px 0 0;accent-color:var(--accent)}
+.reset-profile strong,.reset-profile small{display:block;line-height:1.5}
+.reset-profile strong{font-weight:600}
+.reset-profile small{font-size:13.5px;color:var(--muted)}
 
 /* ---------- ปรับใช้งานบนมือถือ (RodeMap.md รอบ 1) · ใช้ชุดสีเดิมทั้งหมด ---------- */
 /* จำนวนงานค้างในเมนูแทนรหัสกระบวนการ [S10] · สีบรอนซ์บนครีม 5.76:1 / มืด 7.44:1 */

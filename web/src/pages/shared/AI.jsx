@@ -4,6 +4,7 @@ import { baht, periodLabel, thDate } from '../../format';
 import { Chip, Empty, Loader, PageHead, RISK_NAME, RISK_TONE, SecHead, useApp, useData } from '../../ui';
 import { FactorBars, Meter, MeterStrips, PayForecastChart, ScoreHistogram, UsageBandChart, isFlagged } from '../../components/AiCharts';
 import PredictFromFile from './PredictFromFile';
+import DataProfile, { CLEAR_NOTE } from './DataProfile';
 import '../../styles/ai.css';
 
 /*
@@ -99,6 +100,7 @@ export default function AI() {
           right={<button className="btn" disabled={!!busy} onClick={retrain}>{busy === 'train' ? 'กำลังเทรน… ราว 10 วินาที' : 'เทรนโมเดลใหม่'}</button>}
         />
         <Status d={d} />
+        <DataProfile profile={d.risk.error ? null : d.risk.sim_profile} />
 
         <Tabs tab={tab} setTab={setTab} />
         <div role="tabpanel" id={`ai-panel-${tab}`} aria-labelledby={`ai-tab-${tab}`} className="ai-panel">
@@ -116,7 +118,7 @@ export default function AI() {
           {tab === 'file' && (
             <PredictFromFile models={MODELS} activeModel={d.ai.risk_model} high={draft.risk_high} mid={draft.risk_mid}
               train={d.risk.error ? null : d.risk.models}
-              trainInfo={{ trained_at: d.risk.trained_at, n_train: d.risk.n_train, n_test: d.risk.n_test }} />
+              trainInfo={{ trained_at: d.risk.trained_at, n_train: d.risk.n_train, n_test: d.risk.n_test, sim_profile: d.risk.sim_profile }} />
           )}
         </div>
 
@@ -129,18 +131,21 @@ export default function AI() {
 /* ---------------- ส่วนประกอบร่วม ---------------- */
 
 function Status({ d }) {
+  const { info } = useApp();
   const r = d.risk, a = d.anomaly;
   if (r.error && a.error) return null;
+  // โหมดสาธิตมีแผง "ชุดข้อมูลที่ AI เรียน" บอกเรื่องนี้แล้ว (DataProfile) บรรทัดสถานะจึงบอกเฉพาะเมื่อไม่มีแผงนั้น
+  const plain = !info?.demo_mode;
   return (
     <p className="ai-status">
       {r.trained_at && <span>เทรนล่าสุด {thDate(r.trained_at.slice(0, 10))}</span>}
       {r.n_samples != null && <span>เรียนจากบิล {r.n_samples} ใบ</span>}
       {a.n_train != null && <span>ค่ามิเตอร์ {a.n_train} ค่า</span>}
       <span>โมเดลที่ใช้อยู่: {MODELS[d.ai.risk_model]?.plain || d.ai.risk_model}</span>
-      {r.sim_profile === 'clear' && (
+      {plain && r.sim_profile === 'clear' && (
         <span className="ai-status__synth"><b>ข้อมูลจำลองแบบความบังเอิญต่ำ</b> ตัวเลขความแม่นสูงเพราะข้อมูลชัด ไม่ใช่ภาพของตลาดจริง</span>
       )}
-      {r.sim_profile === 'realistic' && <span>เรียนจากข้อมูลจำลองของระบบสาธิต</span>}
+      {plain && r.sim_profile === 'realistic' && <span>เรียนจากข้อมูลจำลองของระบบสาธิต</span>}
     </p>
   );
 }
@@ -263,6 +268,7 @@ function RiskTab({ d, draft, setDraft, showcase }) {
         <Kpi label="ตอนนี้จะเตือนล่วงหน้า" value={`${warnNow.length} ราย`}
           note={warnNow.length ? warnNow.map(o => o.stall_id).join(' · ') : 'ยังไม่มีบิลค้างที่ถึงเกณฑ์'} />
       </div>
+      {d.risk.sim_profile === 'clear' && <p className="ai-kpis__note" role="note">{CLEAR_NOTE}</p>}
 
       {showcase && <RiskShowcase sc={showcase} draft={draft} />}
 
@@ -415,6 +421,7 @@ function ModelPicker({ d, rows, draft, setDraft }) {
     <section className="panel">
       <SecHead title="เลือกโมเดล"
         sub={`เทียบกันที่เกณฑ์เสี่ยงสูง ${pct(draft.risk_high)} ที่กำลังตั้ง · ค่า ± คือความแกว่งระหว่างการแบ่งข้อมูล 5 แบบ ถ้าสองโมเดลต่างกันน้อยกว่านี้ อาจเป็นความบังเอิญ`} />
+      {d.risk.sim_profile === 'clear' && <p className="ai-kpis__note ai-models__clear" role="note">{CLEAR_NOTE}</p>}
       {missing.length > 0 && (
         <p className="banner info ai-models__note">ยังมีอีก {missing.length} โมเดลให้เลือก ({missing.map(k => MODELS[k].plain).join(', ')}) กดปุ่ม &ldquo;เทรนโมเดลใหม่&rdquo; ด้านบนหนึ่งครั้งเพื่อเทรนทุกโมเดลพร้อมกัน</p>
       )}

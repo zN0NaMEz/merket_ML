@@ -318,8 +318,119 @@ test.describe('ป้ายข้อมูลจำลอง', () => {
     await loginAs(page, 'staff');
     await page.goto('/staff/ai');
     await expect(page.locator('main h1')).toBeVisible({ timeout: 90_000 });
-    await expect(page.locator('.ai-status__synth')).toContainText('ข้อมูลจำลองแบบความบังเอิญต่ำ');
+    await expect(page.locator('.ai-data')).toContainText('ข้อมูลจำลอง · ความบังเอิญต่ำ');
+    await expect(page.locator('.ai-kpis__note').first()).toContainText('ข้อมูลจำลองแบบความบังเอิญต่ำ');
     await page.goto('/ai/behind');
     await expect(page.locator('.bh-synth').first()).toContainText('ความบังเอิญต่ำ');
+  });
+});
+
+/*
+ * รีเซ็ตข้อมูลสาธิตแบบเลือกโปรไฟล์ (หน้าเจ้าของตลาด > สำหรับการสาธิตระบบ)
+ * ลบข้อมูลทั้งหมดจริง จึงรันเฉพาะฐานข้อมูลทดสอบที่ตั้ง UI_RESEED_KEY ไว้ และไม่รันกับ vercel.app
+ */
+test.describe('รีเซ็ตข้อมูลสาธิตเลือกโปรไฟล์', () => {
+  test('เลือกความบังเอิญต่ำ → ทุกหน้าติดป้าย และทายถูกรวมเกิน 90%', async ({ page, baseURL }) => {
+    test.skip(!process.env.UI_RESEED_KEY || /vercel\.app/.test(baseURL || ''), 'ต้องตั้ง UI_RESEED_KEY และใช้ฐานข้อมูลทดสอบเท่านั้น');
+    test.setTimeout(240_000);
+    const r = await page.request.post('/api/auth/login', { data: { username: 'owner', password: 'owner1234' } });
+    const { token, user } = await r.json();
+    await page.addInitScript(([t, u]) => { localStorage.setItem('bunyat.token', t); localStorage.setItem('bunyat.user', u); }, [token, JSON.stringify(user)]);
+    await page.goto('/owner/more');
+    await page.getByText('สำหรับการสาธิตระบบ').click();
+    await page.getByRole('button', { name: 'รีเซ็ตข้อมูลสาธิต…' }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByRole('radio', { name: /เหมือนตลาดจริง/ })).toBeChecked();
+    await dialog.getByText('ความบังเอิญต่ำ (สำหรับสาธิต)').click();
+    await expect(dialog.getByRole('radio', { name: /ความบังเอิญต่ำ/ })).toBeChecked();
+    // จุดกดในหน้าต่างไม่เล็กกว่า 44 px และ axe ไม่มีปัญหาร้ายแรง
+    const small = await dialog.locator('.reset-profile').evaluateAll(els => els.filter(e => e.getBoundingClientRect().height < 44).length);
+    expect(small).toBe(0);
+    const axe = await new AxeBuilder({ page }).include('[role=dialog]').withTags(['wcag2a', 'wcag2aa']).analyze();
+    expect(axe.violations.filter(v => v.impact === 'serious' || v.impact === 'critical').map(v => v.id)).toEqual([]);
+    await dialog.getByLabel('รหัสรีเซ็ต').fill(process.env.UI_RESEED_KEY!);
+    const [resp] = await Promise.all([
+      page.waitForResponse(x => x.url().includes('/api/admin/reseed'), { timeout: 200_000 }),
+      dialog.getByRole('button', { name: 'ลบและสร้างใหม่' }).click(),
+    ]);
+    expect(resp.request().postDataJSON()).toEqual({ dry_run: false, profile: 'clear' });
+    await expect(dialog.locator('.reset-result')).toContainText('ข้อมูลแบบความบังเอิญต่ำ (สำหรับสาธิต)', { timeout: 200_000 });
+    const status = await (await page.request.get('/api/ai/status')).json();
+    expect(status.sim_profile).toBe('clear');
+    // หน้า AI วิเคราะห์ของเจ้าหน้าที่: ป้ายกำกับ และทายถูกรวมของโมเดลที่ใช้อยู่
+    await loginAs(page, 'staff');
+    await page.goto('/staff/ai');
+    await expect(page.locator('main h1')).toBeVisible({ timeout: 90_000 });
+    await expect(page.locator('.ai-data')).toContainText('ข้อมูลจำลอง · ความบังเอิญต่ำ');
+    await expect(page.locator('.ai-kpis__note').first()).toContainText('ข้อมูลจำลองแบบความบังเอิญต่ำ');
+    const acc = await page.locator('.ai-kpi', { hasText: 'ทายถูกรวม' }).locator('.ai-kpi__value').innerText();
+    expect(parseInt(acc, 10), `ทายถูกรวม ${acc}`).toBeGreaterThan(90);
+    await page.screenshot({ path: 'test-results/clear-ai-390.png', fullPage: false });
+  });
+});
+
+/*
+ * สลับชุดข้อมูลสาธิตจากหน้า AI วิเคราะห์ของเจ้าหน้าที่ (แผง "ชุดข้อมูลที่ AI เรียน") ไปแล้วกลับ
+ * ลบข้อมูลจริง จึงรันเฉพาะฐานข้อมูลทดสอบที่ตั้ง UI_RESEED_KEY ไว้ และไม่รันกับ vercel.app · จบแล้วกลับเป็นแบบตลาดจริง
+ */
+test.describe('ชุดข้อมูลที่ AI เรียน (หน้า AI วิเคราะห์ของเจ้าหน้าที่)', () => {
+  test('ความบังเอิญต่ำ → ทายถูกรวมเกิน 90% พร้อมคำกำกับ → กลับเป็นแบบตลาดจริง', async ({ page, baseURL }) => {
+    test.skip(!process.env.UI_RESEED_KEY || /vercel\.app/.test(baseURL || ''), 'ต้องตั้ง UI_RESEED_KEY และใช้ฐานข้อมูลทดสอบเท่านั้น');
+    test.setTimeout(300_000);
+    await loginAs(page, 'staff');
+    await page.goto('/staff/ai');
+    await expect(page.locator('main h1')).toBeVisible({ timeout: 90_000 });
+    const panel = page.locator('.ai-data');
+
+    const resetTo = async (button: RegExp, profileName: RegExp, expectBody: string) => {
+      await panel.getByRole('button', { name: button }).click();
+      const dialog = page.getByRole('dialog');
+      await expect(dialog.getByRole('radio', { name: profileName })).toBeChecked();       // เลือกไว้ให้ล่วงหน้าตามปุ่มที่กด
+      await dialog.getByLabel('รหัสรีเซ็ต').fill(process.env.UI_RESEED_KEY!);
+      const [resp] = await Promise.all([
+        page.waitForResponse(x => x.url().includes('/api/admin/reseed'), { timeout: 240_000 }),
+        dialog.getByRole('button', { name: 'ลบและสร้างใหม่' }).click(),
+      ]);
+      expect(resp.request().postDataJSON()).toEqual({ dry_run: false, profile: expectBody });
+      await expect(dialog.locator('.reset-result')).toContainText('รีเซ็ตเสร็จแล้ว', { timeout: 240_000 });
+      await dialog.getByRole('button', { name: 'เสร็จแล้ว' }).click();
+      await expect(dialog).toHaveCount(0);
+    };
+
+    // เริ่มจากข้อมูลแบบตลาดจริง (ทุกเทสต์ก่อนหน้า seed realistic) ถ้าไม่ใช่ให้รีเซ็ตก่อน
+    if (!(await panel.locator('.chip').innerText()).includes('เหมือนตลาดจริง')) await resetTo(/กลับเป็นข้อมูลเหมือนตลาดจริง/, /เหมือนตลาดจริง/, 'realistic');
+    await expect(panel).toContainText('ข้อมูลจำลอง · เหมือนตลาดจริง');
+    await expect(page.locator('.ai-kpis__note')).toHaveCount(0);
+    // แผงผ่านเกณฑ์มือถือ: จุดกด ≥ 44 px ตัวหนังสือ ≥ 13 px และ axe
+    const tiny = await panel.locator('*').evaluateAll(els => els.filter(e => [...e.childNodes].some(n => n.nodeType === 3 && (n.textContent || '').trim())
+      && parseFloat(getComputedStyle(e).fontSize) < 13).map(e => (e.textContent || '').slice(0, 20)));
+    expect(tiny).toEqual([]);
+    const btn = await panel.getByRole('button').boundingBox();
+    expect(btn!.height).toBeGreaterThanOrEqual(44);
+    const axe = await new AxeBuilder({ page }).include('.ai-data').withTags(['wcag2a', 'wcag2aa']).analyze();
+    expect(axe.violations.filter(v => v.impact === 'serious' || v.impact === 'critical').map(v => v.id)).toEqual([]);
+
+    // ไปเป็นข้อมูลแบบความบังเอิญต่ำ: หน้าโหลดตัวเลขใหม่เอง ทายถูกรวมเกิน 90% และมีคำกำกับติดตัวเลข
+    await resetTo(/สร้างข้อมูลแบบความบังเอิญต่ำ/, /ความบังเอิญต่ำ/, 'clear');
+    await expect(panel).toContainText('ข้อมูลจำลอง · ความบังเอิญต่ำ', { timeout: 90_000 });
+    const acc = page.locator('.ai-kpi', { hasText: 'ทายถูกรวม' }).locator('.ai-kpi__value');
+    await expect(acc).toHaveText(/^\d+%$/);
+    expect(parseInt(await acc.innerText(), 10), 'ทายถูกรวม').toBeGreaterThan(90);
+    await expect(page.locator('.ai-kpis__note').first()).toHaveText('ตัวเลขชุดนี้มาจากข้อมูลจำลองแบบความบังเอิญต่ำ (สำหรับสาธิต) จึงสูงกว่าที่ตลาดจริงจะทำได้');
+    await expect(page.locator('.ai-models__clear')).toBeVisible();
+    await page.locator('.ai-kpis').scrollIntoViewIfNeeded();
+    await page.waitForFunction(() => document.getAnimations().filter(a => a.effect?.getComputedTiming().iterations !== Infinity).every(a => a.playState === 'finished'));
+    await page.screenshot({ path: 'test-results/staff-clear-390.png' });
+    // แท็บทำนายจากไฟล์: ค่าตอนเทรนก็มีคำกำกับ
+    await page.getByRole('tab', { name: /ทำนายจากไฟล์/ }).click();
+    await page.getByRole('button', { name: /ลองกับไฟล์ตัวอย่าง/ }).click();
+    await page.getByRole('button', { name: 'ให้ AI ทำนาย 8 แถว' }).click();
+    await expect(page.locator('.pf-eval .ai-kpis__note')).toContainText('ค่า “ตอนเทรน”', { timeout: 90_000 });
+    await page.getByRole('tab', { name: /ทำนายการจ่ายช้า/ }).first().click();
+
+    // กลับเป็นแบบตลาดจริง: คำกำกับหายไปพร้อมกัน
+    await resetTo(/กลับเป็นข้อมูลเหมือนตลาดจริง/, /เหมือนตลาดจริง/, 'realistic');
+    await expect(panel).toContainText('ข้อมูลจำลอง · เหมือนตลาดจริง', { timeout: 90_000 });
+    await expect(page.locator('.ai-kpis__note')).toHaveCount(0);
   });
 });

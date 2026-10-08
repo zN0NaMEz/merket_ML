@@ -278,6 +278,19 @@ fieldset.ai-methods { display: grid; grid-template-columns: repeat(auto-fit, min
 .ai-strip.is-off { opacity: .45; }
 @media (max-width: 900px) { .ai-cases { grid-template-columns: 1fr; } }
 
+/* ---------- ชุดข้อมูลที่ AI เรียน (โหมดสาธิต) + คำกำกับติดตัวเลข ---------- */
+.ai-data { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; padding: 16px 20px; }
+.ai-data.is-clear { border-left: 3px solid var(--warn); }
+.ai-data__body { flex: 1 1 340px; min-width: 0; }
+.ai-data__title { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 17px; }
+.ai-data__say { margin: 6px 0 0; max-width: 70ch; font-size: 14px; line-height: 1.7; color: var(--muted); }
+.ai-data__act { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.ai-data__act .btn { min-height: 44px; white-space: normal; text-align: left; }
+.ai-data__act small { font-size: 13px; }
+/* คำกำกับวางติดใต้ตัวเลข (ช่องว่างระหว่างส่วนของแผงคือ 24 px จึงดึงขึ้นมาให้ชิดกล่องตัวเลข) */
+.ai-kpis__note { margin: -14px 0 0; padding: 8px 12px; border-left: 3px solid var(--warn); background: var(--warn-soft); color: var(--ink); font-size: 13.5px; line-height: 1.6; }
+.ai-models__clear, .pf-eval__note.ai-kpis__note { margin: 0 0 12px; }
+
 /* ---------- ทำนายจากไฟล์ (สีจาก token เดิมทั้งหมด · ตัวหนังสือ ≥ 13 px [S14] · จุดกด ≥ 44 px ปุ่มหลัก 48 px [S4][S6]) ---------- */
 .pf-steps { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 20px; }
 .pf-step { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 14px; align-items: start; }

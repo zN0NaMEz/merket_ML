@@ -33,6 +33,10 @@
   bill's issue_date. bills.seen_at is recorded when a vendor opens GET /vendor/overview (migration v5). Old model sets
   without these columns keep working (risk._cols selects each pipeline's own columns) until the next retrain.
 - Demo data profiles (api/src/lib/simBehavior.js, settings.sim): realistic (default) or clear (logit × 3, low chance).
+  Chosen in the reset dialog (web/src/components/DemoReset.jsx ResetDialog, used by the owner page and by the staff AI page
+  panel web/src/pages/shared/DataProfile.jsx) or via reseed body { profile }. With clear, CLEAR_NOTE sits under every
+  accuracy block on the staff AI page (KPIs, model picker, predict-from-file evaluation).
+  Realistic accuracy is capped near 0.80 by the data (Bayes ceiling); only clear exceeds 0.90 — never fake it otherwise.
   Behaviors and sharpness must match ml/app/synthetic.py. ML stores metrics.sim_profile; every place that shows quality
   numbers must show the "ข้อมูลจำลอง · ความบังเอิญต่ำ" badge for clear (SynthBadge profile prop, staff AI status line).
   Never present clear-profile numbers as real-market accuracy. Reseeding production still needs the user's confirmation.
