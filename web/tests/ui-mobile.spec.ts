@@ -60,6 +60,9 @@ async function axeSerious(page: Page) {
 }
 
 async function fullChecks(page: Page) {
+  // หน้าเฟดและเลื่อนเข้า 0.55 วินาที (.page) ถ้าวัดระหว่างนั้น ขนาดจุดกดคลาดเป็นทศนิยม (เช่น 43.99 px) และสีดูจาง
+  await page.waitForFunction(() => document.getAnimations()
+    .filter(a => a.effect?.getComputedTiming().iterations !== Infinity).every(a => a.playState === 'finished'));
   await noHorizontalScroll(page);
   expect(await smallTargets(page), 'จุดกดเล็กกว่า 44 × 44 px').toEqual([]);
   expect(await tinyText(page), 'ตัวหนังสือเล็กกว่า 13 px').toEqual([]);

@@ -7,7 +7,7 @@
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import { checkRow, evaluateFile } from '../src/ai/predictFile.js';
+import { checkRow, evaluateFile, experimentCsv, readTable } from '../src/ai/predictFile.js';
 
 const PANEL = '#ai-panel-file';
 const PW: Record<string, string> = { staff: 'staff1234', owner: 'owner1234' };
@@ -301,6 +301,51 @@ test.describe('ประเมินโมเดลในผลทำนาย�
     await expect(page.locator('.pf-ev.is-on tbody tr').first().locator('td').first()).toHaveText('–');
   });
 
+  test('ไฟล์ทดลอง (มีผลจริง): คลิกเดียว วัดความแม่นได้ทันที พร้อมคำกำกับ', async ({ page }) => {
+    await openTab(page);
+    await expect(page.locator('.pf-exp__note')).toContainText('คำกำกับ: ข้อมูลจำลองแบบความบังเอิญต่ำ สำหรับทดลอง ไม่ใช่ข้อมูลจริง');
+    // ดาวน์โหลดได้ และทุกแถวมีคำกำกับในคอลัมน์หมายเหตุ
+    const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'ดาวน์โหลดไฟล์ทดลอง (มีผลจริง)' }).click()]);
+    expect(dl.suggestedFilename()).toBe('ไฟล์ทดลอง-ข้อมูลจำลองความบังเอิญต่ำ-มีผลจริง.csv');
+    const text = readFileSync((await dl.path())!, 'utf8');
+    expect(text.charCodeAt(0)).toBe(0xfeff);
+    const lines = text.replace(/^﻿/, '').split(/\r?\n/).filter(Boolean);
+    expect(lines[0].split(',').at(-1)).toBe('หมายเหตุ');
+    expect(lines.length).toBe(201);
+    expect(lines.slice(1).every(l => l.endsWith('ข้อมูลจำลองแบบความบังเอิญต่ำ สำหรับทดลอง ไม่ใช่ข้อมูลจริง'))).toBe(true);
+
+    // ลองในคลิกเดียว
+    await page.getByRole('button', { name: 'ลองกับไฟล์ทดลอง (มีผลจริง)' }).click();
+    await expect(page.locator('#pf-check-title')).toHaveText('ไฟล์ทดลอง (มีผลจริง)');
+    await expect(page.locator('.pf-exp__flag')).toContainText('ข้อมูลจำลองแบบความบังเอิญต่ำ');
+    await expect(page.locator('.pf-check__sum')).toContainText('พร้อมทำนาย 200 แถว');
+    const [resp] = await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/ai/predict') && r.request().method() === 'POST', { timeout: 90_000 }),
+      page.getByRole('button', { name: 'ให้ AI ทำนาย 200 แถว' }).click(),
+    ]);
+    const sent = resp.request().postDataJSON().rows;
+    expect(sent.every((r: Record<string, unknown>) => !('note' in r) && !('actual' in r)), 'หมายเหตุและผลจริงไม่ถูกส่งไปให้ AI').toBe(true);
+    const out = await resp.json();
+    const ev = page.locator('.pf-eval');
+    await expect(ev).toContainText('วัดกับ 200 แถว');
+    await expect(ev).toContainText('ถ้าทายว่าตรงเวลาทุกใบจะถูก 75%');
+    await expect(ev.locator('.pf-eval__note.ai-kpis__note').first()).toContainText('ไฟล์ทดลองนี้เป็นข้อมูลจำลองแบบความบังเอิญต่ำ');
+    // ตัวเลขบนจอ = evaluateFile กับคำตอบเดียวกัน
+    const table = readTable(experimentCsv());
+    const results = out.results.map((r: Record<string, unknown>, i: number) => ({ ...r, input: table.rows[i].value }));
+    const on = ev.locator('.pf-ev.is-on');
+    const name = (await on.locator('small').innerText()).trim();
+    const key = Object.entries({ lr: 'Logistic Regression', rf: 'Random Forest', et: 'Extra Trees', gb: 'Gradient Boosting', ens: 'Ensemble (LR + RF + GB)' })
+      .find(([, n]) => name.startsWith(n))![0];
+    const e = evaluateFile(results, key);
+    const acc = (await on.locator('tbody tr').nth(1).locator('td').first().innerText()).replace('ดีสุด', '').trim();
+    expect(acc).toBe(`${Math.round(e.accuracy! * 100)}%`);
+    console.log(`ไฟล์ทดลอง: ${key} ทายถูกรวม ${acc} · AUC ${e.auc!.toFixed(3)} · ทุกโมเดล`,
+      out.models.map((m: string) => `${m} ${Math.round(evaluateFile(results, m).accuracy! * 100)}%`).join(' '));
+    await page.screenshot({ path: 'test-results/experiment-390.png', fullPage: true });
+    await panelChecks(page);
+  });
+
   test('ผลจริงพิมพ์ผิด: บอกค่าที่ใช้ได้', async ({ page }) => {
     await openTab(page);
     await page.locator(`${PANEL} input[type=file]`).setInputFiles({ name: 'ผิด.csv', mimeType: 'text/csv', buffer: csv([
@@ -318,7 +363,7 @@ test.describe('ป้ายข้อมูลจำลอง', () => {
     await loginAs(page, 'staff');
     await page.goto('/staff/ai');
     await expect(page.locator('main h1')).toBeVisible({ timeout: 90_000 });
-    await expect(page.locator('.ai-data')).toContainText('ข้อมูลจำลอง · ความบังเอิญต่ำ');
+    await expect(page.locator('.ai-status__synth')).toContainText('ข้อมูลจำลองแบบความบังเอิญต่ำ');
     await expect(page.locator('.ai-kpis__note').first()).toContainText('ข้อมูลจำลองแบบความบังเอิญต่ำ');
     await page.goto('/ai/behind');
     await expect(page.locator('.bh-synth').first()).toContainText('ความบังเอิญต่ำ');
@@ -361,76 +406,10 @@ test.describe('รีเซ็ตข้อมูลสาธิตเลือ�
     await loginAs(page, 'staff');
     await page.goto('/staff/ai');
     await expect(page.locator('main h1')).toBeVisible({ timeout: 90_000 });
-    await expect(page.locator('.ai-data')).toContainText('ข้อมูลจำลอง · ความบังเอิญต่ำ');
+    await expect(page.locator('.ai-status__synth')).toContainText('ข้อมูลจำลองแบบความบังเอิญต่ำ');
     await expect(page.locator('.ai-kpis__note').first()).toContainText('ข้อมูลจำลองแบบความบังเอิญต่ำ');
     const acc = await page.locator('.ai-kpi', { hasText: 'ทายถูกรวม' }).locator('.ai-kpi__value').innerText();
     expect(parseInt(acc, 10), `ทายถูกรวม ${acc}`).toBeGreaterThan(90);
     await page.screenshot({ path: 'test-results/clear-ai-390.png', fullPage: false });
-  });
-});
-
-/*
- * สลับชุดข้อมูลสาธิตจากหน้า AI วิเคราะห์ของเจ้าหน้าที่ (แผง "ชุดข้อมูลที่ AI เรียน") ไปแล้วกลับ
- * ลบข้อมูลจริง จึงรันเฉพาะฐานข้อมูลทดสอบที่ตั้ง UI_RESEED_KEY ไว้ และไม่รันกับ vercel.app · จบแล้วกลับเป็นแบบตลาดจริง
- */
-test.describe('ชุดข้อมูลที่ AI เรียน (หน้า AI วิเคราะห์ของเจ้าหน้าที่)', () => {
-  test('ความบังเอิญต่ำ → ทายถูกรวมเกิน 90% พร้อมคำกำกับ → กลับเป็นแบบตลาดจริง', async ({ page, baseURL }) => {
-    test.skip(!process.env.UI_RESEED_KEY || /vercel\.app/.test(baseURL || ''), 'ต้องตั้ง UI_RESEED_KEY และใช้ฐานข้อมูลทดสอบเท่านั้น');
-    test.setTimeout(300_000);
-    await loginAs(page, 'staff');
-    await page.goto('/staff/ai');
-    await expect(page.locator('main h1')).toBeVisible({ timeout: 90_000 });
-    const panel = page.locator('.ai-data');
-
-    const resetTo = async (button: RegExp, profileName: RegExp, expectBody: string) => {
-      await panel.getByRole('button', { name: button }).click();
-      const dialog = page.getByRole('dialog');
-      await expect(dialog.getByRole('radio', { name: profileName })).toBeChecked();       // เลือกไว้ให้ล่วงหน้าตามปุ่มที่กด
-      await dialog.getByLabel('รหัสรีเซ็ต').fill(process.env.UI_RESEED_KEY!);
-      const [resp] = await Promise.all([
-        page.waitForResponse(x => x.url().includes('/api/admin/reseed'), { timeout: 240_000 }),
-        dialog.getByRole('button', { name: 'ลบและสร้างใหม่' }).click(),
-      ]);
-      expect(resp.request().postDataJSON()).toEqual({ dry_run: false, profile: expectBody });
-      await expect(dialog.locator('.reset-result')).toContainText('รีเซ็ตเสร็จแล้ว', { timeout: 240_000 });
-      await dialog.getByRole('button', { name: 'เสร็จแล้ว' }).click();
-      await expect(dialog).toHaveCount(0);
-    };
-
-    // เริ่มจากข้อมูลแบบตลาดจริง (ทุกเทสต์ก่อนหน้า seed realistic) ถ้าไม่ใช่ให้รีเซ็ตก่อน
-    if (!(await panel.locator('.chip').innerText()).includes('เหมือนตลาดจริง')) await resetTo(/กลับเป็นข้อมูลเหมือนตลาดจริง/, /เหมือนตลาดจริง/, 'realistic');
-    await expect(panel).toContainText('ข้อมูลจำลอง · เหมือนตลาดจริง');
-    await expect(page.locator('.ai-kpis__note')).toHaveCount(0);
-    // แผงผ่านเกณฑ์มือถือ: จุดกด ≥ 44 px ตัวหนังสือ ≥ 13 px และ axe
-    const tiny = await panel.locator('*').evaluateAll(els => els.filter(e => [...e.childNodes].some(n => n.nodeType === 3 && (n.textContent || '').trim())
-      && parseFloat(getComputedStyle(e).fontSize) < 13).map(e => (e.textContent || '').slice(0, 20)));
-    expect(tiny).toEqual([]);
-    const btn = await panel.getByRole('button').boundingBox();
-    expect(btn!.height).toBeGreaterThanOrEqual(44);
-    const axe = await new AxeBuilder({ page }).include('.ai-data').withTags(['wcag2a', 'wcag2aa']).analyze();
-    expect(axe.violations.filter(v => v.impact === 'serious' || v.impact === 'critical').map(v => v.id)).toEqual([]);
-
-    // ไปเป็นข้อมูลแบบความบังเอิญต่ำ: หน้าโหลดตัวเลขใหม่เอง ทายถูกรวมเกิน 90% และมีคำกำกับติดตัวเลข
-    await resetTo(/สร้างข้อมูลแบบความบังเอิญต่ำ/, /ความบังเอิญต่ำ/, 'clear');
-    await expect(panel).toContainText('ข้อมูลจำลอง · ความบังเอิญต่ำ', { timeout: 90_000 });
-    const acc = page.locator('.ai-kpi', { hasText: 'ทายถูกรวม' }).locator('.ai-kpi__value');
-    await expect(acc).toHaveText(/^\d+%$/);
-    expect(parseInt(await acc.innerText(), 10), 'ทายถูกรวม').toBeGreaterThan(90);
-    await expect(page.locator('.ai-kpis__note').first()).toHaveText('ตัวเลขชุดนี้มาจากข้อมูลจำลองแบบความบังเอิญต่ำ (สำหรับสาธิต) จึงสูงกว่าที่ตลาดจริงจะทำได้');
-    await expect(page.locator('.ai-models__clear')).toBeVisible();
-    await page.locator('.ai-kpis').scrollIntoViewIfNeeded();
-    await page.waitForFunction(() => document.getAnimations().filter(a => a.effect?.getComputedTiming().iterations !== Infinity).every(a => a.playState === 'finished'));
-    await page.screenshot({ path: 'test-results/staff-clear-390.png' });
-    // แท็บทำนายจากไฟล์: ค่าตอนเทรนก็มีคำกำกับ
-    await page.getByRole('tab', { name: /ทำนายจากไฟล์/ }).click();
-    await page.getByRole('button', { name: /ลองกับไฟล์ตัวอย่าง/ }).click();
-    await page.getByRole('button', { name: 'ให้ AI ทำนาย 8 แถว' }).click();
-    await expect(page.locator('.pf-eval .ai-kpis__note')).toContainText('ค่า “ตอนเทรน”', { timeout: 90_000 });
-    await page.getByRole('tab', { name: /ทำนายการจ่ายช้า/ }).first().click();
-
-    // กลับเป็นแบบตลาดจริง: คำกำกับหายไปพร้อมกัน
-    await resetTo(/กลับเป็นข้อมูลเหมือนตลาดจริง/, /เหมือนตลาดจริง/, 'realistic');
-    await expect(panel).toContainText('ข้อมูลจำลอง · เหมือนตลาดจริง', { timeout: 90_000 });
-    await expect(page.locator('.ai-kpis__note')).toHaveCount(0);
   });
 });

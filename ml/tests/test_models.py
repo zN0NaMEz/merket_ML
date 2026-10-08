@@ -284,3 +284,36 @@ class SyntheticBehaviorTest(unittest.TestCase):
             return roc_auc_score(d["label"], d["bill_id"].map(o))
         self.assertGreater(ceiling(by["clear"]), 0.95)
         self.assertLess(ceiling(by["behavior"]), 0.9)
+
+
+class ExperimentSampleTest(unittest.TestCase):
+    """ไฟล์ทดลองของหน้า "ทำนายจากไฟล์" (web/src/ai/experimentSample.js) สร้างจากข้อมูลจำลองชุด clear"""
+
+    @classmethod
+    def setUpClass(cls):
+        from app import synthetic as S
+        cls.S = S
+        cls.rows = S.experiment_rows()
+
+    def test_rows_give_same_features_as_the_bills(self):
+        """ค่าที่ใส่ในไฟล์ต้องให้ปัจจัยเดียวกับที่ระบบคิดจากบิลจริงของตลาดจำลอง และผลจริงตรงกับป้ายของการเทรน"""
+        from app.risk import build_dataset
+        sc = next(s for s in self.S.RISK_SCENARIOS if s.key == self.S.EXPERIMENT_KEY)
+        df = build_dataset(*self.S.risk_bills(sc)).set_index("bill_id")
+        self.assertEqual(len(self.rows), self.S.EXPERIMENT_SIZE)
+        for r in self.rows:
+            want = df.loc[r["bill_id"]]
+            got = input_features({k: v for k, v in r.items() if k not in ("bill_id", "ref", "actual")})
+            self.assertEqual(r["actual"], int(want["label"]))
+            for k in ("late_count", "stall_type", "season", "n_prior"):
+                self.assertEqual(got[k], want[k], k)
+            for k in ("avg_days_late", "bill_ratio", "tenure_years", "early_days_avg", "seen_rate", "app_share"):
+                self.assertAlmostEqual(got[k], float(want[k]), delta=0.02, msg=k)
+        self.assertTrue(0 < sum(r["actual"] for r in self.rows) < len(self.rows), "ต้องมีทั้งจ่ายช้าและตรงเวลา")
+
+    def test_web_file_is_current(self):
+        """ไฟล์ในเว็บต้องตรงกับตัวสร้างข้อมูลเสมอ (ห้ามแก้มือ) · สร้างใหม่ด้วย python -m app.benchmark --experiment-js"""
+        path = Path(__file__).resolve().parents[2] / "web" / "src" / "ai" / "experimentSample.js"
+        if not path.exists():
+            self.skipTest("ไม่มีโฟลเดอร์ web (เช่นใน Docker image ของ ML)")
+        self.assertEqual(path.read_text(encoding="utf-8"), self.S.experiment_js(self.rows))

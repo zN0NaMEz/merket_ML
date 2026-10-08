@@ -350,3 +350,76 @@ def describe(sc) -> dict:
     d = asdict(sc)
     return {"key": d.pop("key"), "title": d.pop("title"), "description": d.pop("description"), "seed": d.pop("seed"),
             "expect": list(d.pop("expect")), "expect_metric": d.pop("expect_metric"), "hypothesis": d.pop("hypothesis"), "params": d}
+
+
+# ---------------- ไฟล์ทดลองของหน้า "ทำนายจากไฟล์" (web/src/ai/experimentSample.js) ----------------
+EXPERIMENT_KEY = "clear"       # ข้อมูลจำลองแบบความบังเอิญต่ำ ผลจ่ายช้าขึ้นกับปัจจัยชัด
+EXPERIMENT_SIZE = 200          # บิลล่าสุดของตลาดจำลอง (เลือกตามเวลา ไม่ได้ดูผลทาย)
+EXPERIMENT_COLS = ["ref", "stall_type", "due_month", "tenure_years", "n_prior", "late_count", "days_late_total", "bill_total",
+                   "prev_avg", "early_days_avg", "seen_count", "app_count", "actual"]
+
+
+def experiment_rows(key: str = EXPERIMENT_KEY, size: int = EXPERIMENT_SIZE) -> list[dict]:
+    """แถวในรูปแบบไฟล์อัปโหลดพร้อมผลจริง คิดจากบิลก่อนหน้าแบบเดียวกับ risk_features ทุกประการ
+    (ติดป้ายผลแบบ risk.build_dataset: จ่ายหลังครบกำหนด หรือยังไม่จ่ายและเลยกำหนด = จ่ายช้า)"""
+    from .features import days_late_as_of
+    sc = next(s for s in RISK_SCENARIOS if s.key == key)
+    by_vendor, today = risk_bills(sc)
+    rows = []
+    for bills in by_vendor.values():
+        for i in range(1, len(bills)):
+            b = bills[i]
+            if b["paid_date"] is not None:
+                actual = int(b["paid_date"] > b["due_date"])
+            elif today > b["due_date"]:
+                actual = 1
+            else:
+                continue
+            prior, asof = bills[:i], b["issue_date"]
+            last6, last3 = prior[-6:], prior[-3:]
+            late = [days_late_as_of(p, asof) for p in last6]
+            known = [p for p in last6 if p.get("paid_date") is not None and p["paid_date"] <= asof]
+            ontime = [p for p in known if p["paid_date"] <= p["due_date"]]
+            rows.append({
+                "_order": (b["period"], b["vendor_id"]), "bill_id": b["id"],
+                "stall_type": b["type_code"], "due_month": b["due_date"].month,
+                "tenure_years": round(min(max(0.0, (asof - b["since"]).days / 365), 15.0), 2),
+                "n_prior": len(last6), "late_count": sum(d > 0 for d in late), "days_late_total": int(sum(late)),
+                "bill_total": round(float(b["total"]), 2),
+                "prev_avg": round(float(np.mean([p["total"] for p in last3])), 2) if last3 else 0,
+                "early_days_avg": round(float(np.mean([(p["due_date"] - p["paid_date"]).days for p in ontime])), 2) if ontime else 0.0,
+                "seen_count": sum(p.get("seen_at") is not None and p["seen_at"] <= min(p["due_date"], asof) for p in last6),
+                "app_count": sum(p.get("channel") == "app" for p in known),
+                "actual": actual,
+            })
+    rows.sort(key=lambda r: r.pop("_order"))
+    rows = rows[-size:]
+    for i, r in enumerate(rows, start=1):
+        r["ref"] = f"ทดลอง {i:03d}"
+    return rows
+
+
+def _js_value(v) -> str:
+    if isinstance(v, str):
+        return "'" + v.replace("\\", "\\\\").replace("'", "\'") + "'"
+    if isinstance(v, float):
+        return ("%.2f" % v).rstrip("0").rstrip(".")
+    return str(int(v))
+
+
+def experiment_js(rows: list[dict], key: str = EXPERIMENT_KEY) -> str:
+    """เนื้อหาไฟล์ web/src/ai/experimentSample.js (เว็บใช้สร้างไฟล์ทดลองโดยไม่ต้องเรียกเซิร์ฟเวอร์)"""
+    sc = next(s for s in RISK_SCENARIOS if s.key == key)
+    late = sum(r["actual"] for r in rows)
+    body = ",\n".join("  [" + ", ".join(_js_value(r[c]) for c in EXPERIMENT_COLS) + "]" for r in rows)
+    return (
+        "/*\n"
+        " * ไฟล์ทดลองของหน้า \"ทำนายจากไฟล์\": ข้อมูลจำลองแบบความบังเอิญต่ำพร้อมผลจริง · สร้างอัตโนมัติ ห้ามแก้มือ\n"
+        f" * ที่มา: ml/app/synthetic.py ชุด \"{sc.key}\" (seed {sc.seed}) · {len(rows)} บิลล่าสุดของตลาดจำลอง (เลือกตามเวลา ไม่ได้ดูผลทาย)\n"
+        " * สร้างใหม่: cd ml && python -m app.benchmark --experiment-js ../web/src/ai/experimentSample.js\n"
+        " * ml/tests/test_models.py ตรวจว่าไฟล์นี้ตรงกับตัวสร้างข้อมูลเสมอ\n"
+        " */\n"
+        f"export const EXPERIMENT_META = {{ scenario: '{sc.key}', seed: {sc.seed}, rows: {len(rows)}, late: {late} }};\n"
+        f"/** ลำดับคอลัมน์: {', '.join(EXPERIMENT_COLS)} (actual: 1 = จ่ายช้า, 0 = ตรงเวลา) */\n"
+        "export const EXPERIMENT_ROWS = [\n" + body + ",\n];\n"
+    )

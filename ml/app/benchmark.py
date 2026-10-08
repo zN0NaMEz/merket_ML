@@ -12,6 +12,7 @@
   python -m app.benchmark                  พิมพ์ตารางผลวัด
   python -m app.benchmark --export DIR     เขียนข้อมูลจำลองทุกชุดเป็น CSV + datasets.json
   python -m app.benchmark --save           บันทึกผลลงฐานข้อมูล (ต้องตั้ง DATABASE_URL)
+  python -m app.benchmark --experiment-js ../web/src/ai/experimentSample.js   ไฟล์ทดลองของหน้า "ทำนายจากไฟล์"
 """
 from __future__ import annotations
 
@@ -334,7 +335,12 @@ if __name__ == "__main__":
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8")
     args = sys.argv[1:]
-    if "--export" in args:
+    if "--experiment-js" in args:
+        target = args[args.index("--experiment-js") + 1]
+        with open(target, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(S.experiment_js(S.experiment_rows()))
+        print("เขียน", target)
+    elif "--export" in args:
         target = args[args.index("--export") + 1]
         for p in export(target):
             print("เขียน", p)

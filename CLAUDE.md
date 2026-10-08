@@ -33,9 +33,12 @@
   bill's issue_date. bills.seen_at is recorded when a vendor opens GET /vendor/overview (migration v5). Old model sets
   without these columns keep working (risk._cols selects each pipeline's own columns) until the next retrain.
 - Demo data profiles (api/src/lib/simBehavior.js, settings.sim): realistic (default) or clear (logit × 3, low chance).
-  Chosen in the reset dialog (web/src/components/DemoReset.jsx ResetDialog, used by the owner page and by the staff AI page
-  panel web/src/pages/shared/DataProfile.jsx) or via reseed body { profile }. With clear, CLEAR_NOTE sits under every
-  accuracy block on the staff AI page (KPIs, model picker, predict-from-file evaluation).
+  Chosen in the owner reset dialog (web/src/components/DemoReset.jsx) or via reseed body { profile }. With clear,
+  CLEAR_NOTE (web/src/ai/predictFile.js) sits under every accuracy block on the staff AI page.
+- Trial file (staff AI page > ทำนายจากไฟล์ > "ไฟล์ทดลอง (มีผลจริง)"): 200 rows with real outcomes from the synthetic
+  "clear" scenario, every row annotated in the หมายเหตุ column (EXPERIMENT_NOTE); the evaluation shows EXPERIMENT_EVAL_NOTE.
+  web/src/ai/experimentSample.js is generated, never hand-edited: `cd ml && python -m app.benchmark --experiment-js
+  ../web/src/ai/experimentSample.js` (ml/tests checks it is current and that its features match the bills).
   Realistic accuracy is capped near 0.80 by the data (Bayes ceiling); only clear exceeds 0.90 — never fake it otherwise.
   Behaviors and sharpness must match ml/app/synthetic.py. ML stores metrics.sim_profile; every place that shows quality
   numbers must show the "ข้อมูลจำลอง · ความบังเอิญต่ำ" badge for clear (SynthBadge profile prop, staff AI status line).

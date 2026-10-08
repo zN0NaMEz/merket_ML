@@ -3,10 +3,10 @@ import { api } from '../../api';
 import { TH_M, baht, thDate } from '../../format';
 import { Chip, Empty, RISK_NAME, RISK_TONE, SecHead } from '../../ui';
 import { Meter } from '../../components/AiCharts';
-import { CLEAR_NOTE } from './DataProfile';
 import { STALL_TYPES, summarySentence } from '../../ai/featureLabels';
 import {
-  COLUMNS, MAX_ROWS, SAMPLE_NAME, bestModels, decodeBytes, evaluateFile, fileProblem, isCorrect, levelOf, payloadOf, readTable,
+  CLEAR_NOTE, COLUMNS, EXPERIMENT_EVAL_NOTE, EXPERIMENT_NAME, EXPERIMENT_NOTE, EXPERIMENT_SIZE, MAX_ROWS, SAMPLE_NAME,
+  bestModels, experimentCsv, isExperiment, decodeBytes, evaluateFile, fileProblem, isCorrect, levelOf, payloadOf, readTable,
   resultsCsv, sampleCsv, summarize,
 } from '../../ai/predictFile';
 
@@ -68,7 +68,12 @@ export default function PredictFromFile({ models, activeModel, high, mid, train,
   };
   const useSample = () => {
     setState({ step: 'idle' });
-    setFile({ name: SAMPLE_NAME, table: readTable(sampleCsv()), sample: true });
+    setFile({ name: SAMPLE_NAME, table: readTable(sampleCsv()), sample: 'template' });
+  };
+  // ไฟล์ทดลองพร้อมผลจริง: กดครั้งเดียวแล้วทำนายและวัดความแม่นได้เลย ไม่ต้องดาวน์โหลดหรือกรอกเอง
+  const useExperiment = () => {
+    setState({ step: 'idle' });
+    setFile({ name: EXPERIMENT_NAME, table: readTable(experimentCsv()), sample: 'experiment' });
   };
 
   const predict = async () => {
@@ -112,6 +117,13 @@ export default function PredictFromFile({ models, activeModel, high, mid, train,
                   ))}
                 </dl>
               </details>
+              <div className="pf-exp">
+                <p className="pf-exp__text">
+                  <b>อยากลองดูความแม่นของ AI?</b> ไฟล์ทดลองมี {EXPERIMENT_SIZE} บิลพร้อมผลจริง อัปโหลดแล้วส่วน &ldquo;ประเมินโมเดล&rdquo; วัดให้ทันที
+                </p>
+                <p className="pf-exp__note" role="note">คำกำกับ: {EXPERIMENT_NOTE} ตัวเลขที่ได้จึงสูงกว่าที่ตลาดจริงจะทำได้</p>
+                <button type="button" className="btn" onClick={() => download(EXPERIMENT_NAME, experimentCsv())}>ดาวน์โหลดไฟล์ทดลอง (มีผลจริง)</button>
+              </div>
             </div>
           </li>
           <li className="pf-step">
@@ -134,7 +146,10 @@ export default function PredictFromFile({ models, activeModel, high, mid, train,
                 </label>
                 <span className="pf-drop__or">หรือลากไฟล์มาวางที่นี่</span>
               </div>
-              <button type="button" className="btn ghost pf-try" onClick={useSample}>ยังไม่มีไฟล์? ลองกับไฟล์ตัวอย่างเลย</button>
+              <div className="pf-tries">
+                <button type="button" className="btn ghost pf-try" onClick={useSample}>ยังไม่มีไฟล์? ลองกับไฟล์ตัวอย่างเลย</button>
+                <button type="button" className="btn ghost pf-try" onClick={useExperiment}>ลองกับไฟล์ทดลอง (มีผลจริง)</button>
+              </div>
             </div>
           </li>
         </ol>
@@ -166,7 +181,10 @@ function FileCheck({ file, state, elapsed, onPredict, onReset }) {
   const busy = state.step === 'busy';
   return (
     <section className="panel pf-check" aria-labelledby="pf-check-title">
-      <h2 id="pf-check-title" className="pf-check__title">{file.sample ? 'ไฟล์ตัวอย่าง' : `ไฟล์ "${file.name}"`}</h2>
+      <h2 id="pf-check-title" className="pf-check__title">
+        {file.sample === 'template' ? 'ไฟล์ตัวอย่าง' : file.sample === 'experiment' ? 'ไฟล์ทดลอง (มีผลจริง)' : `ไฟล์ "${file.name}"`}
+      </h2>
+      {isExperiment(rows.map(r => r.value)) && <p className="ai-kpis__note pf-exp__flag" role="note">คำกำกับ: {EXPERIMENT_NOTE}</p>}
       <p className="pf-check__sum">
         อ่านได้ {total} แถว · <b>พร้อมทำนาย {rows.length} แถว</b>
         {invalid.length > 0 && <> · <span className="pf-bad">ต้องแก้ {invalid.length} แถว</span></>}
@@ -242,15 +260,19 @@ const trainCell = (t, key, fmt) => {
 function ModelEval({ out, model, models, avail, train, trainInfo }) {
   const evals = useMemo(() => Object.fromEntries(avail.map(k => [k, evaluateFile(out.results, k)])), [out, avail]);
   const best = useMemo(() => Object.fromEntries(EVAL_ROWS.map(([key]) => [key, bestModels(evals, key)])), [evals]);
+  const experiment = useMemo(() => isExperiment(out.results.map(r => r.input)), [out]);
   const e0 = evals[avail[0]] || { n: 0 };
   const labeled = e0.n;
   const cur = evals[model];
+  // ฐานเทียบของ Accuracy: ทายว่ากลุ่มที่มากกว่าทุกใบ (ถ้าบิลส่วนใหญ่ตรงเวลา ตอบว่าตรงเวลาหมดก็ได้ค่านี้)
+  const majority = labeled ? Math.max(e0.pos, e0.neg) / labeled : null;
   return (
     <section className="pf-eval" aria-labelledby="pf-eval-title">
       <h3 id="pf-eval-title" className="pf-eval__title">ประเมินโมเดล</h3>
       <p className="pf-eval__lead">
         {labeled
-          ? <>วัดกับ <b>{labeled} แถว</b>ในไฟล์ที่ใส่ผลจริงไว้ (จ่ายช้า {e0.pos} · ตรงเวลา {e0.neg}) เทียบกับผลตอนเทรน · ทายว่าจ่ายช้าเมื่อคะแนนตั้งแต่ 50%</>
+          ? <>วัดกับ <b>{labeled} แถว</b>ในไฟล์ที่ใส่ผลจริงไว้ (จ่ายช้า {e0.pos} · ตรงเวลา {e0.neg}) เทียบกับผลตอนเทรน · ทายว่าจ่ายช้าเมื่อคะแนนตั้งแต่ 50%
+            {' '}· เทียบ: ถ้าทายว่า{e0.pos > e0.neg ? 'จ่ายช้า' : 'ตรงเวลา'}ทุกใบจะถูก {pct(majority)}</>
           : <>ไฟล์นี้ยังไม่มีผลจริง จึงแสดงเฉพาะผลประเมินตอนเทรน · ใส่คอลัมน์ &ldquo;ผลจริง (ถ้ารู้)&rdquo; ว่าจ่ายช้าหรือตรงเวลา แล้วระบบจะวัดให้ว่า AI ทายแม่นแค่ไหนกับไฟล์นี้</>}
       </p>
       {labeled > 0 && labeled < 30 && (
@@ -259,6 +281,7 @@ function ModelEval({ out, model, models, avail, train, trainInfo }) {
       {labeled > 0 && (e0.pos === 0 || e0.neg === 0) && (
         <p className="banner warn pf-eval__note">ผลจริงมีแต่{e0.pos ? 'จ่ายช้า' : 'ตรงเวลา'} จึงคิด AUC ไม่ได้ ต้องมีทั้งสองแบบ</p>
       )}
+      {experiment && labeled > 0 && <p className="ai-kpis__note pf-eval__note" role="note">คำกำกับ: {EXPERIMENT_EVAL_NOTE}</p>}
       {trainInfo?.sim_profile === 'clear' && <p className="ai-kpis__note pf-eval__note" role="note">ค่า &ldquo;ตอนเทรน&rdquo;: {CLEAR_NOTE}</p>}
       {!train && <p className="banner info pf-eval__note">ยังไม่มีผลประเมินตอนเทรน (บริการ AI ไม่ตอบตอนเปิดหน้า) รีเฟรชหน้านี้เมื่อบริการพร้อม</p>}
 

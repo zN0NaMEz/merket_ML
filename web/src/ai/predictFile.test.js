@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { EXPERIMENT_META, EXPERIMENT_ROWS } from './experimentSample.js';
 import {
-  COLUMNS, EVAL_THRESHOLD, MAX_ROWS, aucOf, bestModels, evaluateFile, isCorrect, payloadOf, toActual, checkRow, decodeBytes, fileProblem, parseCsv, readTable, resultsCsv, sampleCsv, summarize, toMonth, toNumber,
+  COLUMNS, EVAL_THRESHOLD, EXPERIMENT_NOTE, experimentCsv, isExperiment, MAX_ROWS, aucOf, bestModels, evaluateFile, isCorrect, payloadOf, toActual, checkRow, decodeBytes, fileProblem, parseCsv, readTable, resultsCsv, sampleCsv, summarize, toMonth, toNumber,
 } from './predictFile.js';
 
 const HEAD = COLUMNS.map(c => c.th).join(',');
@@ -50,7 +51,7 @@ test('checkRow: แถวถูกต้องได้ค่าที่แป�
   const r = checkRow(good);
   assert.deepEqual(r.errors, []);
   assert.deepEqual(r.value, { ref: 'ก', stall_type: 'dry', due_month: 7, tenure_years: 2, n_prior: 6, late_count: 1, days_late_total: 3, bill_total: 3000, prev_avg: 2900,
-    early_days_avg: null, seen_count: null, app_count: null, actual: null });
+    early_days_avg: null, seen_count: null, app_count: null, actual: null, note: '' });
   assert.equal(checkRow({ ...good, stall_type: 'Clothes' }).value.stall_type, 'clothes');
   assert.equal(checkRow({ ...good, prev_avg: '' }).value.prev_avg, 0, 'ยอดก่อนหน้าเว้นว่างได้');
 });
@@ -182,4 +183,36 @@ test('resultsCsv: มีผลจริงแล้วเพิ่มคอล�
   assert.equal(head.at(-1), 'ทายถูก (LR เกณฑ์ 50%)');
   assert.equal(line.at(-1), 'ถูก');
   assert.equal(line[head.indexOf('ผลจริง (ถ้ารู้)')], 'จ่ายช้า');
+});
+
+
+test('ไฟล์ทดลอง: อ่านกลับได้ครบทุกแถว มีผลจริงทุกแถว และมีคำกำกับในหมายเหตุทุกแถว', () => {
+  const csv = experimentCsv();
+  assert.ok(csv.startsWith('﻿'));
+  const t = readTable(csv);
+  assert.equal(t.fatal, undefined);
+  assert.equal(t.invalid.length, 0, JSON.stringify(t.invalid.slice(0, 3)));
+  assert.equal(t.rows.length, EXPERIMENT_META.rows);
+  assert.ok(t.rows.length <= MAX_ROWS);
+  assert.ok(t.rows.every(r => r.value.actual === 0 || r.value.actual === 1));
+  assert.equal(t.rows.filter(r => r.value.actual === 1).length, EXPERIMENT_META.late);
+  assert.ok(t.rows.every(r => r.value.note === EXPERIMENT_NOTE));
+  assert.equal(isExperiment(t.rows.map(r => r.value)), true);
+  // ค่าในไฟล์ตรงกับข้อมูลต้นทาง (แถวแรก)
+  const [ref, type, month, tenure, nPrior, late, days, bill, prev] = EXPERIMENT_ROWS[0];
+  assert.deepEqual(
+    [t.rows[0].value.ref, t.rows[0].value.stall_type, t.rows[0].value.due_month, t.rows[0].value.tenure_years, t.rows[0].value.n_prior,
+      t.rows[0].value.late_count, t.rows[0].value.days_late_total, t.rows[0].value.bill_total, t.rows[0].value.prev_avg],
+    [ref, type, month, tenure, nPrior, late, days, bill, prev]);
+  // หมายเหตุและผลจริงไม่ถูกส่งไปให้ AI
+  const p = payloadOf(t.rows[0].value);
+  assert.equal('note' in p || 'actual' in p, false);
+});
+
+test('ไฟล์ตัวอย่างธรรมดาไม่ถูกนับเป็นไฟล์ทดลอง และหมายเหตุของผู้ใช้ไม่ทำให้ผิด', () => {
+  const t = readTable(sampleCsv());
+  assert.equal(isExperiment(t.rows.map(r => r.value)), false);
+  assert.ok(COLUMNS.some(c => c.key === 'note' && !c.required));
+  assert.equal(checkRow({ ...good, note: '  ร้านป้าแดง ' }).value.note, 'ร้านป้าแดง');
+  assert.equal(isExperiment([checkRow({ ...good, note: 'ร้านป้าแดง' }).value]), false);
 });

@@ -4,7 +4,7 @@ import { baht, periodLabel, thDate } from '../../format';
 import { Chip, Empty, Loader, PageHead, RISK_NAME, RISK_TONE, SecHead, useApp, useData } from '../../ui';
 import { FactorBars, Meter, MeterStrips, PayForecastChart, ScoreHistogram, UsageBandChart, isFlagged } from '../../components/AiCharts';
 import PredictFromFile from './PredictFromFile';
-import DataProfile, { CLEAR_NOTE } from './DataProfile';
+import { CLEAR_NOTE } from '../../ai/predictFile';
 import '../../styles/ai.css';
 
 /*
@@ -100,7 +100,6 @@ export default function AI() {
           right={<button className="btn" disabled={!!busy} onClick={retrain}>{busy === 'train' ? 'กำลังเทรน… ราว 10 วินาที' : 'เทรนโมเดลใหม่'}</button>}
         />
         <Status d={d} />
-        <DataProfile profile={d.risk.error ? null : d.risk.sim_profile} />
 
         <Tabs tab={tab} setTab={setTab} />
         <div role="tabpanel" id={`ai-panel-${tab}`} aria-labelledby={`ai-tab-${tab}`} className="ai-panel">
@@ -131,21 +130,18 @@ export default function AI() {
 /* ---------------- ส่วนประกอบร่วม ---------------- */
 
 function Status({ d }) {
-  const { info } = useApp();
   const r = d.risk, a = d.anomaly;
   if (r.error && a.error) return null;
-  // โหมดสาธิตมีแผง "ชุดข้อมูลที่ AI เรียน" บอกเรื่องนี้แล้ว (DataProfile) บรรทัดสถานะจึงบอกเฉพาะเมื่อไม่มีแผงนั้น
-  const plain = !info?.demo_mode;
   return (
     <p className="ai-status">
       {r.trained_at && <span>เทรนล่าสุด {thDate(r.trained_at.slice(0, 10))}</span>}
       {r.n_samples != null && <span>เรียนจากบิล {r.n_samples} ใบ</span>}
       {a.n_train != null && <span>ค่ามิเตอร์ {a.n_train} ค่า</span>}
       <span>โมเดลที่ใช้อยู่: {MODELS[d.ai.risk_model]?.plain || d.ai.risk_model}</span>
-      {plain && r.sim_profile === 'clear' && (
+      {r.sim_profile === 'clear' && (
         <span className="ai-status__synth"><b>ข้อมูลจำลองแบบความบังเอิญต่ำ</b> ตัวเลขความแม่นสูงเพราะข้อมูลชัด ไม่ใช่ภาพของตลาดจริง</span>
       )}
-      {plain && r.sim_profile === 'realistic' && <span>เรียนจากข้อมูลจำลองของระบบสาธิต</span>}
+      {r.sim_profile === 'realistic' && <span>เรียนจากข้อมูลจำลองของระบบสาธิต</span>}
     </p>
   );
 }
