@@ -73,10 +73,12 @@ test.describe('ทำนายจากไฟล์', () => {
     await panelChecks(page);
   });
 
-  test('ดาวน์โหลดไฟล์ตัวอย่าง → อัปโหลดกลับ → ทำนาย → สลับโมเดล → ดาวน์โหลดผล', async ({ page }) => {
+  test('ดาวน์โหลดไฟล์ทดลอง → อัปโหลดกลับ → ทำนาย → สลับโมเดล → ดาวน์โหลดผล', async ({ page }) => {
     await openTab(page);
-    const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'ดาวน์โหลดไฟล์ตัวอย่าง (.csv)' }).click()]);
-    expect(dl.suggestedFilename()).toBe('ตัวอย่างข้อมูลทำนายการจ่ายช้า.csv');
+    // ไฟล์ให้ดาวน์โหลดมีอันเดียว คือไฟล์ทดลองที่มีคำกำกับ
+    await expect(page.getByRole('button', { name: /ดาวน์โหลดไฟล์/ })).toHaveCount(1);
+    const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'ดาวน์โหลดไฟล์ทดลอง (มีผลจริง)' }).click()]);
+    expect(dl.suggestedFilename()).toBe('ไฟล์ทดลอง-ข้อมูลจำลองความบังเอิญต่ำ-มีผลจริง.csv');
     const path = await dl.path();
     const text = readFileSync(path!, 'utf8');
     expect(text.charCodeAt(0), 'มี BOM ให้ Excel อ่านภาษาไทยถูก').toBe(0xfeff);
@@ -84,14 +86,14 @@ test.describe('ทำนายจากไฟล์', () => {
 
     // ไฟล์ที่ดาวน์โหลดถูกเก็บด้วยชื่อสุ่ม (ไม่มี .csv) จึงอัปโหลดกลับด้วยชื่อที่เบราว์เซอร์เสนอ เหมือนผู้ใช้จริง
     await page.locator(`${PANEL} input[type=file]`).setInputFiles({ name: dl.suggestedFilename(), mimeType: 'text/csv', buffer: readFileSync(path!) });
-    await expect(page.locator('.pf-check__sum')).toContainText('พร้อมทำนาย 8 แถว');
-    await page.getByRole('button', { name: 'ให้ AI ทำนาย 8 แถว' }).click();
-    await expect(page.locator('#pf-res-title')).toHaveText('ผลการทำนาย 8 แถว', { timeout: 90_000 });
-    await expect(page.locator('.pf-live')).toContainText('ทำนายเสร็จแล้ว 8 แถว');
-    await expect(page.locator('.pf-card')).toHaveCount(8);
+    await expect(page.locator('.pf-check__sum')).toContainText('พร้อมทำนาย 200 แถว');
+    await page.getByRole('button', { name: 'ให้ AI ทำนาย 200 แถว' }).click();
+    await expect(page.locator('#pf-res-title')).toHaveText('ผลการทำนาย 200 แถว', { timeout: 90_000 });
+    await expect(page.locator('.pf-live')).toContainText('ทำนายเสร็จแล้ว 200 แถว');
+    await expect(page.locator('.pf-card')).toHaveCount(12);                    // แสดงทีละ 12 ใบ กดดูเพิ่มได้
     const counts = (await page.locator('.pf-filter label').allInnerTexts()).map(t => parseInt(t.replace(/\D+/g, ''), 10));
-    expect(counts[0]).toBe(8);
-    expect(counts.slice(1).reduce((s, n) => s + n, 0), 'ผลรวมสามระดับ = จำนวนแถว').toBe(8);
+    expect(counts[0]).toBe(200);
+    expect(counts.slice(1).reduce((s, n) => s + n, 0), 'ผลรวมสามระดับ = จำนวนแถว').toBe(200);
     // ทุกการ์ดมีประโยคสรุปและเหตุผล ไม่มีชื่อคอลัมน์ดิบ
     const body = await page.locator('.pf-res').innerText();
     for (const raw of ['late_count', 'bill_ratio', 'tenure_years', 'stall_type', 'undefined', 'NaN']) expect(body).not.toContain(raw);
@@ -110,13 +112,13 @@ test.describe('ทำนายจากไฟล์', () => {
     // กรองตามระดับ
     await page.locator('.pf-filter label').nth(1).click();
     const nHigh = parseInt((await page.locator('.pf-filter label').nth(1).innerText()).replace(/\D+/g, ''), 10) || 0;
-    if (nHigh) await expect(page.locator('.pf-card')).toHaveCount(nHigh);
+    if (nHigh) await expect(page.locator('.pf-card')).toHaveCount(Math.min(nHigh, 12));
     else await expect(page.locator('.pf-res .empty')).toBeVisible();
     await page.locator('.pf-filter label').first().click();
     // ดาวน์โหลดผล
     const [res] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'ดาวน์โหลดผล (.csv)' }).click()]);
     const out = readFileSync((await res.path())!, 'utf8');
-    expect(out.split(/\r?\n/).filter(Boolean)).toHaveLength(9);
+    expect(out.split(/\r?\n/).filter(Boolean)).toHaveLength(201);
     expect(out).toMatch(/คะแนน .+ \(%\)/);
     await page.screenshot({ path: 'test-results/predict-390.png', fullPage: true });
     await panelChecks(page);
@@ -164,8 +166,8 @@ test.describe('ทำนายจากไฟล์', () => {
       await new Promise(r => setTimeout(r, 6500));               // นานพอให้เห็นข้อความรอ
       return route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'ML service ไม่พร้อมใช้งาน' }) });
     });
-    await page.getByRole('button', { name: /ลองกับไฟล์ตัวอย่าง/ }).click();
-    await page.getByRole('button', { name: 'ให้ AI ทำนาย 8 แถว' }).click();
+    await page.getByRole('button', { name: /ลองกับไฟล์ทดลอง/ }).click();
+    await page.getByRole('button', { name: 'ให้ AI ทำนาย 200 แถว' }).click();
     await expect(page.getByRole('button', { name: 'AI กำลังทำนาย…' })).toBeDisabled();
     await expect(page.locator('.pf-live')).toContainText('อาจใช้เวลาราว 1 นาที', { timeout: 10_000 });
     await expect(page.locator('.pf-msg[role=alert]')).toContainText('บริการ AI ยังไม่พร้อมตอนนี้', { timeout: 15_000 });
@@ -173,15 +175,15 @@ test.describe('ทำนายจากไฟล์', () => {
     await panelChecks(page);
     mode = 'pass';
     await page.getByRole('button', { name: 'ลองอีกครั้ง' }).click();
-    await expect(page.locator('#pf-res-title')).toHaveText('ผลการทำนาย 8 แถว', { timeout: 90_000 });
+    await expect(page.locator('#pf-res-title')).toHaveText('ผลการทำนาย 200 แถว', { timeout: 90_000 });
   });
 
   test('ข้อผิดพลาดอื่นและเน็ตหลุด', async ({ page }) => {
     await openTab(page);
     await page.route('**/api/ai/predict', route => route.fulfill({ status: 409, contentType: 'application/json',
       body: JSON.stringify({ error: 'ML service: ยังไม่มีโมเดล gb ในชุดที่เทรนไว้' }) }));
-    await page.getByRole('button', { name: /ลองกับไฟล์ตัวอย่าง/ }).click();
-    await page.getByRole('button', { name: 'ให้ AI ทำนาย 8 แถว' }).click();
+    await page.getByRole('button', { name: /ลองกับไฟล์ทดลอง/ }).click();
+    await page.getByRole('button', { name: 'ให้ AI ทำนาย 200 แถว' }).click();
     await expect(page.locator('.pf-msg[role=alert]')).toContainText('ยังไม่มีโมเดลที่เทรนไว้');
     await expect(page.locator('.pf-msg[role=alert]')).toContainText('เทรนโมเดลใหม่');
     await page.unroute('**/api/ai/predict');
@@ -208,9 +210,9 @@ test.describe('ทำนายจากไฟล์', () => {
   test('จอกว้าง 1280: ภาพผลลัพธ์', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await openTab(page);
-    await page.getByRole('button', { name: /ลองกับไฟล์ตัวอย่าง/ }).click();
-    await page.getByRole('button', { name: 'ให้ AI ทำนาย 8 แถว' }).click();
-    await expect(page.locator('#pf-res-title')).toHaveText('ผลการทำนาย 8 แถว', { timeout: 90_000 });
+    await page.getByRole('button', { name: /ลองกับไฟล์ทดลอง/ }).click();
+    await page.getByRole('button', { name: 'ให้ AI ทำนาย 200 แถว' }).click();
+    await expect(page.locator('#pf-res-title')).toHaveText('ผลการทำนาย 200 แถว', { timeout: 90_000 });
     await page.screenshot({ path: 'test-results/predict-1280.png', fullPage: true });
   });
 });
@@ -221,8 +223,10 @@ test.describe('ประเมินโมเดลในผลทำนาย�
 
   test('ไม่มีผลจริง: แสดงผลตอนเทรนของทุกโมเดล และบอกวิธีวัดกับไฟล์', async ({ page }) => {
     await openTab(page);
-    await page.getByRole('button', { name: /ลองกับไฟล์ตัวอย่าง/ }).click();
-    await page.getByRole('button', { name: 'ให้ AI ทำนาย 8 แถว' }).click();
+    await page.locator(`${PANEL} input[type=file]`).setInputFiles({ name: 'ของฉัน.csv', mimeType: 'text/csv', buffer: csv([
+      HEAD, ['ก1', 'ของชำ', '7', '6', '6', '0', '0', '2950', '2900'], ['ก2', 'เสื้อผ้าและของใช้', '9', '2', '6', '4', '23', '2600', '2450'],
+    ]) });
+    await page.getByRole('button', { name: 'ให้ AI ทำนาย 2 แถว' }).click();
     const ev = page.locator('.pf-eval');
     await expect(ev).toContainText('ไฟล์นี้ยังไม่มีผลจริง', { timeout: 90_000 });
     const cards = ev.locator('.pf-ev');

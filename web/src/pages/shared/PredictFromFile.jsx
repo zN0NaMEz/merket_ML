@@ -5,9 +5,9 @@ import { Chip, Empty, RISK_NAME, RISK_TONE, SecHead } from '../../ui';
 import { Meter } from '../../components/AiCharts';
 import { STALL_TYPES, summarySentence } from '../../ai/featureLabels';
 import {
-  CLEAR_NOTE, COLUMNS, EXPERIMENT_EVAL_NOTE, EXPERIMENT_NAME, EXPERIMENT_NOTE, EXPERIMENT_SIZE, MAX_ROWS, SAMPLE_NAME,
+  CLEAR_NOTE, COLUMNS, EXPERIMENT_EVAL_NOTE, EXPERIMENT_NAME, EXPERIMENT_NOTE, EXPERIMENT_SIZE, MAX_ROWS,
   bestModels, experimentCsv, isExperiment, decodeBytes, evaluateFile, fileProblem, isCorrect, levelOf, payloadOf, readTable,
-  resultsCsv, sampleCsv, summarize,
+  resultsCsv, summarize,
 } from '../../ai/predictFile';
 
 /*
@@ -66,10 +66,6 @@ export default function PredictFromFile({ models, activeModel, high, mid, train,
       setFile({ name: f.name, fatal: 'อ่านไฟล์ไม่ได้ ลองบันทึกเป็น CSV UTF-8 อีกครั้ง' });
     }
   };
-  const useSample = () => {
-    setState({ step: 'idle' });
-    setFile({ name: SAMPLE_NAME, table: readTable(sampleCsv()), sample: 'template' });
-  };
   // ไฟล์ทดลองพร้อมผลจริง: กดครั้งเดียวแล้วทำนายและวัดความแม่นได้เลย ไม่ต้องดาวน์โหลดหรือกรอกเอง
   const useExperiment = () => {
     setState({ step: 'idle' });
@@ -101,22 +97,12 @@ export default function PredictFromFile({ models, activeModel, high, mid, train,
     <>
       <section className="panel pf">
         <SecHead title="ทำนายจากไฟล์ของคุณ"
-          sub="กรอกข้อมูลบิลที่อยากรู้ลงไฟล์ตัวอย่าง แล้วอัปโหลดให้ AI ทำนายว่ามีโอกาสจ่ายช้าแค่ไหน ใช้ได้ทั้งผู้ค้าในระบบและกรณีสมมติ" />
+          sub="กรอกข้อมูลบิลที่อยากรู้ลงไฟล์ (ใช้ไฟล์ทดลองเป็นแบบฟอร์มได้) แล้วอัปโหลดให้ AI ทำนายว่ามีโอกาสจ่ายช้าแค่ไหน ใช้ได้ทั้งผู้ค้าในระบบและกรณีสมมติ" />
         <ol className="pf-steps">
           <li className="pf-step">
             <span className="pf-step__no" aria-hidden="true">1</span>
             <div className="pf-step__body">
-              <strong>ดาวน์โหลดไฟล์ตัวอย่าง</strong>
-              <p>ไฟล์ CSV เปิดด้วย Excel หรือ Google Sheets ได้ มีตัวอย่างให้ดู 8 แถว ลบแล้วกรอกของจริงแทนได้เลย</p>
-              <button type="button" className="btn" onClick={() => download(SAMPLE_NAME, sampleCsv())}>ดาวน์โหลดไฟล์ตัวอย่าง (.csv)</button>
-              <details className="pf-cols">
-                <summary>ดูว่าแต่ละคอลัมน์ต้องกรอกอะไร</summary>
-                <dl>
-                  {COLUMNS.map(c => (
-                    <div key={c.key}><dt>{c.th}{c.required ? '' : ' (ไม่บังคับ)'}</dt><dd>{c.hint}</dd></div>
-                  ))}
-                </dl>
-              </details>
+              <strong>ดาวน์โหลดไฟล์ทดลอง</strong>
               <div className="pf-exp">
                 <p className="pf-exp__text">
                   <b>อยากลองดูความแม่นของ AI?</b> ไฟล์ทดลองมี {EXPERIMENT_SIZE} บิลพร้อมผลจริง อัปโหลดแล้วส่วน &ldquo;ประเมินโมเดล&rdquo; วัดให้ทันที
@@ -124,6 +110,14 @@ export default function PredictFromFile({ models, activeModel, high, mid, train,
                 <p className="pf-exp__note" role="note">คำกำกับ: {EXPERIMENT_NOTE} ตัวเลขที่ได้จึงสูงกว่าที่ตลาดจริงจะทำได้</p>
                 <button type="button" className="btn" onClick={() => download(EXPERIMENT_NAME, experimentCsv())}>ดาวน์โหลดไฟล์ทดลอง (มีผลจริง)</button>
               </div>
+              <details className="pf-cols">
+                <summary>ใช้เป็นแบบฟอร์ม: ดูว่าแต่ละคอลัมน์ต้องกรอกอะไร</summary>
+                <dl>
+                  {COLUMNS.map(c => (
+                    <div key={c.key}><dt>{c.th}{c.required ? '' : ' (ไม่บังคับ)'}</dt><dd>{c.hint}</dd></div>
+                  ))}
+                </dl>
+              </details>
             </div>
           </li>
           <li className="pf-step">
@@ -146,10 +140,7 @@ export default function PredictFromFile({ models, activeModel, high, mid, train,
                 </label>
                 <span className="pf-drop__or">หรือลากไฟล์มาวางที่นี่</span>
               </div>
-              <div className="pf-tries">
-                <button type="button" className="btn ghost pf-try" onClick={useSample}>ยังไม่มีไฟล์? ลองกับไฟล์ตัวอย่างเลย</button>
-                <button type="button" className="btn ghost pf-try" onClick={useExperiment}>ลองกับไฟล์ทดลอง (มีผลจริง)</button>
-              </div>
+              <button type="button" className="btn ghost pf-try" onClick={useExperiment}>ยังไม่มีไฟล์? ลองกับไฟล์ทดลอง (มีผลจริง)</button>
             </div>
           </li>
         </ol>
@@ -182,7 +173,7 @@ function FileCheck({ file, state, elapsed, onPredict, onReset }) {
   return (
     <section className="panel pf-check" aria-labelledby="pf-check-title">
       <h2 id="pf-check-title" className="pf-check__title">
-        {file.sample === 'template' ? 'ไฟล์ตัวอย่าง' : file.sample === 'experiment' ? 'ไฟล์ทดลอง (มีผลจริง)' : `ไฟล์ "${file.name}"`}
+        {file.sample === 'experiment' ? 'ไฟล์ทดลอง (มีผลจริง)' : `ไฟล์ "${file.name}"`}
       </h2>
       {isExperiment(rows.map(r => r.value)) && <p className="ai-kpis__note pf-exp__flag" role="note">คำกำกับ: {EXPERIMENT_NOTE}</p>}
       <p className="pf-check__sum">

@@ -2,22 +2,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { EXPERIMENT_META, EXPERIMENT_ROWS } from './experimentSample.js';
 import {
-  COLUMNS, EVAL_THRESHOLD, EXPERIMENT_NOTE, experimentCsv, isExperiment, MAX_ROWS, aucOf, bestModels, evaluateFile, isCorrect, payloadOf, toActual, checkRow, decodeBytes, fileProblem, parseCsv, readTable, resultsCsv, sampleCsv, summarize, toMonth, toNumber,
+  COLUMNS, EVAL_THRESHOLD, EXPERIMENT_NOTE, experimentCsv, isExperiment, MAX_ROWS, aucOf, bestModels, evaluateFile, isCorrect, payloadOf, toActual, checkRow, decodeBytes, fileProblem, parseCsv, readTable, resultsCsv, summarize, toMonth, toNumber,
 } from './predictFile.js';
 
 const HEAD = COLUMNS.map(c => c.th).join(',');
 const good = { ref: 'ก', stall_type: 'ของชำ', due_month: '7', tenure_years: '2', n_prior: '6', late_count: '1', days_late_total: '3', bill_total: '3000', prev_avg: '2900' };
-
-test('ไฟล์ตัวอย่างอ่านกลับได้ครบทุกแถวโดยไม่มีแถวผิด', () => {
-  const csv = sampleCsv();
-  assert.ok(csv.startsWith('﻿'), 'ต้องมี BOM ให้ Excel เปิดภาษาไทยได้');
-  const t = readTable(csv);
-  assert.equal(t.fatal, undefined);
-  assert.equal(t.invalid.length, 0, JSON.stringify(t.invalid));
-  assert.equal(t.rows.length, t.total);
-  assert.ok(t.rows.length >= 6);
-  assert.equal(t.rows[0].line, 2, 'เลขบรรทัดนับหัวตารางเป็นบรรทัด 1 เหมือน Excel');
-});
 
 test('parseCsv: ช่องในเครื่องหมายคำพูด, "" และขึ้นบรรทัดในช่อง', () => {
   assert.deepEqual(parseCsv('a,b\r\n"x, y","he said ""hi"""\n"line1\nline2",3\n\n'),
@@ -193,6 +182,7 @@ test('ไฟล์ทดลอง: อ่านกลับได้ครบท
   assert.equal(t.fatal, undefined);
   assert.equal(t.invalid.length, 0, JSON.stringify(t.invalid.slice(0, 3)));
   assert.equal(t.rows.length, EXPERIMENT_META.rows);
+  assert.equal(t.rows[0].line, 2, 'เลขบรรทัดนับหัวตารางเป็นบรรทัด 1 เหมือน Excel');
   assert.ok(t.rows.length <= MAX_ROWS);
   assert.ok(t.rows.every(r => r.value.actual === 0 || r.value.actual === 1));
   assert.equal(t.rows.filter(r => r.value.actual === 1).length, EXPERIMENT_META.late);
@@ -209,8 +199,9 @@ test('ไฟล์ทดลอง: อ่านกลับได้ครบท
   assert.equal('note' in p || 'actual' in p, false);
 });
 
-test('ไฟล์ตัวอย่างธรรมดาไม่ถูกนับเป็นไฟล์ทดลอง และหมายเหตุของผู้ใช้ไม่ทำให้ผิด', () => {
-  const t = readTable(sampleCsv());
+test('ไฟล์ของผู้ใช้ไม่ถูกนับเป็นไฟล์ทดลอง และหมายเหตุของผู้ใช้ไม่ทำให้ผิด', () => {
+  const t = readTable(`${COLUMNS.map(c => c.th).join(',')}\nก,ของชำ,7,2,6,1,3,3000,2900,,,,,\n`);
+  assert.equal(t.rows.length, 1);
   assert.equal(isExperiment(t.rows.map(r => r.value)), false);
   assert.ok(COLUMNS.some(c => c.key === 'note' && !c.required));
   assert.equal(checkRow({ ...good, note: '  ร้านป้าแดง ' }).value.note, 'ร้านป้าแดง');
